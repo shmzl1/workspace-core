@@ -8,16 +8,7 @@
       </div>
     </div>
 
-    <nav class="topbar__nav" aria-label="主导航">
-      <button
-        v-for="item in topNavItems"
-        :key="item"
-        class="topbar__nav-item"
-        :class="{ 'topbar__nav-item--active': item === '招聘看板' }"
-      >
-        {{ item }}
-      </button>
-    </nav>
+
 
     <div class="topbar__actions">
       <label class="topbar__search">
@@ -33,16 +24,11 @@
       <button class="icon-button" aria-label="主题切换">
         <span class="icon icon--theme"></span>
       </button>
-      <div class="topbar__user">
-        <span class="topbar__avatar">林</span>
-        <span>林雨晴</span>
-      </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { topNavItems } from '../mock/recruitmentDashboard';
 </script>
 
 <style scoped lang="scss">
