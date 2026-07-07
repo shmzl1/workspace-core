@@ -1,0 +1,146 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Inter:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-on-tertiary-fixed: #07006c;
+  --color-surface-tint: #0b46f9;
+  --color-tertiary-container: #4f51dc;
+  --color-primary: #0037d0;
+  --color-tertiary: #3535c4;
+  --color-inverse-on-surface: #eff1f3;
+  --color-on-tertiary-fixed-variant: #2f2ebe;
+  --color-on-secondary: #ffffff;
+  --color-secondary: #006c49;
+  --color-primary-container: #1b4dff;
+  --color-on-surface: #191c1e;
+  --color-on-secondary-container: #00714d;
+  --color-surface: #f7f9fb;
+  --color-error-container: #ffdad6;
+  --color-on-surface-variant: #434656;
+  --color-surface-container: #eceef0;
+  --color-surface-container-low: #f2f4f6;
+  --color-on-primary: #ffffff;
+  --color-on-error: #ffffff;
+  --color-on-tertiary-container: #e0dfff;
+  --color-on-secondary-fixed-variant: #005236;
+  --color-secondary-fixed-dim: #4edea3;
+  --color-primary-fixed-dim: #b9c3ff;
+  --color-on-secondary-fixed: #002113;
+  --color-inverse-primary: #b9c3ff;
+  --color-outline: #747688;
+  --color-primary-fixed: #dee1ff;
+  --color-surface-bright: #f7f9fb;
+  --color-surface-container-lowest: #ffffff;
+  --color-outline-variant: #c4c5d9;
+  --color-on-background: #191c1e;
+  --color-on-primary-fixed: #001258;
+  --color-surface-variant: #e0e3e5;
+  --color-on-primary-container: #dde0ff;
+  --color-surface-container-highest: #e0e3e5;
+  --color-background: #f7f9fb;
+  --color-error: #ba1a1a;
+  --color-tertiary-fixed: #e1e0ff;
+  --color-inverse-surface: #2d3133;
+  --color-surface-container-high: #e6e8ea;
+  --color-on-tertiary: #ffffff;
+  --color-on-primary-fixed-variant: #0032c3;
+  --color-secondary-fixed: #6ffbbe;
+  --color-surface-dim: #d8dadc;
+  --color-secondary-container: #6cf8bb;
+  --color-on-error-container: #93000a;
+  --color-tertiary-fixed-dim: #c0c1ff;
+
+  --spacing-base: 4px;
+  --spacing-sm: 0.5rem;
+  --spacing-container-max: 1440px;
+  --spacing-xl: 2.5rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xs: 0.25rem;
+  --spacing-md: 1rem;
+  --spacing-margin-mobile: 16px;
+  --spacing-margin-desktop: 32px;
+  --spacing-gutter: 24px;
+
+  --font-code-sm: "Geist", monospace;
+  --font-body-lg: "Noto Sans SC", "Inter", sans-serif;
+  --font-headline-lg: "Noto Sans SC", "Inter", sans-serif;
+  --font-headline-md: "Noto Sans SC", "Inter", sans-serif;
+  --font-headline-lg-mobile: "Noto Sans SC", "Inter", sans-serif;
+  --font-title-lg: "Noto Sans SC", "Inter", sans-serif;
+  --font-label-md: "Geist", sans-serif;
+  --font-body-md: "Noto Sans SC", "Inter", sans-serif;
+  --font-display: "Noto Sans SC", "Inter", sans-serif;
+
+  --text-code-sm: 13px;
+  --text-code-sm--line-height: 18px;
+  --text-code-sm--font-weight: 400;
+
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--font-weight: 400;
+
+  --text-headline-lg: 32px;
+  --text-headline-lg--line-height: 40px;
+  --text-headline-lg--font-weight: 600;
+  --text-headline-lg--letter-spacing: -0.01em;
+
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 32px;
+  --text-headline-md--font-weight: 600;
+
+  --text-headline-lg-mobile: 24px;
+  --text-headline-lg-mobile--line-height: 32px;
+  --text-headline-lg-mobile--font-weight: 600;
+
+  --text-title-lg: 20px;
+  --text-title-lg--line-height: 28px;
+  --text-title-lg--font-weight: 600;
+
+  --text-label-md: 12px;
+  --text-label-md--line-height: 16px;
+  --text-label-md--font-weight: 500;
+  --text-label-md--letter-spacing: 0.02em;
+
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-body-md--font-weight: 400;
+
+  --text-display: 48px;
+  --text-display--line-height: 56px;
+  --text-display--font-weight: 700;
+  --text-display--letter-spacing: -0.02em;
+}
+
+body {
+    background-color: var(--color-background);
+    color: var(--color-on-background);
+    font-family: var(--font-body-md);
+}
+
+.ai-glow {
+    box-shadow: 0 0 15px rgba(27, 77, 255, 0.1);
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--color-outline-variant);
+    box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.ai-gradient-border {
+    position: relative;
+    background: white;
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 0.5rem;
+}
+.ai-gradient-border::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    z-index: -1;
+    margin: -2px;
+    border-radius: inherit;
+    background: linear-gradient(45deg, #1B4DFF, #6cf8bb);
+}
