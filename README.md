@@ -6,6 +6,8 @@ TalentFlow 智聘中枢是面向招聘决策、员工服务、考勤薪资预审
 
 当前状态：开发中。功能、部署、测试与接口说明将随 Sprint 推进持续更新。
 
+数据库层当前已建立 SQLAlchemy ORM 模型、Alembic 配置和首次迁移文件 `0001_initial_schema`。该迁移尚未执行，仓库当前不包含种子数据或已验证的部署结果。
+
 ## 项目定位
 
 TalentFlow 通过一套 FastAPI 后端支撑 Vue Web 管理端、微信小程序员工端和 Gradio 内部调试台。系统围绕招聘决策、员工服务、考勤事实、薪资预审、权限审计和 Agent Trace 建设，强调可解释、可追溯和权限隔离。
@@ -97,11 +99,14 @@ flowchart LR
 │   ├── app/
 │   │   ├── api/
 │   │   ├── modules/
+│   │   │   └── */models.py
 │   │   ├── agents/
 │   │   ├── rag/
 │   │   ├── shared/
 │   │   ├── human_only/
 │   │   └── agent_console/
+│   ├── alembic/
+│   │   └── versions/
 │   └── tests/
 ├── frontend/
 ├── miniprogram/
@@ -133,3 +138,10 @@ npm run dev
 ```
 
 后端计划端口：`8000`。前端计划端口：`5173`。小程序局域网调试需使用笔记本局域网 IP，不使用 `localhost`。
+
+数据库迁移计划由团队成员在本地后端目录手动执行：
+
+```powershell
+cd "你的本地后端文件路径"
+alembic upgrade head
+```

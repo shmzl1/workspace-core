@@ -1,4 +1,28 @@
-﻿# TalentFlow 环境配置指南
+﻿```powershell
+conda activate talentflow
+```
+
+```powershell
+conda activate talentflow
+```
+
+```powershell
+conda activate talentflow
+```
+
+```powershell
+conda activate talentflow
+```
+
+```powershell
+conda activate talentflow
+```
+
+```powershell
+conda activate talent
+```
+
+# TalentFlow 环境配置指南
 
 > 本文用于团队成员在 Windows PowerShell 中完成 TalentFlow 的首次环境配置和日常开发启动。
 > 请将文中的路径占位符替换为自己电脑上的实际路径。
@@ -268,6 +292,19 @@ alembic upgrade head
 ```
 
 该命令会执行项目已有的 Alembic 迁移，使本地数据库表结构更新到当前最新版本。
+
+当前首次迁移文件为：
+
+```text
+backend\alembic\versions\0001_initial_schema.py
+```
+
+本次基线建设没有执行迁移。团队成员在本地数据库、依赖和环境确认完成后，再手动执行：
+
+```powershell
+cd "你的本地后端文件路径"
+alembic upgrade head
+```
 
 ---
 

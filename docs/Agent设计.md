@@ -31,3 +31,9 @@
 - Trace：保留薪资记录、权限判断、规则来源和输出摘要。
 - RAG 来源：涉及制度解释时返回制度来源。
 - 降级策略：无模型 Key 时展示规则计算过程和人工审查提示。
+## 数据访问边界
+
+- Agent 不直接访问 SQLAlchemy Session、ORM Model 或数据库连接。
+- Agent 任务遵循 `Agent -> Tool -> Service -> Repository / human_only`。
+- 制度问答遵循 `Agent/Tool -> RAG -> ChromaDB -> LLM -> 带来源回答`。
+- 候选人评分、面试排期和薪资权限只能通过 Service 调用禁飞区公开函数，不能绕过禁飞区边界。

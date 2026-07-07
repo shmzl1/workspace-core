@@ -69,3 +69,12 @@ flowchart TB
 ## Gradio 定位
 
 Gradio 仅用于内部 Agent 调试，查看 LangGraph 执行链、工具调用、RAG 命中、错误信息和 Trace。
+
+## 数据库模型基线
+
+- SQLAlchemy 基线入口：`backend/app/core/database.py`。
+- 模型注册入口：`backend/app/modules/model_registry.py`。
+- 业务模型位置：`backend/app/modules/*/models.py`。
+- 首次迁移：`backend/alembic/versions/0001_initial_schema.py`，迁移编号 `0001_initial_schema`。
+- 当前迁移只建立表结构、外键、唯一约束、检查约束和索引，不写入种子数据。
+- 本次未执行 `alembic upgrade head`，实际数据库升级由人工在本地环境确认后执行。
