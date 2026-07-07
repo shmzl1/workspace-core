@@ -28,12 +28,12 @@
 </template>
 
 <script setup lang="ts">
-import KpiCard from '../../components/base/KpiCard.vue';
+import KpiCard from '../../../shared/components/base/KpiCard.vue';
 import AgentTraceCard from './AgentTraceCard.vue';
 import HiringIntensityMatrix from './HiringIntensityMatrix.vue';
 import ScreeningPipelineBoard from './ScreeningPipelineBoard.vue';
 import WeeklyScheduleCard from './WeeklyScheduleCard.vue';
-import { kpiItems } from '../../mock/recruitmentDashboard';
+import { kpiItems } from '../../../mock/recruitmentDashboard';
 
 defineProps<{
   pageTitle: string;

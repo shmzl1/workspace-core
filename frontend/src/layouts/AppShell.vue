@@ -19,8 +19,8 @@ import { ref } from 'vue';
 import AppTopbar from './AppTopbar.vue';
 import AppSidebar from './AppSidebar.vue';
 import GlobalAgentBar from './GlobalAgentBar.vue';
-import ToastMessage from '../components/base/ToastMessage.vue';
-import RecruitmentDashboardPage from '../features/recruitment-dashboard/RecruitmentDashboardPage.vue';
+import ToastMessage from '../shared/components/base/ToastMessage.vue';
+import RecruitmentDashboardPage from '../features/recruitment/dashboard/RecruitmentDashboardPage.vue';
 import { initialTraceLogs } from '../mock/recruitmentDashboard';
 
 const activeItem = ref('智能招聘看板');

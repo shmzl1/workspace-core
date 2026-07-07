@@ -13,6 +13,9 @@ venv/
 node_modules/
 dist/
 build/
+data/runtime/uploads/
+data/runtime/reports/
+data/runtime/chroma/
 
 # IDE
 .idea/

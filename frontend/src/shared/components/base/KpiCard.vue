@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import type { KpiItem } from '../../mock/recruitmentDashboard';
+import type { KpiItem } from '../../../mock/recruitmentDashboard';
 
 defineProps<{
   item: KpiItem;
