@@ -1,7 +1,7 @@
 <template>
   <aside class="sidebar">
     <div class="sidebar__groups">
-      <section v-for="group in sidebarGroups" :key="group.title" class="sidebar__group">
+      <section v-for="group in currentGroups" :key="group.title" class="sidebar__group">
         <h2>{{ group.title }}</h2>
         <button
           v-for="item in group.items"
@@ -17,12 +17,12 @@
     </div>
 
     <div class="sidebar__profile">
-      <span class="sidebar__avatar">林</span>
+      <span class="sidebar__avatar">{{ role === 'hr' ? '林' : '张' }}</span>
       <div>
-        <strong>林雨晴</strong>
-        <small>HR 专员</small>
+        <strong>{{ role === 'hr' ? '林雨晴' : '张伟' }}</strong>
+        <small>{{ role === 'hr' ? 'HR 专员' : '高级工程师' }}</small>
       </div>
-      <button aria-label="切换角色" class="sidebar__switch">
+      <button aria-label="切换角色" class="sidebar__switch" @click="$emit('toggleRole')">
         <span></span>
       </button>
     </div>
@@ -30,15 +30,48 @@
 </template>
 
 <script setup lang="ts">
-import { sidebarGroups } from '../mock/recruitmentDashboard';
+import { computed } from 'vue';
+import type { Role } from '../types';
 
-defineProps<{
+const props = defineProps<{
   activeItem: string;
+  role: Role;
 }>();
 
 defineEmits<{
   select: [item: string];
+  toggleRole: [];
 }>();
+
+const currentGroups = computed(() => {
+  if (props.role === 'hr') {
+    return [
+      {
+        title: '工作台',
+        items: ['智能招聘看板', '候选人池', '面试日历', '招聘报告']
+      },
+      {
+        title: 'AI Agent',
+        items: ['智能筛选', '面试助手', '制度问答']
+      },
+      {
+        title: '管理',
+        items: ['权限审计', '系统设置']
+      }
+    ];
+  } else {
+    return [
+      {
+        title: '个人工作台',
+        items: ['首页', '考勤签到', '假期查询', '薪资明细']
+      },
+      {
+        title: '自助服务',
+        items: ['政策中心', 'AI 助手']
+      }
+    ];
+  }
+});
 </script>
 
 <style scoped lang="scss">
