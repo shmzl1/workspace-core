@@ -6,6 +6,8 @@ TalentFlow 智聘中枢是面向招聘决策、员工服务、考勤薪资预审
 
 当前状态：开发中。功能、部署、测试与接口说明将随 Sprint 推进持续更新。
 
+数据库层当前已建立 SQLAlchemy ORM 模型、Alembic 配置和首次迁移文件 `0001_initial_schema`。该迁移尚未执行，仓库当前不包含种子数据或已验证的部署结果。
+
 ## 项目定位
 
 TalentFlow 通过一套 FastAPI 后端支撑 Vue Web 管理端、微信小程序员工端和 Gradio 内部调试台。系统围绕招聘决策、员工服务、考勤事实、薪资预审、权限审计和 Agent Trace 建设，强调可解释、可追溯和权限隔离。
@@ -97,11 +99,14 @@ flowchart LR
 │   ├── app/
 │   │   ├── api/
 │   │   ├── modules/
+│   │   │   └── */models.py
 │   │   ├── agents/
 │   │   ├── rag/
 │   │   ├── shared/
 │   │   ├── human_only/
 │   │   └── agent_console/
+│   ├── alembic/
+│   │   └── versions/
 │   └── tests/
 ├── frontend/
 ├── miniprogram/
@@ -132,29 +137,11 @@ npm install
 npm run dev
 ```
 
-<<<<<<< HEAD
-预期访问方式：
-
-- 通过浏览器访问正式 Vue 工作台。
-- 通过 FastAPI `/docs` 查看接口文档。
-- 通过内部 Gradio 页面调试 Agent 流程、工具调用和 RAG 检索结果。
-
-## 团队协作
-
-- 项目由 4 人协作完成。
-- 采用 Scrum Sprint 推进需求拆分、开发、评审和验收。
-- 每位成员负责明确模块，减少职责重叠和交付遗漏。
-- PO、SM、QA 角色按团队创建报告确定。
-- 核心算法负责人需独立完成并能解释对应 AI 禁飞区代码。
-
-## 当前状态
-
-- 当前状态：开发中。
-- 项目处于初始化与 Sprint 1 规划阶段。
-- 当前优先事项是完成工程脚手架、数据模型、接口契约、演示数据与三个禁飞区的设计。
-- 功能与部署说明将随 Sprint 推进更新。
-- README 会随开发进度持续更新。
->>>>>>> 2f6edfb08c8594d3044639dc75bfc1e617347faa
-=======
 后端计划端口：`8000`。前端计划端口：`5173`。小程序局域网调试需使用笔记本局域网 IP，不使用 `localhost`。
->>>>>>> a42c32e758227f370de1e0076aad466524421660
+
+数据库迁移计划由团队成员在本地后端目录手动执行：
+
+```powershell
+cd "你的本地后端文件路径"
+alembic upgrade head
+```
