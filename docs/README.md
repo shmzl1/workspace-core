@@ -15,3 +15,10 @@
 | `小程序接入说明.md` | 说明小程序员工端接入边界 | 小程序范围变化时 | 前端负责人 |
 | `演示脚本.md` | 说明 7-8 分钟演示顺序 | 演示路径变化时 | PO / QA |
 | `计划.md` | 说明三 Sprint 计划、分工和验收主线 | Sprint 计划变化时 | PO / SM |
+
+## 当前数据库基线
+
+- ORM 模型已按模块放入 `backend/app/modules/*/models.py`。
+- Alembic 首次迁移文件为 `backend/alembic/versions/0001_initial_schema.py`。
+- 迁移编号为 `0001_initial_schema`。
+- 当前尚未执行数据库升级，后续由团队成员在本地环境中手动运行 Alembic。
