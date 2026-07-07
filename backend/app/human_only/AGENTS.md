@@ -25,10 +25,10 @@
 
 ## 允许的调用边界
 
-普通工程代码只能通过既有公开函数调用：
+普通工程代码只能通过 Service 层既有公开函数调用：
 
 - `score_candidates(...)`
 - `generate_schedule(...)`
 - `check_salary_access(...)`
 
-调用链必须是 `Agent -> Tool -> Service -> human_only` 或 `API -> Service -> human_only`。
+Agent 调用链必须是 `Agent -> Tool -> Service -> human_only`。Route 不得直接调用本目录文件。

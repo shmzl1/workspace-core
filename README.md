@@ -4,7 +4,7 @@ TalentFlow 智聘中枢是面向招聘决策、员工服务、考勤薪资预审
 
 ## 当前状态
 
-当前状态：开发中。功能、部署、测试与接口说明将随 Sprint 推进持续更新。本文不声明系统已经上线、部署或全部完成。
+当前状态：开发中。功能、部署、测试与接口说明将随 Sprint 推进持续更新。
 
 ## 项目定位
 
@@ -40,7 +40,10 @@ TalentFlow 通过一套 FastAPI 后端支撑 Vue Web 管理端、微信小程序
 - `backend/tests/human_only/test_interview_scheduler.py`
 - `backend/tests/human_only/test_salary_access_control.py`
 
-工程调用链必须遵循 `Agent -> Tool -> Service -> human_only` 或 `API -> Service -> human_only`。
+工程调用链必须分离：
+
+- 普通请求：`API -> Service -> Repository -> PostgreSQL`。
+- Agent 任务：`Agent -> Tool -> Service -> human_only`。
 
 ## 技术栈
 
@@ -113,6 +116,7 @@ flowchart LR
 - 禁止直接向 `main` 提交。
 - Commit 类型使用 `feat`、`fix`、`docs`、`refactor`。
 - 修改架构、需求、接口、数据模型、权限或薪资规则时同步更新 docs 与 `.agent`。
+- 遵守根目录与各子目录分层 `AGENTS.md` 约束。
 - 不提交真实 `.env`、真实密钥、真实企业数据和本地运行产物。
 
 ## 计划运行方式

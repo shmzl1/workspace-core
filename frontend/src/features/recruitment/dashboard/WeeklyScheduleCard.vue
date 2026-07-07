@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { weeklySchedule } from '../../mock/recruitmentDashboard';
+import { weeklySchedule } from '../../../mock/recruitmentDashboard';
 </script>
 
 <style scoped lang="scss">

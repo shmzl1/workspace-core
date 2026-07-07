@@ -38,6 +38,7 @@ Agent -> Tool -> Service -> human_only
 ```
 
 禁止 Agent、Tool、前端或小程序直接调用禁飞区内部实现。
+禁止复制、模拟、绕过禁飞区算法；Route 不得直接调用 `human_only`。
 
 ## 人工负责人需要解释的内容
 

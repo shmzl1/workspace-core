@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { pipelineStages } from '../../mock/recruitmentDashboard';
+import { pipelineStages } from '../../../mock/recruitmentDashboard';
 </script>
 
 <style scoped lang="scss">

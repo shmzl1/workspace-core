@@ -1,0 +1,10 @@
+{
+  "description": "TalentFlow employee mini program skeleton",
+  "setting": {
+    "urlCheck": false,
+    "es6": true
+  },
+  "appid": "touristappid",
+  "projectname": "talentflow-miniprogram",
+  "miniprogramRoot": "./"
+}

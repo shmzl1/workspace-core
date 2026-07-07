@@ -14,10 +14,20 @@
 
 ## 固定状态
 
-- 草稿
-- 已生成预审
-- 待 HR 确认
-- 已确认
+草稿
+-> 已生成预审
+-> 待 HR 确认
+-> 已确认
+
+## 服务职责
+
+- 只有 `confirmation_service` 可以改为“已确认”。
+- `calculation_service` 只生成预览。
+- 所有薪资读取先经 `access_service`。
+- `access_service` 是 `salary_access_control.py` 的唯一入口。
+- 每项扣款记录考勤来源、规则依据和计算过程。
+- 预审、确认、拒绝、敏感查询都写审计。
+- 不做银行发薪、税务、社保、公积金。
 
 ## 禁止事项
 

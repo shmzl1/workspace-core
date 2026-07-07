@@ -6,6 +6,7 @@
 - 项目采用一套 FastAPI 后端，Vue Web 管理端、微信小程序员工端和 Gradio 内部调试台共享同一套后端与业务 Service。
 - 后端保持模块化单体，不采用微服务，不新增第二套后端。
 - Gradio 仅用于内部 Agent 调试，不作为正式业务入口。
+- 不引入 Redis、Celery、RabbitMQ、Kubernetes 或第二套后端。
 
 ## 分层调用
 
@@ -44,5 +45,5 @@ AI 不得创建、修改、移动、删除、格式化或补全以下文件：
 ## 文档同步
 
 - 架构变化同步更新 `.agent/architecture.md` 和 `docs/架构设计.md`。
-- 规则、权限、薪资预审、考勤边界变化同步更新相关 docs。
+- 接口、表结构、规则、权限、薪资预审、考勤边界、小程序范围变化同步更新相关 docs。
 - 技术决策变化同步更新 `.agent/decisions.md`。
