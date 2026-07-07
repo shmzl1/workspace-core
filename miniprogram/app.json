@@ -1,0 +1,14 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/attendance/index",
+    "pages/leave/index",
+    "pages/salary/index",
+    "pages/policy/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "TalentFlow",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black"
+  }
+}
