@@ -1,7 +1,64 @@
-"""Employee salary query service boundary."""
+from datetime import date
+from sqlalchemy.orm import Session
+from app.modules.payroll.models import SalaryRecord
+from app.modules.payroll.services.access_service import PayrollAccessService
+from app.core.exceptions import TalentFlowError
 
 
 class EmployeeSalaryService:
-    """Placeholder for employee-authorized salary summary queries."""
+    def __init__(self, db: Session) -> None:
+        self.db = db
+        self.access_service = PayrollAccessService(db)
 
-    pass
+    def get_employee_salary(
+        self,
+        actor_user_id: int,
+        actor_role: str,
+        actor_employee_id: int | None,
+        target_employee_id: int,
+        ip_address: str | None = None,
+        user_agent: str | None = None
+    ) -> dict:
+        """
+        Retrieve salary info for an employee, verifying access and applying field-level masking.
+        """
+        # 1. Verify access and get accessible fields list
+        accessible_fields = self.access_service.verify_and_log_access(
+            actor_user_id=actor_user_id,
+            actor_role=actor_role,
+            actor_employee_id=actor_employee_id,
+            target_employee_id=target_employee_id,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+
+        # 2. Query the active salary record
+        today = date.today()
+        record = self.db.query(SalaryRecord).filter(
+            SalaryRecord.employee_id == target_employee_id,
+            SalaryRecord.effective_from <= today
+        ).filter(
+            (SalaryRecord.effective_to == None) | (SalaryRecord.effective_to >= today)
+        ).order_by(SalaryRecord.effective_from.desc()).first()
+
+        # If no active salary record found, fall back to any salary record
+        if not record:
+            record = self.db.query(SalaryRecord).filter(
+                SalaryRecord.employee_id == target_employee_id
+            ).order_by(SalaryRecord.effective_from.desc()).first()
+
+        if not record:
+            raise TalentFlowError("SALARY_RECORD_NOT_FOUND", "未找到该员工的薪资记录")
+
+        # 3. Apply masking based on accessible fields
+        data = {}
+        data["id"] = record.id
+        data["employee_id"] = record.employee_id
+        
+        # Mask each field if not allowed
+        data["base_salary"] = record.base_salary if "base_salary" in accessible_fields else None
+        data["currency"] = record.currency if "currency" in accessible_fields else None
+        data["effective_from"] = record.effective_from if "effective_from" in accessible_fields else None
+        data["effective_to"] = record.effective_to if "effective_to" in accessible_fields else None
+
+        return data

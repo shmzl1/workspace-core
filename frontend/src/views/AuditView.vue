@@ -18,7 +18,7 @@
             <circle cx="64" cy="64" r="54" stroke="var(--color-primary)" stroke-dasharray="339.3" stroke-dashoffset="20.3" stroke-width="8" fill="transparent" stroke-linecap="round" class="transition-all duration-1000" />
           </svg>
           <div class="text-center">
-            <span class="font-display text-4xl font-extrabold text-on-surface leading-none">94</span>
+            <span class="font-display text-4xl font-extrabold text-on-surface leading-none">{{合规评分}}</span>
             <span class="text-xs text-outline block mt-0.5">/ 100</span>
           </div>
         </div>
@@ -38,19 +38,22 @@
             <div>
               <h3 class="font-title-lg text-title-lg text-on-background mb-1 flex items-center gap-2">
                 AI 权限风险分析
-                <span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider animate-pulse">1 项预警</span>
+                <span v-if="deniedLogsCount > 0" class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider animate-pulse">检测到越权预警</span>
+                <span v-else class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">无越权警告</span>
               </h3>
               <p class="font-body-md text-body-md text-on-surface-variant leading-relaxed mt-1">
-                上周研发部员工（非HR账号）尝试读取 `薪资字典` API 的调用频次异常上升。AI 评估这可能是由于研发端联调接口时的权限配置漏洞导致。建议检查接口鉴权策略，及时回撤不合规调用凭据。
+                <span v-if="deniedLogsCount > 0">
+                  发现普通员工角色尝试越权读取他人 `薪资明细` 接口的拦截记录。此类违规请求已被系统拦截。请检查是否为调试接口时的不合规操作。
+                </span>
+                <span v-else>
+                  近 24 小时内未发现异常权限越权行为，所有薪资明细及核心接口调用均通过 `salary_access_control` 权限网关合法进行。系统合规状态优良。
+                </span>
               </p>
             </div>
           </div>
           <div class="flex gap-3 mt-4">
             <button class="px-4 py-2 bg-primary text-on-primary rounded-lg font-medium hover:bg-primary/95 text-xs transition-all shadow-sm">
-              一键加固接口
-            </button>
-            <button class="px-4 py-2 bg-surface-container-low text-on-surface-variant border border-outline-variant/50 rounded-lg hover:bg-surface-container font-medium text-xs transition-all">
-              忽略此警告
+              一键安全加固
             </button>
           </div>
         </div>
@@ -60,16 +63,16 @@
     <!-- Metrics Row -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <div class="bg-white rounded-xl border border-outline-variant/30 p-5 shadow-sm">
-        <p class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-1">监控权限项</p>
-        <h3 class="font-display text-[28px] font-bold text-on-surface">48 <span class="text-xs text-outline font-normal">个模块权限</span></h3>
+        <p class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-1">合规控制项</p>
+        <h3 class="font-display text-[28px] font-bold text-on-surface">4 <span class="text-xs text-outline font-normal">个分层权限角色</span></h3>
       </div>
       <div class="bg-white rounded-xl border border-outline-variant/30 p-5 shadow-sm">
-        <p class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-1">敏感资源访问 (24h)</p>
-        <h3 class="font-display text-[28px] font-bold text-on-surface">1,245 <span class="text-xs text-emerald-600 font-semibold ml-2">+12%</span></h3>
+        <p class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-1">敏感资源审计事件</p>
+        <h3 class="font-display text-[28px] font-bold text-on-surface">{{ totalLogsCount }} <span class="text-xs text-outline font-normal">条审计记录</span></h3>
       </div>
       <div class="bg-white rounded-xl border border-outline-variant/30 p-5 shadow-sm">
-        <p class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-1">异常审计事件</p>
-        <h3 class="font-display text-[28px] font-bold text-error">1 <span class="text-xs text-error/80 font-normal ml-2">待处理</span></h3>
+        <p class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-1">越权拦截事件</p>
+        <h3 class="font-display text-[28px] font-bold text-error">{{ deniedLogsCount }} <span class="text-xs text-error/80 font-normal ml-2">次拦截</span></h3>
       </div>
     </div>
 
@@ -78,9 +81,11 @@
       <div class="flex justify-between items-center mb-6">
         <h3 class="font-headline-md text-headline-md text-on-background font-semibold">敏感权限操作日志</h3>
         <div class="flex gap-2">
-          <input class="px-3 py-1.5 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:border-primary w-48" placeholder="搜索用户或操作..." type="text"/>
-          <button class="px-3 py-1.5 bg-surface-container-low border border-outline-variant text-on-surface-variant rounded-lg font-medium text-xs hover:bg-surface-container-medium transition-colors flex items-center gap-1">
-            <span class="material-symbols-outlined text-[14px]">filter_alt</span> 筛选
+          <button 
+            @click="fetchAuditLogs"
+            class="px-3 py-1.5 bg-surface-container-low border border-outline-variant text-primary rounded-lg font-medium text-xs hover:bg-surface-container transition-colors flex items-center gap-1"
+          >
+            <span class="material-symbols-outlined text-[14px]">refresh</span> 刷新日志
           </button>
         </div>
       </div>
@@ -91,79 +96,43 @@
             <tr class="border-b border-outline-variant/30 text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
               <th class="pb-3 pl-2">操作用户</th>
               <th class="pb-3">部门与角色</th>
-              <th class="pb-3">请求资源</th>
-              <th class="pb-3">动作</th>
+              <th class="pb-3">动作 & 资源</th>
+              <th class="pb-3">请求字段</th>
               <th class="pb-3">时间</th>
-              <th class="pb-3">网络 IP</th>
+              <th class="pb-3">操作 IP</th>
               <th class="pb-3 text-right pr-2">审计状态</th>
             </tr>
           </thead>
           <tbody class="text-xs divide-y divide-outline-variant/20 text-on-surface">
-            <!-- Row 1 -->
-            <tr class="hover:bg-surface-container-lowest transition-colors">
+            <tr v-for="log in auditLogs" :key="log.id" class="hover:bg-surface-container-lowest transition-colors">
               <td class="py-3.5 pl-2 font-medium flex items-center gap-2">
-                <span class="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[11px]">林</span>
-                林雨晴
+                <span class="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[11px]">
+                  {{ getActorName(log.actor_user_id)[0] }}
+                </span>
+                {{ getActorName(log.actor_user_id) }}
               </td>
-              <td class="py-3.5 text-on-surface-variant">招聘部 • HR专员</td>
-              <td class="py-3.5 font-mono text-outline">/api/v1/salary/access_control</td>
-              <td class="py-3.5"><span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-medium">读取</span></td>
-              <td class="py-3.5 text-outline">3 分钟前</td>
-              <td class="py-3.5 font-mono text-outline">192.168.1.102</td>
-              <td class="py-3.5 text-right pr-2">
-                <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 已授权
+              <td class="py-3.5 text-on-surface-variant">
+                {{ getRoleDisplay(log.actor_role) }}
+              </td>
+              <td class="py-3.5">
+                <span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded font-mono text-[10px]">
+                  {{ log.action }} [{{ log.resource_type }} #{{ log.resource_id || '' }}]
                 </span>
               </td>
-            </tr>
-            <!-- Row 2 -->
-            <tr class="hover:bg-surface-container-lowest transition-colors">
-              <td class="py-3.5 pl-2 font-medium flex items-center gap-2">
-                <span class="w-7 h-7 rounded-full bg-secondary/10 text-secondary flex items-center justify-center font-bold text-[11px]">张</span>
-                张伟
+              <td class="py-3.5 text-outline max-w-[150px] truncate">
+                {{ log.requested_fields.join(', ') }}
               </td>
-              <td class="py-3.5 text-on-surface-variant">研发部 • 高级工程师</td>
-              <td class="py-3.5 font-mono text-outline">/api/v1/salary/access_control</td>
-              <td class="py-3.5"><span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-medium">读取</span></td>
-              <td class="py-3.5 text-outline">1 小时前</td>
-              <td class="py-3.5 font-mono text-outline">10.0.4.15</td>
+              <td class="py-3.5 text-outline">
+                {{ formatTimestamp(log.created_at) }}
+              </td>
+              <td class="py-3.5 font-mono text-outline">
+                {{ log.ip_address || '127.0.0.1' }}
+              </td>
               <td class="py-3.5 text-right pr-2">
-                <span class="inline-flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full font-semibold">
-                  <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> 已拦截 (AI)
-                </span>
-              </td>
-            </tr>
-            <!-- Row 3 -->
-            <tr class="hover:bg-surface-container-lowest transition-colors">
-              <td class="py-3.5 pl-2 font-medium flex items-center gap-2">
-                <span class="w-7 h-7 rounded-full bg-tertiary/10 text-tertiary flex items-center justify-center font-bold text-[11px]">李</span>
-                李明
-              </td>
-              <td class="py-3.5 text-on-surface-variant">研发部 • 研发经理</td>
-              <td class="py-3.5 font-mono text-outline">/api/v1/employees/export</td>
-              <td class="py-3.5"><span class="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-medium">写入</span></td>
-              <td class="py-3.5 text-outline">4 小时前</td>
-              <td class="py-3.5 font-mono text-outline">10.0.4.12</td>
-              <td class="py-3.5 text-right pr-2">
-                <span class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-semibold">
-                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> 待审核
-                </span>
-              </td>
-            </tr>
-            <!-- Row 4 -->
-            <tr class="hover:bg-surface-container-lowest transition-colors">
-              <td class="py-3.5 pl-2 font-medium flex items-center gap-2">
-                <span class="w-7 h-7 rounded-full bg-outline-variant/20 text-on-surface-variant flex items-center justify-center font-bold text-[11px]">王</span>
-                王强
-              </td>
-              <td class="py-3.5 text-on-surface-variant">运维部 • 系统管理员</td>
-              <td class="py-3.5 font-mono text-outline">/api/v1/admin/roles/update</td>
-              <td class="py-3.5"><span class="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full font-medium">写入</span></td>
-              <td class="py-3.5 text-outline">1 天前</td>
-              <td class="py-3.5 font-mono text-outline">192.168.1.1</td>
-              <td class="py-3.5 text-right pr-2">
-                <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 已授权
+                <span :class="['inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold', 
+                             log.result === 'ALLOWED' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700']">
+                  <span :class="['w-1.5 h-1.5 rounded-full', log.result === 'ALLOWED' ? 'bg-emerald-500' : 'bg-rose-500']"></span>
+                  {{ log.result === 'ALLOWED' ? '已授权' : '被拦截 (AI)' }}
                 </span>
               </td>
             </tr>
@@ -175,5 +144,77 @@
 </template>
 
 <script setup lang="ts">
-// Simple static presentation
+import { ref, onMounted, computed } from 'vue';
+
+const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+
+// Mock caller details to access audit logs
+const mockHeaders = {
+  'X-Mock-User-Id': '4', // Wang Qiang (PAYROLL_ADMIN)
+  'X-Mock-Role': 'PAYROLL_ADMIN',
+  'Content-Type': 'application/json'
+};
+
+interface AuditLog {
+  id: number;
+  actor_user_id: number | null;
+  actor_role: str;
+  target_employee_id: number | null;
+  action: str;
+  resource_type: str;
+  resource_id: number | null;
+  requested_fields: string[];
+  result: str;
+  reason: str | None;
+  ip_address: str | None;
+  user_agent: str | None;
+  created_at: string;
+}
+
+const auditLogs = ref<AuditLog[]>([]);
+
+const totalLogsCount = computed(() => auditLogs.value.length);
+const deniedLogsCount = computed(() => auditLogs.value.filter(l => l.result === 'DENIED').length);
+const 合规评分 = computed(() => {
+  // Deduct 2 points for each denied attempt (max 10 points)
+  const deduction = Math.min(deniedLogsCount.value * 2, 10);
+  return 98 - deduction;
+});
+
+const getActorName = (userId: number | null): string => {
+  if (userId === 1) return '张伟';
+  if (userId === 2) return '李明';
+  if (userId === 3) return '林雨晴';
+  if (userId === 4) return '王强';
+  return `用户 #${userId || '未知'}`;
+};
+
+const getRoleDisplay = (role: string): string => {
+  if (role === 'EMPLOYEE') return '研发部 • 员工';
+  if (role === 'DEPARTMENT_MANAGER') return '研发部 • 部门主管';
+  if (role === 'HR_SPECIALIST') return '招聘部 • HR专员';
+  if (role === 'PAYROLL_ADMIN') return '财务部 • 薪酬管理员';
+  return role;
+};
+
+const formatTimestamp = (isoString: string) => {
+  const d = new Date(isoString);
+  return d.toLocaleString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+};
+
+const fetchAuditLogs = async () => {
+  try {
+    const res = await fetch(`${apiBase}/audit/logs?limit=100`, { headers: mockHeaders });
+    const json = await res.json();
+    if (json.success && json.data) {
+      auditLogs.value = json.data;
+    }
+  } catch (err) {
+    console.error('Failed to fetch audit logs:', err);
+  }
+};
+
+onMounted(() => {
+  fetchAuditLogs();
+});
 </script>

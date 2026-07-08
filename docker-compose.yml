@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-talentflow}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-talentflow_dev_password_change_me}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

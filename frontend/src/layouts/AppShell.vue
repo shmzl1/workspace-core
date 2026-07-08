@@ -21,6 +21,7 @@
           :is="currentViewComponent"
           :page-title="activeItem"
           :trace-logs="traceLogs"
+          :role="role"
           @export-report="handleExportReport"
           @navigate="handleNavigate"
           @show-toast="showToast"
