@@ -3,6 +3,7 @@
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings

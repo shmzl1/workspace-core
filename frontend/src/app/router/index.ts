@@ -5,10 +5,12 @@ import type { Role } from '../../types';
 import WelcomeView from '../../views/WelcomeView.vue';
 
 // HR views
+import RecruitmentDashboardPage from '../../features/recruitment/dashboard/RecruitmentDashboardPage.vue';
 import DashboardView from '../../views/DashboardView.vue';
 import CandidateDetailView from '../../views/CandidateDetailView.vue';
 import InterviewsView from '../../views/InterviewsView.vue';
 import ReportingView from '../../views/ReportingView.vue';
+import AssistantView from '../../views/AssistantView.vue';
 import PolicyView from '../../views/PolicyView.vue';
 import AuditView from '../../views/AuditView.vue';
 import SettingsView from '../../views/SettingsView.vue';
@@ -42,8 +44,14 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/hr/dashboard',
     name: 'hr-dashboard',
-    component: DashboardView,
+    component: RecruitmentDashboardPage,
     meta: { role: 'hr', label: '智能招聘看板' },
+  },
+  {
+    path: '/hr/pipeline',
+    name: 'hr-pipeline',
+    component: DashboardView,
+    meta: { role: 'hr', label: '智能筛选' },
   },
   {
     path: '/hr/candidates',
@@ -62,6 +70,12 @@ const routes: RouteRecordRaw[] = [
     name: 'hr-reporting',
     component: ReportingView,
     meta: { role: 'hr', label: '招聘报告' },
+  },
+  {
+    path: '/hr/assistant',
+    name: 'hr-assistant',
+    component: AssistantView,
+    meta: { role: 'hr', label: '面试助手' },
   },
   {
     path: '/hr/policy',

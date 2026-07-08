@@ -65,12 +65,13 @@ function showToast(message: string) {
 function handleNavigate(view: string) {
   const routeMap: Record<string, string> = {
     'dashboard': '/hr/dashboard',
-    'pipeline': '/hr/candidates',
+    'pipeline': '/hr/pipeline',
     'candidate_detail': '/hr/candidates',
     'interviews': '/hr/interviews',
     'candidates': '/hr/candidates',
     'reporting': '/hr/reporting',
     'policy': '/hr/policy',
+    'assistant': '/hr/assistant',
     'audit': '/hr/audit',
     'settings': '/hr/settings',
     'emp_dashboard': '/employee/dashboard',
@@ -108,6 +109,22 @@ function handleAgentCommand(command: string) {
 
   traceLogs.value = [`已接收任务：${command}`, ...traceLogs.value].slice(0, 5);
   showToast('智能助手任务已提交。');
+
+  // 智能路由：根据指令关键词自动跳转到相应工作台页面
+  const lowerCmd = command.toLowerCase();
+  if (lowerCmd.includes('筛选') || lowerCmd.includes('候选人') || lowerCmd.includes('简历') || lowerCmd.includes('人才')) {
+    setTimeout(() => {
+      handleNavigate('candidates');
+    }, 600);
+  } else if (lowerCmd.includes('面试') || lowerCmd.includes('排期') || lowerCmd.includes('日程') || lowerCmd.includes('面')) {
+    setTimeout(() => {
+      handleNavigate('interviews');
+    }, 600);
+  } else if (lowerCmd.includes('报表') || lowerCmd.includes('分析') || lowerCmd.includes('报告') || lowerCmd.includes('周报')) {
+    setTimeout(() => {
+      handleNavigate('reporting');
+    }, 600);
+  }
 
   window.setTimeout(() => {
     traceLogs.value = ['任务规划完成，正在汇总业务建议。', ...traceLogs.value].slice(0, 5);

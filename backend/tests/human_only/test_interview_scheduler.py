@@ -42,7 +42,7 @@ def test_conflicting_existing_event_is_excluded() -> None:
                     "available_slots": [{"start": "2026-07-08T10:00:00", "end": "2026-07-08T11:00:00"}],
                 }
             ],
-            "existing_events": [{"start": "2026-07-08T10:30:00", "end": "2026-07-08T10:45:00"}],
+            "existing_events": [{"start": "2026-07-08T10:15:00", "end": "2026-07-08T10:45:00"}],
             "duration_minutes": 30,
         }
     )

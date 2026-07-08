@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from typing import Any
 
@@ -59,6 +59,8 @@ def score_resume(payload: dict[str, Any] | None) -> dict[str, Any]:
         "recommendation": action,
         "scoring_basis": basis,
         "reasons": basis,
+        "missing_skills": missing_skills,
+        "experience_score": experience_score,
         "score_breakdown": {
             "skill": skill_score,
             "experience": experience_score,
@@ -142,7 +144,7 @@ def calc_project_score(candidate_items: list[str], job_items: list[str]) -> floa
 def find_risks(candidate: dict[str, Any], missing_skills: list[str], experience_score: float, project_score: float) -> list[str]:
     risks: list[str] = []
     if missing_skills:
-        risks.append("关键技能待补充")
+        risks.append("关键技能缺失")
     if experience_score < 70:
         risks.append("经验年限不足")
     if project_score < 60:
@@ -157,7 +159,7 @@ def find_risks(candidate: dict[str, Any], missing_skills: list[str], experience_
 
 def make_action(score: float, risk_tags: list[str]) -> str:
     if score >= 85 and len(risk_tags) <= 1:
-        return "建议优先安排面试"
+        return "建议优先面试"
     if score >= 70:
         return "建议进入初筛复核"
     if score >= 55:

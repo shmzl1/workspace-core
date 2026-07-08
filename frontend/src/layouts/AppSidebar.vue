@@ -62,8 +62,10 @@ const currentGroups = computed<{ title: string; items: SidebarItem[] }[]>(() => 
         ],
       },
       {
-        title: '智能服务',
+        title: 'AI Agent',
         items: [
+          { id: 'pipeline', label: '智能筛选', path: '/hr/pipeline' },
+          { id: 'assistant', label: '面试助手', path: '/hr/assistant' },
           { id: 'policy', label: '制度问答', path: '/hr/policy' },
         ],
       },

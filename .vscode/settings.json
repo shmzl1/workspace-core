@@ -1,4 +1,11 @@
 {
     "python-envs.defaultEnvManager": "ms-python.python:conda",
-    "python-envs.defaultPackageManager": "ms-python.python:conda"
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "python.analysis.extraPaths": [
+        "./backend"
+    ],
+    "python.autoComplete.extraPaths": [
+        "./backend"
+    ],
+    "python.defaultInterpreterPath": "C:\\Users\\Y9000P AI\\.conda\\envs\\talentflow\\python.exe"
 }

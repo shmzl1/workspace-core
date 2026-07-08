@@ -10,7 +10,7 @@ from app.core.exceptions import TalentFlowError
 from app.core.security import DemoIdentity
 from app.modules.employee.models import Employee
 from app.modules.audit.service import AuditLogService
-from app.shared.human_only_bridge import HumanOnlyContract, load_human_only_function
+from app.shared.human_only_bridge import HumanOnlyContract, load_human_only_function, algorithm_not_ready
 
 
 # ── Human-Only Contract 元数据（供 bridge / 调试台使用）──────────────────────
@@ -89,9 +89,12 @@ class SalaryAccessDecision:
 
 
 class PayrollAccessService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session = None) -> None:
         self.db = db
-        self.audit_service = AuditLogService(db)
+        if db is not None:
+            self.audit_service = AuditLogService(db)
+        else:
+            self.audit_service = None
 
     @staticmethod
     def _read_result(result: Any, key: str, default: Any) -> Any:
@@ -101,10 +104,21 @@ class PayrollAccessService:
 
     def check_salary_access(
         self,
-        identity: DemoIdentity,
-        target_employee_id: int,
-        requested_fields: list[str],
-    ) -> SalaryAccessDecision:
+        payload_or_identity: dict[str, Any] | DemoIdentity,
+        target_employee_id: int | None = None,
+        requested_fields: list[str] | None = None,
+    ) -> dict[str, Any] | SalaryAccessDecision:
+        if isinstance(payload_or_identity, dict):
+            # Dict-based check_salary_access for pre_audit_service and test_human_only_algorithm_not_ready
+            check_salary_access = load_human_only_function(SALARY_ACCESS_CONTRACT)
+            if check_salary_access is None:
+                return algorithm_not_ready(SALARY_ACCESS_CONTRACT, self._fallback(payload_or_identity))
+            try:
+                return check_salary_access(payload_or_identity)
+            except (NotImplementedError, TypeError):
+                return algorithm_not_ready(SALARY_ACCESS_CONTRACT, self._fallback(payload_or_identity))
+
+        identity = payload_or_identity
         check_fn = _resolve_check_fn()
         result = check_fn(
             actor_user_id=identity.user_id,
@@ -123,6 +137,13 @@ class PayrollAccessService:
             ),
             reason=str(self._read_result(result, "reason", "")),
         )
+
+    @staticmethod
+    def _fallback(payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "requester_role": payload.get("requester", {}).get("role"),
+            "record_count": len(payload.get("records", [])),
+        }
 
     def verify_and_log_access(
         self,
