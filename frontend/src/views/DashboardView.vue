@@ -278,6 +278,11 @@
           </div>
         </div>
 
+        <div v-if="payrollNotice" class="mx-5 mt-5 rounded-lg bg-[#F7F9FF] border border-primary-container/20 p-3 flex gap-2 text-sm text-on-surface-variant">
+          <span class="material-symbols-outlined text-primary-container text-[18px]">info</span>
+          <span>{{ payrollNotice }}</span>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 p-5">
           <article
             v-for="item in payrollReviewCards"
@@ -297,14 +302,14 @@
           <div>
             <h4 class="text-sm font-semibold text-on-surface mb-1">HR 审批建议</h4>
             <p class="text-sm text-on-surface-variant">
-              优先复核绩效奖金与异常扣款来源，确认薪酬管理员访问范围后再提交审批。
+              {{ approvalSuggestion }}
             </p>
           </div>
           <span
             class="text-xs font-bold px-3 py-1 rounded-full"
             :class="payrollHandled ? 'bg-secondary/10 text-secondary' : 'bg-[#FFF7ED] text-[#EA580C]'"
           >
-            {{ payrollHandled ? '风险已记录' : '等待 HR 复核' }}
+            {{ payrollHandled ? '风险已记录' : riskStatusLabel }}
           </span>
         </div>
       </section>
@@ -333,14 +338,18 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { reviewPayrollPreAudit } from '../shared/api/modules';
 
 const emit = defineEmits<{
   'show-toast': [message: string];
 }>();
 
 const payrollHandled = ref(false);
+const payrollNotice = ref('');
+const approvalSuggestion = ref('优先复核绩效奖金与异常扣款来源，确认薪酬管理员访问范围后再提交审批。');
+const riskStatusLabel = ref('等待 HR 复核');
 
-const payrollReviewCards = [
+const payrollReviewCards = ref([
   {
     label: '待预审批次',
     value: '3',
@@ -371,10 +380,36 @@ const payrollReviewCards = [
     icon: 'gavel',
     description: '建议先处理高风险访问记录，再提交薪资批次。'
   }
-];
+]);
 
-function openPayrollReview() {
-  emit('show-toast', '已展开薪资预审详情。');
+async function openPayrollReview() {
+  payrollNotice.value = '';
+  try {
+    const result = await reviewPayrollPreAudit({
+      requester_role: 'HR_SPECIALIST',
+      requester_employee_id: 1,
+      include_line_items: true
+    });
+
+    if (result.status === 'algorithm_not_ready') {
+      payrollNotice.value = result.message;
+      payrollReviewCards.value[0].value = String(result.pending_batches ?? payrollReviewCards.value[0].value);
+      emit('show-toast', result.message);
+      return;
+    }
+
+    payrollReviewCards.value[0].value = String(result.pending_batches);
+    payrollReviewCards.value[1].value = String(result.abnormal_salary_items.length);
+    payrollReviewCards.value[2].value = String(result.permission_risks.length);
+    payrollReviewCards.value[3].value = String(result.deduction_sources.length);
+    payrollReviewCards.value[4].value = result.risk_level ?? '复核';
+    approvalSuggestion.value = result.approval_suggestion ?? approvalSuggestion.value;
+    riskStatusLabel.value = result.risk_level ? `风险等级：${result.risk_level}` : '等待 HR 复核';
+    emit('show-toast', '薪资预审详情已刷新。');
+  } catch {
+    payrollNotice.value = '薪资预审服务暂时不可用，请稍后重试。';
+    emit('show-toast', payrollNotice.value);
+  }
 }
 
 function markPayrollHandled() {

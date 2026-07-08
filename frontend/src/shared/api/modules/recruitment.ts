@@ -1,38 +1,69 @@
-/**
- * 招聘模块 API
- *
- * 当前返回 mock 数据；后续只需将 mock 替换为 apiClient 调用即可接入后端。
- */
-import apiClient from '../apiClient';
-import type { ApiResponse, Job, CandidateSummary, CandidateApplication, PipelineStage } from '../types';
+﻿import apiClient from '../apiClient';
+import type {
+  Candidate,
+  CandidateApplication,
+  CandidateScoreRequest,
+  CandidateScoreResponse,
+  Job,
+  PipelineStage,
+} from '../types';
 
-// ── 岗位 ───────────────────────────────────
-
-export async function fetchJobs(params?: { status?: string; department?: string }): Promise<ApiResponse<Job[]>> {
-  return apiClient.get('/recruitment/jobs', { params });
+export interface CandidateApplicationListItem extends CandidateApplication {
+  candidate_name?: string | null;
+  job_title?: string | null;
 }
 
-export async function fetchJob(jobId: number): Promise<ApiResponse<Job>> {
-  return apiClient.get(`/recruitment/jobs/${jobId}`);
+export async function fetchJobs(params?: { status?: string; department?: string }): Promise<Job[]> {
+  const response = await apiClient.get<Job[]>('/recruitment/jobs', { params });
+  return response.data;
 }
 
-// ── 候选人 ─────────────────────────────────
+export async function fetchJob(jobId: number): Promise<Job> {
+  const response = await apiClient.get<Job>(`/recruitment/jobs/${jobId}`);
+  return response.data;
+}
 
 export async function fetchCandidates(params?: {
   job_id?: number;
   stage?: PipelineStage;
   page?: number;
   page_size?: number;
-}): Promise<ApiResponse<CandidateSummary[]>> {
-  return apiClient.get('/recruitment/candidates', { params });
+}): Promise<Candidate[]> {
+  const response = await apiClient.get<Candidate[]>('/recruitment/candidates', { params });
+  return response.data;
 }
 
-// ── 申请流程 ───────────────────────────────
-
-export async function fetchApplication(applicationId: number): Promise<ApiResponse<CandidateApplication>> {
-  return apiClient.get(`/recruitment/applications/${applicationId}`);
+export async function fetchApplications(): Promise<CandidateApplicationListItem[]> {
+  const response = await apiClient.get<CandidateApplicationListItem[]>('/recruitment/applications');
+  return response.data;
 }
 
-export async function advanceStage(applicationId: number, toStage: PipelineStage, note?: string): Promise<ApiResponse<CandidateApplication>> {
-  return apiClient.post(`/recruitment/applications/${applicationId}/advance`, { to_stage: toStage, note });
+export async function fetchApplication(applicationId: number): Promise<CandidateApplication> {
+  const response = await apiClient.get<CandidateApplication>(`/recruitment/applications/${applicationId}`);
+  return response.data;
 }
+
+export async function advanceStage(
+  applicationId: number,
+  toStage: PipelineStage,
+  note?: string
+): Promise<CandidateApplication> {
+  const response = await apiClient.post<CandidateApplication>(
+    `/recruitment/applications/${applicationId}/advance`,
+    { to_stage: toStage, note }
+  );
+  return response.data;
+}
+
+export async function scoreCandidate(
+  applicationId: number,
+  payload: CandidateScoreRequest
+): Promise<CandidateScoreResponse> {
+  const response = await apiClient.post<CandidateScoreResponse>(
+    `/recruitment/applications/${applicationId}/score`,
+    payload
+  );
+  return response.data;
+}
+
+export const fetchCandidateScore = scoreCandidate;

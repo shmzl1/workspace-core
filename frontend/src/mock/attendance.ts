@@ -1,5 +1,5 @@
-/**
- * 考勤 Mock 数据
+﻿/**
+ * 鑰冨嫟 样例数据
  */
 import type { AttendanceRecord } from '../shared/api/types';
 
@@ -43,3 +43,4 @@ export const mockMonthlyAttendance: AttendanceRecord[] = [
   { id: 5, employee_id: 2, attendance_date: '2026-07-05', check_in_at: '2026-07-05T08:55:00Z', check_out_at: '2026-07-05T18:05:00Z', status: 'NORMAL', late_minutes: 0, early_leave_minutes: 0, leave_balance_id: null, source: 'WEB', remark: null, created_at: '2026-07-05T08:55:00Z', updated_at: '2026-07-05T18:05:00Z' },
   { id: 6, employee_id: 2, attendance_date: '2026-07-07', check_in_at: '2026-07-07T08:52:00Z', check_out_at: '2026-07-07T18:00:00Z', status: 'NORMAL', late_minutes: 0, early_leave_minutes: 0, leave_balance_id: null, source: 'WEB', remark: null, created_at: '2026-07-07T08:52:00Z', updated_at: '2026-07-07T18:00:00Z' },
 ];
+

@@ -1,6 +1,6 @@
 """RAG vector store boundary.
 
-Real Chroma writes and LLM retrieval are deferred to a later Sprint. RAG answers
+Real Chroma writes and LLM retrieval are handled by the dedicated RAG workflow. RAG answers
 must include sources when implemented.
 """
 

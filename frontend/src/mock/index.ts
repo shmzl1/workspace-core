@@ -1,5 +1,5 @@
-/**
- * Mock 数据统一导出
+﻿/**
+ * 样例数据缁熶竴瀵煎嚭
  */
 export { initialTraceLogs } from './recruitmentDashboard';
 export { mockCandidates } from './candidates';
@@ -7,3 +7,4 @@ export { mockTodayAttendance, mockCheckedIn, mockCheckedOut, mockMonthlyAttendan
 export { mockEmployee, mockLeaveBalance, mockPayrollSummaries, mockPayrollDetail } from './payroll';
 export { mockAuditLogs, mockAuditStats } from './audit';
 export type { AuditLogEntry } from './audit';
+

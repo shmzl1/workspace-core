@@ -1,4 +1,4 @@
-"""Recruitment repository for Sprint 1 outer workflow."""
+"""Recruitment repository."""
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
