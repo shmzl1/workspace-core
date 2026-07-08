@@ -1,0 +1,6 @@
+[
+  {"id": 1, "user_id": 1, "employee_no": "TF-E-0001", "full_name": "林知远", "department": "人力资源部", "job_title": "HR 专员", "manager_employee_id": null, "email": "lin.zhiyuan@example.test", "phone": "13900000001", "hire_date": "2024-01-08", "employment_status": "ACTIVE"},
+  {"id": 3, "user_id": 3, "employee_no": "TF-E-0003", "full_name": "周明澈", "department": "研发部", "job_title": "研发经理", "manager_employee_id": null, "email": "zhou.mingche@example.test", "phone": "13900000003", "hire_date": "2023-10-09", "employment_status": "ACTIVE"},
+  {"id": 2, "user_id": 2, "employee_no": "TF-E-0002", "full_name": "陈一诺", "department": "研发部", "job_title": "后端开发工程师", "manager_employee_id": 3, "email": "chen.yinuo@example.test", "phone": "13900000002", "hire_date": "2024-03-18", "employment_status": "ACTIVE"},
+  {"id": 4, "user_id": 4, "employee_no": "TF-E-0004", "full_name": "许清晗", "department": "财务部", "job_title": "薪酬管理员", "manager_employee_id": null, "email": "xu.qinghan@example.test", "phone": "13900000004", "hire_date": "2023-12-01", "employment_status": "ACTIVE"}
+]

@@ -59,10 +59,20 @@
             <div>
               <div class="flex justify-between items-center mb-2">
                 <h4 class="text-sm font-semibold text-on-surface">初筛严格度偏好</h4>
-                <span class="text-xs text-primary font-bold bg-primary/10 px-2 py-0.5 rounded">75% (严格推荐)</span>
+                <span class="text-xs text-primary font-bold bg-primary/10 px-2 py-0.5 rounded">当前阈值：{{ strictnessThreshold }}分</span>
               </div>
-              <p class="text-xs text-on-surface-variant mb-3">严格度越高，进入“最佳匹配”推荐列表的简历评分门槛越高（当前阈值：80分）。</p>
-              <input class="w-full h-1.5 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary" type="range" min="0" max="100" value="75"/>
+              <p class="text-xs text-on-surface-variant mb-3">严格度越高，进入"最佳匹配"推荐列表的简历评分门槛越高。拖动滑块调整初筛分数门槛。</p>
+              <input
+                class="w-full h-1.5 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary"
+                type="range"
+                min="0"
+                max="100"
+                v-model.number="strictness"
+              />
+              <div class="flex justify-between mt-1">
+                <span class="text-[10px] text-outline">宽松 (50分)</span>
+                <span class="text-[10px] text-outline">严格 (100分)</span>
+              </div>
             </div>
           </div>
         </div>
@@ -177,4 +187,13 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue';
+
+const strictness = ref(75);
+
+/** 根据严格度计算阈值：严格度越高，阈值越高 */
+const strictnessThreshold = computed(() => {
+  // 严格度 0-100 映射到阈值 50-100
+  return Math.round(50 + (strictness.value / 100) * 50);
+});
 </script>

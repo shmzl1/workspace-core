@@ -8,12 +8,12 @@
 
     <!-- Main Grid Layout -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0 mb-8">
-      
+
       <!-- Left Panel: Clock & Action (Span 7) -->
       <div class="lg:col-span-7 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm p-10 flex flex-col items-center justify-center relative overflow-hidden">
         <!-- Subtle AI ambient glow behind clock -->
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary-container/5 rounded-full blur-3xl pointer-events-none"></div>
-        
+
         <!-- Large Circular Clock -->
         <div class="relative w-[300px] h-[300px] rounded-full bg-primary/5 shadow-inner flex items-center justify-center mb-10 border border-primary/10">
           <div class="absolute inset-0 rounded-full border border-primary/20 animate-[pulse_3s_cubic-bezier(0.4,0,0.6,1)_infinite]"></div>
@@ -51,12 +51,12 @@
             </div>
             <span class="font-label-md text-label-md text-secondary bg-secondary-container/30 px-2 py-0.5 rounded text-[10px]">范围内</span>
           </div>
-          
+
           <div class="flex-1 relative bg-surface-container-low overflow-hidden">
-            <img 
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuASzfyHRoSeoH9ReWVi2DXaPr3GUUPK1Rdzhadir5zfa_AAhu1yFsZ1-WTwcrhA92N5fk76bw-5uldR62Yzhq6Pep_d8YIT_7A3z5SjVxZx-pTnPWoFa5jRVa6gglHsZ8BzfuwbF8I9Ccp3DMb09OF-W0DH_3RHv9XLz6k-F5N9LnxSIGkl9ylFhZPVCXEVI4eroREmOLMvJeayIZm-czUnq0QCgQjup4QMCcFtwPYbRRMhum8kGnzcBf6ggvgHoO4LD9LbQblrTgcE" 
-              alt="Map Location" 
-              class="w-full h-full object-cover opacity-80 mix-blend-multiply" 
+            <img
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuASzfyHRoSeoH9ReWVi2DXaPr3GUUPK1Rdzhadir5zfa_AAhu1yFsZ1-WTwcrhA92N5fk76bw-5uldR62Yzhq6Pep_d8YIT_7A3z5SjVxZx-pTnPWoFa5jRVa6gglHsZ8BzfuwbF8I9Ccp3DMb09OF-W0DH_3RHv9XLz6k-F5N9LnxSIGkl9ylFhZPVCXEVI4eroREmOLMvJeayIZm-czUnq0QCgQjup4QMCcFtwPYbRRMhum8kGnzcBf6ggvgHoO4LD9LbQblrTgcE"
+              alt="Map Location"
+              class="w-full h-full object-cover opacity-80 mix-blend-multiply"
             />
             <!-- Fake Map Pin & Radius -->
             <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
@@ -66,7 +66,7 @@
               </div>
             </div>
           </div>
-          
+
           <div class="p-md bg-surface-container-lowest border-t border-outline-variant/30">
             <p class="font-body-md text-body-md text-on-surface font-medium">研发中心A栋</p>
             <p class="font-label-md text-label-md text-outline mt-1">北京市朝阳区</p>
@@ -118,13 +118,11 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 
 const time = ref('');
-let timer: any;
+let timer: ReturnType<typeof setInterval> | undefined;
 
 const updateClock = () => {
   const now = new Date();
-  let hours = now.getHours().toString().padStart(2, '0');
-  let minutes = now.getMinutes().toString().padStart(2, '0');
-  time.value = `${hours}:${minutes}`;
+  time.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 };
 
 onMounted(() => {
@@ -133,6 +131,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  clearInterval(timer);
+  if (timer) clearInterval(timer);
 });
 </script>

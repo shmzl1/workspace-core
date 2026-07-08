@@ -1,10 +1,10 @@
-"""Payroll repository boundary."""
+"""Payroll repository database reads."""
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.employee.models import Employee
-from app.modules.payroll.models import PayrollLineItem, PayrollPeriod, PayrollReviewRecord
+from app.modules.payroll.models import PayrollLineItem, PayrollPeriod, PayrollReviewRecord, SalaryRecord
 
 
 class PayrollRepository:
@@ -44,4 +44,12 @@ class PayrollRepository:
                 .where(PayrollLineItem.payroll_review_record_id == review_record_id)
                 .order_by(PayrollLineItem.id)
             ).all()
+        )
+
+    def get_latest_salary(self, employee_id: int) -> SalaryRecord | None:
+        return self.session.scalar(
+            select(SalaryRecord)
+            .where(SalaryRecord.employee_id == employee_id)
+            .order_by(SalaryRecord.effective_from.desc(), SalaryRecord.id.desc())
+            .limit(1)
         )

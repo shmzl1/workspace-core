@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import TalentFlowError
+from app.modules._serialization import model_to_dict
 from app.modules.interview.repository import InterviewRepository
 from app.modules.interview.schemas import SchedulePreviewRequest, SchedulePreviewResponse
 from app.shared.human_only_bridge import HumanOnlyContract, algorithm_not_ready, load_human_only_function
@@ -21,8 +22,12 @@ INTERVIEW_SCHEDULER_CONTRACT = HumanOnlyContract(
 class InterviewService:
     """Orchestrates scheduling preview and human-only scheduler calls."""
 
-    def __init__(self, session: Session) -> None:
-        self.repository = InterviewRepository(session)
+    def __init__(self, repository: InterviewRepository) -> None:
+        self.repository = repository
+
+    @classmethod
+    def from_session(cls, session: Session) -> "InterviewService":
+        return cls(InterviewRepository(session))
 
     def preview_schedule(self, payload: SchedulePreviewRequest) -> SchedulePreviewResponse:
         schedule_interview = self._load_schedule_interview()
@@ -83,6 +88,37 @@ class InterviewService:
             conflict_explanation=result.get("conflict_explanation", {}),
             requires_human_only=False,
         )
+
+    def list_interviewers(self) -> list[dict]:
+        return [
+            model_to_dict(interviewer, ["id", "employee_id", "specialties", "max_interviews_per_day", "is_active"])
+            for interviewer in self.repository.list_interviewers()
+        ]
+
+    def list_meeting_rooms(self) -> list[dict]:
+        return [
+            model_to_dict(room, ["id", "room_code", "name", "location", "capacity", "is_active"])
+            for room in self.repository.list_meeting_rooms()
+        ]
+
+    def list_interviews(self) -> list[dict]:
+        return [
+            model_to_dict(
+                interview,
+                [
+                    "id",
+                    "application_id",
+                    "interviewer_id",
+                    "meeting_room_id",
+                    "start_at",
+                    "end_at",
+                    "status",
+                    "conflict_explanation",
+                    "created_by_user_id",
+                ],
+            )
+            for interview in self.repository.list_interviews()
+        ]
 
     @staticmethod
     def _load_schedule_interview() -> Any | None:

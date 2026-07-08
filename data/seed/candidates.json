@@ -1,0 +1,5 @@
+[
+  {"id": 1, "candidate_no": "TF-C-0001", "full_name": "候选人甲", "email": "candidate.a@example.test", "phone": "13800000001", "resume_file_path": null, "resume_text": "演示简历：Java、SQL、课程项目。", "skills": ["Java", "SQL", "Spring Boot"], "experience_months": 6, "available_from": "2026-07-15", "source": "SEED", "profile_json": {"demo": true, "project_experience": "校园招聘系统"}},
+  {"id": 2, "candidate_no": "TF-C-0002", "full_name": "候选人乙", "email": "candidate.b@example.test", "phone": "13800000002", "resume_file_path": null, "resume_text": "演示简历：Java、Python、实习经历。", "skills": ["Java", "Python", "PostgreSQL"], "experience_months": 10, "available_from": "2026-07-20", "source": "SEED", "profile_json": {"demo": true, "project_experience": "数据看板"}},
+  {"id": 3, "candidate_no": "TF-C-0003", "full_name": "候选人丙", "email": "candidate.c@example.test", "phone": "13800000003", "resume_file_path": null, "resume_text": "演示简历：REST API、数据库课程设计。", "skills": ["Java", "REST API", "SQL"], "experience_months": 3, "available_from": "2026-07-18", "source": "SEED", "profile_json": {"demo": true, "project_experience": "课程管理平台"}}
+]

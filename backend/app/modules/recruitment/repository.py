@@ -27,6 +27,15 @@ class RecruitmentRepository:
         )
         return [(application, candidate, job) for application, candidate, job in rows.all()]
 
+    def list_applications_for_job(self, job_id: int) -> list[tuple[CandidateApplication, Candidate]]:
+        rows = self.session.execute(
+            select(CandidateApplication, Candidate)
+            .join(Candidate, Candidate.id == CandidateApplication.candidate_id)
+            .where(CandidateApplication.job_id == job_id)
+            .order_by(CandidateApplication.score_total.desc().nullslast(), CandidateApplication.id)
+        )
+        return [(application, candidate) for application, candidate in rows.all()]
+
     def get_application_detail(
         self,
         application_id: int,

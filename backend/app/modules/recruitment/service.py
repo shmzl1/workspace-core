@@ -1,15 +1,17 @@
 """Recruitment service."""
 
 from decimal import Decimal
+from importlib import import_module
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import TalentFlowError
+from app.modules._serialization import model_to_dict
 from app.modules.recruitment.repository import RecruitmentRepository
 from app.modules.recruitment.schemas import (
-    CandidateRead,
     CandidateApplicationRead,
+    CandidateRead,
     JobRead,
     RecruitmentDashboardRead,
     ScoreApplicationRequest,
@@ -29,8 +31,12 @@ RESUME_SCORING_CONTRACT = HumanOnlyContract(
 class RecruitmentService:
     """Orchestrates recruitment reads and human-only scoring calls."""
 
-    def __init__(self, session: Session) -> None:
-        self.repository = RecruitmentRepository(session)
+    def __init__(self, repository: RecruitmentRepository) -> None:
+        self.repository = repository
+
+    @classmethod
+    def from_session(cls, session: Session) -> "RecruitmentService":
+        return cls(RecruitmentRepository(session))
 
     def get_dashboard(self) -> RecruitmentDashboardRead:
         jobs = self.repository.list_jobs()
@@ -67,6 +73,33 @@ class RecruitmentService:
             )
             for application, candidate, job in self.repository.list_applications()
         ]
+
+    def list_applications_for_job(self, job_id: int) -> list[dict]:
+        results = []
+        for application, candidate in self.repository.list_applications_for_job(job_id):
+            results.append(
+                {
+                    "application": model_to_dict(
+                        application,
+                        [
+                            "id",
+                            "candidate_id",
+                            "job_id",
+                            "current_stage",
+                            "score_total",
+                            "score_breakdown",
+                            "weights_snapshot",
+                            "scored_at",
+                            "applied_at",
+                        ],
+                    ),
+                    "candidate": model_to_dict(
+                        candidate,
+                        ["id", "candidate_no", "full_name", "skills", "experience_months", "available_from"],
+                    ),
+                }
+            )
+        return results
 
     def score_application(self, application_id: int, payload: ScoreApplicationRequest) -> ScoreApplicationResponse:
         score_resume = self._load_score_resume()
@@ -145,7 +178,7 @@ class RecruitmentService:
             recommended_action=result.get("recommended_action"),
             scoring_basis=result.get("scoring_basis", []),
             score_breakdown=score_breakdown,
-            explanation=result.get("explanation", {}),
+            explanation=candidate_result.get("explanation", {}),
             requires_human_only=False,
         )
 

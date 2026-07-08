@@ -1,0 +1,4 @@
+[
+  {"id": 1, "employee_id": 2, "base_salary": "12000.00", "currency": "CNY", "effective_from": "2026-01-01", "effective_to": null, "created_by_user_id": 4},
+  {"id": 2, "employee_id": 3, "base_salary": "22000.00", "currency": "CNY", "effective_from": "2026-01-01", "effective_to": null, "created_by_user_id": 4}
+]
