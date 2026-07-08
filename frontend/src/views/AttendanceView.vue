@@ -67,12 +67,12 @@
             </div>
             <span class="font-label-md text-label-md text-secondary bg-secondary-container/30 px-2 py-0.5 rounded text-[10px]">范围匹配</span>
           </div>
-          
+
           <div class="flex-1 relative bg-surface-container-low overflow-hidden">
-            <img 
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuASzfyHRoSeoH9ReWVi2DXaPr3GUUPK1Rdzhadir5zfa_AAhu1yFsZ1-WTwcrhA92N5fk76bw-5uldR62Yzhq6Pep_d8YIT_7A3z5SjVxZx-pTnPWoFa5jRVa6gglHsZ8BzfuwbF8I9Ccp3DMb09OF-W0DH_3RHv9XLz6k-F5N9LnxSIGkl9ylFhZPVCXEVI4eroREmOLMvJeayIZm-czUnq0QCgQjup4QMCcFtwPYbRRMhum8kGnzcBf6ggvgHoO4LD9LbQblrTgcE" 
-              alt="Map Location" 
-              class="w-full h-full object-cover opacity-80 mix-blend-multiply" 
+            <img
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuASzfyHRoSeoH9ReWVi2DXaPr3GUUPK1Rdzhadir5zfa_AAhu1yFsZ1-WTwcrhA92N5fk76bw-5uldR62Yzhq6Pep_d8YIT_7A3z5SjVxZx-pTnPWoFa5jRVa6gglHsZ8BzfuwbF8I9Ccp3DMb09OF-W0DH_3RHv9XLz6k-F5N9LnxSIGkl9ylFhZPVCXEVI4eroREmOLMvJeayIZm-czUnq0QCgQjup4QMCcFtwPYbRRMhum8kGnzcBf6ggvgHoO4LD9LbQblrTgcE"
+              alt="Map Location"
+              class="w-full h-full object-cover opacity-80 mix-blend-multiply"
             />
             <!-- Fake Map Pin & Radius -->
             <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
@@ -82,7 +82,7 @@
               </div>
             </div>
           </div>
-          
+
           <div class="p-4 bg-surface-container-lowest border-t border-outline-variant/30">
             <p class="font-body-md text-body-md text-on-surface font-medium">研发中心A栋</p>
             <p class="font-label-md text-label-md text-outline mt-1">北京市朝阳区</p>
@@ -134,7 +134,7 @@ const hasCheckedIn = ref(false);
 const hasCheckedOut = ref(false);
 const checkInTime = ref('');
 const checkOutTime = ref('');
-let clockTimer: any;
+let clockTimer: ReturnType<typeof setInterval> | undefined;
 
 const weeklySummary = ref([
   { name: '周一', status: 'NONE', isToday: false },
@@ -148,9 +148,7 @@ const weeklySummary = ref([
 
 const updateClock = () => {
   const now = new Date();
-  let hours = now.getHours().toString().padStart(2, '0');
-  let minutes = now.getMinutes().toString().padStart(2, '0');
-  time.value = `${hours}:${minutes}`;
+  time.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 };
 
 const fetchEmployeeName = async () => {
@@ -158,7 +156,7 @@ const fetchEmployeeName = async () => {
     const res = await fetch(`${apiBase}/employees/me`, { headers: mockHeaders });
     const json = await res.json();
     if (json.success && json.data) {
-      employeeName.value = json.data.full_name;
+      employeeName.value = json.data.employee.full_name;
     }
   } catch (err) {
     console.error('Failed to fetch employee profile:', err);
@@ -261,6 +259,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  clearInterval(clockTimer);
+  if (clockTimer) clearInterval(clockTimer);
 });
 </script>

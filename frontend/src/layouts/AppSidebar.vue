@@ -5,13 +5,13 @@
         <h2>{{ group.title }}</h2>
         <button
           v-for="item in group.items"
-          :key="item"
+          :key="item.path"
           class="sidebar__item"
-          :class="{ 'sidebar__item--active': item === activeItem }"
-          @click="$emit('select', item)"
+          :class="{ 'sidebar__item--active': item.path === activeRoute }"
+          @click="$emit('navigate', item.id)"
         >
           <span class="sidebar__item-mark"></span>
-          {{ item }}
+          {{ item.label }}
         </button>
       </section>
     </div>
@@ -33,42 +33,68 @@
 import { computed } from 'vue';
 import type { Role } from '../types';
 
+interface SidebarItem {
+  id: string;
+  label: string;
+  path: string;
+}
+
 const props = defineProps<{
-  activeItem: string;
+  activeRoute: string;
   role: Role;
 }>();
 
 defineEmits<{
-  select: [item: string];
+  navigate: [id: string];
   toggleRole: [];
 }>();
 
-const currentGroups = computed(() => {
+const currentGroups = computed<{ title: string; items: SidebarItem[] }[]>(() => {
   if (props.role === 'hr') {
     return [
       {
         title: '工作台',
-        items: ['智能招聘看板', '候选人池', '面试日历', '招聘报告']
+        items: [
+          { id: 'dashboard', label: '智能招聘看板', path: '/hr/dashboard' },
+          { id: 'candidates', label: '候选人池', path: '/hr/candidates' },
+          { id: 'interviews', label: '面试日历', path: '/hr/interviews' },
+          { id: 'reporting', label: '招聘报告', path: '/hr/reporting' },
+        ],
       },
       {
         title: 'AI Agent',
-        items: ['智能筛选', '面试助手', '制度问答']
+        items: [
+          { id: 'pipeline', label: '智能筛选', path: '/hr/pipeline' },
+          { id: 'assistant', label: '面试助手', path: '/hr/assistant' },
+          { id: 'policy', label: '制度问答', path: '/hr/policy' },
+        ],
       },
       {
         title: '管理',
-        items: ['权限审计', '系统设置']
-      }
+        items: [
+          { id: 'audit', label: '权限审计', path: '/hr/audit' },
+          { id: 'settings', label: '系统设置', path: '/hr/settings' },
+        ],
+      },
     ];
   } else {
     return [
       {
         title: '个人工作台',
-        items: ['首页', '考勤签到', '假期查询', '薪资明细']
+        items: [
+          { id: 'emp_dashboard', label: '首页', path: '/employee/dashboard' },
+          { id: 'attendance', label: '考勤签到', path: '/employee/attendance' },
+          { id: 'leave', label: '假期查询', path: '/employee/leave' },
+          { id: 'payroll', label: '薪资明细', path: '/employee/payroll' },
+        ],
       },
       {
         title: '自助服务',
-        items: ['政策中心', 'AI 助手']
-      }
+        items: [
+          { id: 'emp_policy', label: '政策中心', path: '/employee/policy' },
+          { id: 'emp_assistant', label: 'AI 助手', path: '/employee/assistant' },
+        ],
+      },
     ];
   }
 });

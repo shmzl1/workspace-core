@@ -1,0 +1,4 @@
+[
+  {"id": 1, "room_code": "M-101", "name": "湖畔会议室", "location": "A 座 1 层", "capacity": 4, "is_active": true},
+  {"id": 2, "room_code": "M-203", "name": "星河会议室", "location": "A 座 2 层", "capacity": 6, "is_active": true}
+]

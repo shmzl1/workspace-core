@@ -1,14 +1,28 @@
 from datetime import date
 from sqlalchemy.orm import Session
-from app.modules.payroll.models import SalaryRecord
-from app.modules.payroll.services.access_service import PayrollAccessService
+
 from app.core.exceptions import TalentFlowError
+from app.core.security import DemoIdentity
+from app.modules._serialization import model_to_dict
+from app.modules.payroll.models import SalaryRecord
+from app.modules.payroll.repository import PayrollRepository
+from app.modules.payroll.services.access_service import PayrollAccessService
 
 
 class EmployeeSalaryService:
-    def __init__(self, db: Session) -> None:
-        self.db = db
-        self.access_service = PayrollAccessService(db)
+    def __init__(self, repository_or_session, access_service: PayrollAccessService = None) -> None:
+        if isinstance(repository_or_session, Session):
+            self.db = repository_or_session
+            self.repository = PayrollRepository(repository_or_session)
+            self.access_service = access_service or PayrollAccessService(repository_or_session)
+        else:
+            self.repository = repository_or_session
+            self.access_service = access_service
+            self.db = repository_or_session.session
+
+    @classmethod
+    def from_session(cls, session: Session) -> "EmployeeSalaryService":
+        return cls(PayrollRepository(session), PayrollAccessService(session))
 
     def get_employee_salary(
         self,
@@ -62,3 +76,14 @@ class EmployeeSalaryService:
         data["effective_to"] = record.effective_to if "effective_to" in accessible_fields else None
 
         return data
+
+    def get_salary_summary(self, identity: DemoIdentity, target_employee_id: int) -> dict:
+        requested_fields = ["base_salary", "currency", "effective_from", "effective_to"]
+        decision = self.access_service.check_salary_access(identity, target_employee_id, requested_fields)
+        if not decision.allowed:
+            raise TalentFlowError("SALARY_ACCESS_DENIED", decision.reason or "无权访问该员工薪资", 403)
+        record = self.repository.get_latest_salary(target_employee_id)
+        if record is None:
+            raise TalentFlowError("SALARY_RECORD_NOT_FOUND", "薪资记录不存在", 404)
+        data = model_to_dict(record, ["id", "employee_id", "base_salary", "currency", "effective_from", "effective_to"])
+        return {key: value for key, value in data.items() if key in {"id", "employee_id", *decision.fields}}

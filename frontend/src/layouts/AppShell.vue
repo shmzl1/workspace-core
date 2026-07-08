@@ -1,7 +1,6 @@
 <template>
-  <template v-if="activeItem === 'welcome'">
-    <component 
-      :is="currentViewComponent"
+  <template v-if="route.name === 'welcome'">
+    <router-view
       @navigate="handleNavigate"
       @show-toast="showToast"
     />
@@ -10,16 +9,15 @@
   <template v-else>
     <div class="app-shell">
       <AppTopbar />
-      <AppSidebar 
-        :active-item="activeItem" 
+      <AppSidebar
+        :active-route="route.path"
         :role="role"
-        @select="handleSidebarSelect" 
+        @navigate="handleNavigate"
         @toggleRole="handleToggleRole"
       />
       <main class="app-shell__main">
-        <component 
-          :is="currentViewComponent"
-          :page-title="activeItem"
+        <router-view
+          :page-title="currentLabel"
           :trace-logs="traceLogs"
           :role="role"
           @export-report="handleExportReport"
@@ -35,58 +33,25 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import type { Role } from '../types';
+import { getSavedRole, setSavedRole, getDefaultRoute } from '../app/router/guards';
 import AppTopbar from './AppTopbar.vue';
 import AppSidebar from './AppSidebar.vue';
 import GlobalAgentBar from './GlobalAgentBar.vue';
 import ToastMessage from '../shared/components/base/ToastMessage.vue';
-import RecruitmentDashboardPage from '../features/recruitment/dashboard/RecruitmentDashboardPage.vue';
 import { initialTraceLogs } from '../mock/recruitmentDashboard';
 
-// Import initial views
-import DashboardView from '../views/DashboardView.vue';
-import CandidateDetailView from '../views/CandidateDetailView.vue';
-import InterviewsView from '../views/InterviewsView.vue';
-import ReportingView from '../views/ReportingView.vue';
-import AssistantView from '../views/AssistantView.vue';
-import PolicyView from '../views/PolicyView.vue';
-import WelcomeView from '../views/WelcomeView.vue';
-import EmpDashboardView from '../views/EmpDashboardView.vue';
-import AttendanceView from '../views/AttendanceView.vue';
-import LeaveView from '../views/LeaveView.vue';
-import PayrollView from '../views/PayrollView.vue';
-import EmpPolicyView from '../views/EmpPolicyView.vue';
-import EmpAssistantView from '../views/EmpAssistantView.vue';
-import AuditView from '../views/AuditView.vue';
-import SettingsView from '../views/SettingsView.vue';
+const router = useRouter();
+const route = useRoute();
 
-const role = ref<Role>('hr');
-const activeItem = ref('welcome');
+const role = ref<Role>(getSavedRole());
 const toastMessage = ref('');
 const traceLogs = ref<string[]>([...initialTraceLogs]);
 let toastTimer: number | undefined;
 
-const currentViewComponent = computed(() => {
-  switch (activeItem.value) {
-    case 'welcome': return WelcomeView;
-    case '智能招聘看板': return RecruitmentDashboardPage;
-    case '智能筛选': return DashboardView;
-    case '候选人池': return CandidateDetailView;
-    case '面试日历':
-    case '面试安排': return InterviewsView;
-    case '招聘报告': return ReportingView;
-    case '面试助手': return AssistantView;
-    case '制度问答': return PolicyView;
-    case '权限审计': return AuditView;
-    case '系统设置': return SettingsView;
-    case '首页': return EmpDashboardView;
-    case '考勤签到': return AttendanceView;
-    case '假期查询': return LeaveView;
-    case '薪资明细': return PayrollView;
-    case '政策中心': return EmpPolicyView;
-    case 'AI 助手': return EmpAssistantView;
-    default: return RecruitmentDashboardPage;
-  }
+const currentLabel = computed(() => {
+  return (route.meta?.label as string) ?? '';
 });
 
 function showToast(message: string) {
@@ -97,68 +62,56 @@ function showToast(message: string) {
   }, 2400);
 }
 
-function handleSidebarSelect(item: string) {
-  activeItem.value = item;
-}
-
-function handleToggleRole() {
-  if (role.value === 'hr') {
-    role.value = 'employee';
-    activeItem.value = '首页';
-  } else {
-    role.value = 'hr';
-    activeItem.value = '智能招聘看板';
-  }
-}
-
 function handleNavigate(view: string) {
-  const hrViews = ['dashboard', 'pipeline', 'candidate_detail', 'interviews', 'reporting', 'assistant', 'policy', 'audit', 'settings'];
-  const employeeViews = ['emp_dashboard', 'attendance', 'leave', 'payroll', 'emp_policy', 'emp_assistant'];
-  
-  if (hrViews.includes(view)) {
-    role.value = 'hr';
-  } else if (employeeViews.includes(view)) {
-    role.value = 'employee';
-  }
-
-  const viewMap: Record<string, string> = {
-    'dashboard': '智能招聘看板',
-    'pipeline': '候选人池',
-    'candidate_detail': '候选人池',
-    'interviews': '面试日历',
-    'reporting': '招聘报告',
-    'assistant': '面试助手',
-    'policy': '制度问答',
-    'audit': '权限审计',
-    'settings': '系统设置',
-    'emp_dashboard': '首页',
-    'attendance': '考勤签到',
-    'leave': '假期查询',
-    'payroll': '薪资明细',
-    'emp_policy': '政策中心',
-    'emp_assistant': 'AI 助手'
+  const routeMap: Record<string, string> = {
+    'dashboard': '/hr/dashboard',
+    'pipeline': '/hr/candidates',
+    'candidate_detail': '/hr/candidates',
+    'interviews': '/hr/interviews',
+    'candidates': '/hr/candidates',
+    'reporting': '/hr/reporting',
+    'assistant': '/hr/assistant',
+    'policy': '/hr/policy',
+    'audit': '/hr/audit',
+    'settings': '/hr/settings',
+    'emp_dashboard': '/employee/dashboard',
+    'attendance': '/employee/attendance',
+    'leave': '/employee/leave',
+    'payroll': '/employee/payroll',
+    'emp_policy': '/employee/policy',
+    'emp_assistant': '/employee/assistant',
   };
-  if (viewMap[view]) {
-    activeItem.value = viewMap[view];
-  } else {
-    activeItem.value = view;
-  }
-}
 
-function handleExportReport() {
-  showToast('招聘报告已生成演示预览。');
-}
-
-function handleAgentCommand(command: string) {
-  if (!command.trim()) {
+  if (view === 'welcome') {
+    router.push('/');
     return;
   }
 
+  const path = routeMap[view];
+  if (path) {
+    router.push(path);
+  }
+}
+
+function handleToggleRole() {
+  const newRole: Role = role.value === 'hr' ? 'employee' : 'hr';
+  role.value = newRole;
+  setSavedRole(newRole);
+  router.push(getDefaultRoute(newRole));
+}
+
+function handleExportReport() {
+  showToast('招聘报告预览已生成。');
+}
+
+function handleAgentCommand(command: string) {
+  if (!command.trim()) return;
+
   traceLogs.value = [`已接收任务：${command}`, ...traceLogs.value].slice(0, 5);
-  showToast('Agent 演示任务已提交。');
+  showToast('智能助手任务已提交。');
 
   window.setTimeout(() => {
-    traceLogs.value = ['任务规划完成，等待后端 Agent 接入。', ...traceLogs.value].slice(0, 5);
+    traceLogs.value = ['任务规划完成，正在汇总业务建议。', ...traceLogs.value].slice(0, 5);
   }, 2000);
 }
 </script>

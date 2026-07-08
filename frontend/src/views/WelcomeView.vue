@@ -33,10 +33,10 @@
       <main class="w-full max-w-[1200px] mx-auto px-4 py-16 z-10 flex flex-col items-center relative">
         <header class="text-center mb-16">
           <h1 class="font-display text-5xl md:text-6xl font-bold tracking-tight mb-6 text-transparent bg-clip-text bg-gradient-to-br from-primary via-primary-container to-tertiary">
-            TalentOS AI
+            TalentFlow
           </h1>
           <p class="text-2xl text-on-surface-variant font-medium mt-6">
-            欢迎来到 TalentOS AI 企业级智能人才管理平台
+            欢迎来到 TalentFlow 企业级智能人才管理平台
           </p>
           <p class="text-base text-outline mt-4 max-w-2xl mx-auto">
             选择您的角色，体验下一代由人工智能驱动的人力资源解决方案。
@@ -74,9 +74,9 @@
             <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-tertiary-container/20 to-tertiary/5 flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500 shadow-inner border border-white/50">
               <span class="material-symbols-outlined text-5xl text-tertiary drop-shadow-sm">smart_toy</span>
             </div>
-            <h2 class="text-2xl text-on-surface mb-4 font-bold">员工 AI 助手</h2>
+            <h2 class="text-2xl text-on-surface mb-4 font-bold">员工智能助手</h2>
             <p class="text-[15px] leading-relaxed text-on-surface-variant mb-8 flex-grow max-w-[280px]">
-              自助查询假期、薪资及公司政策。与智能 AI 助手对话，快速解决日常行政和人事问题。
+              自助查询假期、薪资及公司政策。与智能助手对话，快速解决日常行政和人事问题。
             </p>
             <div class="mt-auto w-full max-w-[240px]">
               <span class="flex items-center justify-center px-6 py-3.5 bg-white/80 border-2 border-primary/20 text-primary rounded-xl text-sm font-semibold group-hover:bg-white group-hover:border-primary/40 group-hover:shadow-lg group-hover:shadow-primary/10 transition-all duration-300 w-full backdrop-blur-sm">
@@ -90,7 +90,7 @@
 
         <footer class="mt-24 text-center relative z-10">
           <p class="text-sm text-outline">
-            © 2024 TalentOS AI 企业级 HR Agent 演示。
+            © 2024 TalentFlow 企业级人力资源管理平台。
           </p>
         </footer>
       </main>

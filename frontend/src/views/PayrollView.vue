@@ -231,7 +231,6 @@ const effectiveTo = ref<string | null>(null);
 const accessError = ref<string | null>(null);
 
 const handleMockUserChange = () => {
-  // If we change to zhangwei, we default the query target to himself
   if (mockUser.value === 1) {
     targetEmployeeId.value = 1;
   }
@@ -294,7 +293,6 @@ watch(() => props.role, (newRole) => {
     mockUser.value = 1;
     targetEmployeeId.value = 1;
   } else {
-    // If switched to HR workspace, default caller to HR Specialist (linyuqing - user 3)
     mockUser.value = 3;
     targetEmployeeId.value = 1;
   }
@@ -302,7 +300,6 @@ watch(() => props.role, (newRole) => {
 });
 
 onMounted(() => {
-  // Set initial mock caller role based on workspace role
   if (props.role === 'employee') {
     mockUser.value = 1;
     targetEmployeeId.value = 1;

@@ -6,11 +6,15 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db_session
 from app.core.dependencies import get_current_user
 from app.modules.audit.schemas import AuditLogRead
-from app.modules.audit.service import AuditLogService
+from app.modules.audit.service import AuditLogService, AuditService
 from app.modules.auth.models import User
 from app.shared.response import ApiResponse, ok
 
 router = APIRouter()
+
+
+def get_audit_service(session: Session = Depends(get_db_session)) -> AuditService:
+    return AuditService.from_session(session)
 
 
 @router.get("/logs", response_model=ApiResponse[list[AuditLogRead]])

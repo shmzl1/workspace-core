@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import get_db_session
 from app.core.exceptions import TalentFlowError
+from app.core.security import DemoIdentity, parse_demo_identity
 from app.modules.auth.models import User
 from app.modules.employee.models import Employee
 from app.shared.trace import set_trace_id
@@ -65,3 +66,6 @@ def get_current_employee(
         raise TalentFlowError("EMPLOYEE_NOT_FOUND", "当前用户没有关联的员工档案")
     return employee
 
+
+def current_identity(x_demo_identity: str | None = Header(default=None, alias="X-Demo-Identity")) -> DemoIdentity:
+    return parse_demo_identity(x_demo_identity)

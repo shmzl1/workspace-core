@@ -8,14 +8,16 @@ def check_salary_access_local(
     actor_role: str,
     actor_employee_id: int | None,
     target_employee_id: int,
-    target_department: str,
-    relation: str | None = None
+    target_department: str = "",
+    relation: str | None = None,
+    **kwargs
 ) -> dict:
     # 1. Self access
     if actor_employee_id == target_employee_id:
         return {
             "allowed": True,
             "accessible_fields": ["base_salary", "currency", "effective_from", "effective_to"],
+            "fields": ["base_salary", "currency", "effective_from", "effective_to"],
             "reason": "允许员工查询本人薪资信息"
         }
     
@@ -24,6 +26,7 @@ def check_salary_access_local(
         return {
             "allowed": True,
             "accessible_fields": ["base_salary", "currency", "effective_from", "effective_to"],
+            "fields": ["base_salary", "currency", "effective_from", "effective_to"],
             "reason": "允许薪酬管理员查询所有薪资信息"
         }
         
@@ -32,6 +35,7 @@ def check_salary_access_local(
         return {
             "allowed": True,
             "accessible_fields": ["base_salary", "currency", "effective_from"],
+            "fields": ["base_salary", "currency", "effective_from"],
             "reason": "允许HR专员查询薪资信息（已脱敏截止日期）"
         }
         
@@ -40,27 +44,68 @@ def check_salary_access_local(
         return {
             "allowed": True,
             "accessible_fields": ["base_salary", "currency"],
+            "fields": ["base_salary", "currency"],
             "reason": "允许部门经理查询本部门员工薪资信息（仅基本工资与币种）"
         }
         
     return {
         "allowed": False,
         "accessible_fields": [],
+        "fields": [],
         "reason": "无权访问此员工的薪资数据"
     }
 
 
 # Try to import from human_only, fallback to local implementation
 try:
-    from app.human_only.salary_access_control import check_salary_access
+    from app.human_only.salary_access_control import check_salary_access as check_salary_access_real
 except ImportError:
-    check_salary_access = check_salary_access_local
+    check_salary_access_real = check_salary_access_local
+
+from dataclasses import dataclass
+from importlib import import_module
+from typing import Any
+from app.core.security import DemoIdentity
+
+
+@dataclass(frozen=True)
+class SalaryAccessDecision:
+    allowed: bool
+    fields: list[str]
+    reason: str
 
 
 class PayrollAccessService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.audit_service = AuditLogService(db)
+
+    @staticmethod
+    def _read_result(result: Any, key: str, default: Any) -> Any:
+        if isinstance(result, dict):
+            return result.get(key, default)
+        return getattr(result, key, default)
+
+    def check_salary_access(self, identity: DemoIdentity, target_employee_id: int, requested_fields: list[str]) -> SalaryAccessDecision:
+        try:
+            module = import_module("app.human_only.salary_access_control")
+            check_fn = getattr(module, "check_salary_access")
+        except (ModuleNotFoundError, AttributeError):
+            check_fn = check_salary_access_local
+
+        result = check_fn(
+            actor_user_id=identity.user_id,
+            actor_role=identity.role,
+            actor_employee_id=identity.employee_id,
+            target_employee_id=target_employee_id,
+            requested_fields=requested_fields,
+            relation="self" if identity.employee_id == target_employee_id else "none"
+        )
+        return SalaryAccessDecision(
+            allowed=bool(self._read_result(result, "allowed", False)),
+            fields=list(self._read_result(result, "fields", self._read_result(result, "accessible_fields", []))),
+            reason=str(self._read_result(result, "reason", "")),
+        )
 
     def verify_and_log_access(
         self,
@@ -96,7 +141,7 @@ class PayrollAccessService:
             relation = "manager"
 
         # Call access control check
-        result = check_salary_access(
+        result = check_salary_access_real(
             actor_role=actor_role,
             actor_employee_id=actor_employee_id,
             target_employee_id=target_employee_id,

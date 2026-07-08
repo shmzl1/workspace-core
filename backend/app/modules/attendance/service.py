@@ -1,16 +1,43 @@
+"""Attendance service for read/write attendance operations."""
+
 from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session
+
 from app.core.exceptions import TalentFlowError
+from app.modules._serialization import model_to_dict
 from app.modules.attendance.models import AttendanceRecord
 from app.modules.attendance.repository import AttendanceRepository, WorkCalendarRepository
 from app.modules.attendance.rules import calculate_check_in_status, calculate_check_out_status
 
+ATTENDANCE_FIELDS = [
+    "id",
+    "employee_id",
+    "attendance_date",
+    "check_in_at",
+    "check_out_at",
+    "status",
+    "late_minutes",
+    "early_leave_minutes",
+    "source",
+    "remark",
+]
+
 
 class AttendanceService:
-    def __init__(self, db: Session) -> None:
-        self.db = db
-        self.repo = AttendanceRepository(db)
-        self.calendar_repo = WorkCalendarRepository(db)
+    def __init__(self, repository_or_session) -> None:
+        if isinstance(repository_or_session, Session):
+            self.repository = AttendanceRepository(repository_or_session)
+            self.db = repository_or_session
+        else:
+            self.repository = repository_or_session
+            self.db = repository_or_session.session
+        
+        self.repo = self.repository
+        self.calendar_repo = WorkCalendarRepository(self.db)
+
+    @classmethod
+    def from_session(cls, session: Session) -> "AttendanceService":
+        return cls(AttendanceRepository(session))
 
     def check_in(self, employee_id: int, check_in_time: datetime, source: str = "WEB") -> AttendanceRecord:
         attendance_date = check_in_time.date()
@@ -101,3 +128,10 @@ class AttendanceService:
                 ))
                 
         return results
+
+    def get_today(self, employee_id: int, today: date | None = None) -> dict | None:
+        record = self.repository.get_daily_record(employee_id, today or date.today())
+        return model_to_dict(record, ATTENDANCE_FIELDS) if record else None
+
+    def list_recent(self, employee_id: int, limit: int = 31) -> list[dict]:
+        return [model_to_dict(record, ATTENDANCE_FIELDS) for record in self.repository.list_records(employee_id, limit)]

@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
-from app.core.dependencies import get_current_employee, get_current_user
+from app.core.dependencies import get_current_employee, get_current_user, current_identity
 from app.core.exceptions import TalentFlowError
+from app.core.security import DemoIdentity
 from app.modules.auth.models import User
 from app.modules.employee.models import Employee
 from app.modules.payroll.schemas.salary import SalaryRead
@@ -13,6 +14,10 @@ from app.modules.payroll.services.employee_salary_service import EmployeeSalaryS
 from app.shared.response import ApiResponse, ok
 
 router = APIRouter()
+
+
+def get_salary_service(session: Session = Depends(get_db_session)) -> EmployeeSalaryService:
+    return EmployeeSalaryService.from_session(session)
 
 
 @router.get("/me", response_model=ApiResponse[SalaryRead])
@@ -41,7 +46,7 @@ def get_my_salary(
 
 
 @router.get("/employee/{employee_id}", response_model=ApiResponse[SalaryRead])
-def get_employee_salary(
+def get_employee_salary_detail(
     employee_id: int,
     request: Request,
     current_user: User = Depends(get_current_user),
@@ -66,3 +71,12 @@ def get_employee_salary(
         user_agent=user_agent
     )
     return ok(SalaryRead.model_validate(salary_data))
+
+
+@router.get("/employees/{employee_id}")
+def employee_salary(
+    employee_id: int,
+    identity: DemoIdentity = Depends(current_identity),
+    service: EmployeeSalaryService = Depends(get_salary_service),
+) -> object:
+    return ok(service.get_salary_summary(identity, employee_id))
