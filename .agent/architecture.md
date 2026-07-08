@@ -7,11 +7,17 @@ TalentFlow 智聘中枢采用 Vue Web 管理端、微信小程序员工端、Gra
 ## 固定约束
 
 - 一套 FastAPI 后端。
-- Web、小程序、Gradio 共享后端。
-- 普通业务：`API -> Service -> Repository -> PostgreSQL`。
-- Agent：`Agent -> Tool -> Service -> human_only`。
+- Vue Web 管理端、微信小程序员工端、Gradio 内部调试台共享同一套 FastAPI 后端。
+- 普通业务请求：`API -> Service -> Repository -> PostgreSQL`。
+- 普通业务调用核心算法：`API -> Service -> human_only`。
+- Agent 任务调用核心算法：`Agent -> Tool -> Service -> human_only`。
+- RAG 问答：`Agent/Tool -> RAG -> ChromaDB -> LLM -> 带来源回答`。
 - 模块化单体，不使用微服务。
 - 不新增第二套后端。
+- 不引入 Redis、Celery、RabbitMQ、Kubernetes，除非后续团队明确重新决策并更新 `.agent/decisions.md`。
+- Route/API 不直接访问数据库，不直接调用 `human_only`。
+- Agent 不直接访问 Repository，不直接调用 `human_only`。
+- 前端、小程序、Gradio 不直接访问数据库、禁飞区或底层算法。
 
 ## 架构图
 
@@ -39,8 +45,27 @@ flowchart TB
     Agent --> Tool
     Tool --> Service
     Tool --> RAG
+    RAG --> LLM[LLM]
     Service --> Human
 ```
+
+## AI 禁飞区边界
+
+AI 禁飞区核心实现文件只包含：
+
+- `backend/app/human_only/resume_scoring.py`
+- `backend/app/human_only/interview_scheduler.py`
+- `backend/app/human_only/salary_access_control.py`
+
+对应核心测试只包含：
+
+- `backend/tests/human_only/test_resume_scoring.py`
+- `backend/tests/human_only/test_interview_scheduler.py`
+- `backend/tests/human_only/test_salary_access_control.py`
+
+AI 不得创建、修改、移动、删除、格式化、补全上述文件，不得复制、重写、模拟、绕过禁飞区核心算法。禁飞区只能由人工负责人维护，保持纯 Python，不依赖 FastAPI、SQLAlchemy、LangGraph、ChromaDB、HTTP 客户端、数据库连接或 LLM。
+
+`human_only` 内部公开函数统一为 `score_resume(...)`、`schedule_interview(...)`、`check_salary_access(...)`。Service 层可以包装为 `score_candidates(...)`、`generate_schedule(...)`、`check_salary_access(...)`。Agent Tool 只能调用 Service 层函数。
 
 ## Web、员工端、小程序边界
 
