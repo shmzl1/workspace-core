@@ -24,6 +24,40 @@
       <HiringIntensityMatrix />
       <AgentTraceCard :logs="traceLogs" />
     </div>
+
+    <section class="payroll-risk">
+      <div class="payroll-risk__header">
+        <div>
+          <p class="dashboard-page__eyebrow">薪资预审与风险提示</p>
+          <h2>待处理薪资预审</h2>
+        </div>
+        <button type="button">查看全部</button>
+      </div>
+
+      <div class="payroll-risk__grid">
+        <article v-for="item in payrollReviewItems" :key="item.employee" class="payroll-risk__item">
+          <div class="payroll-risk__item-head">
+            <strong>{{ item.employee }}</strong>
+            <span>{{ item.status }}</span>
+          </div>
+          <dl>
+            <div>
+              <dt>薪资周期</dt>
+              <dd>{{ item.period }}</dd>
+            </div>
+            <div>
+              <dt>预览实发</dt>
+              <dd>{{ item.net }}</dd>
+            </div>
+            <div>
+              <dt>异常提示</dt>
+              <dd>{{ item.risk }}</dd>
+            </div>
+          </dl>
+          <p>{{ item.suggestion }}</p>
+        </article>
+      </div>
+    </section>
   </section>
 </template>
 
@@ -34,6 +68,25 @@ import HiringIntensityMatrix from './HiringIntensityMatrix.vue';
 import ScreeningPipelineBoard from './ScreeningPipelineBoard.vue';
 import WeeklyScheduleCard from './WeeklyScheduleCard.vue';
 import { kpiItems } from '../../../mock/recruitmentDashboard';
+
+const payrollReviewItems = [
+  {
+    employee: '张伟',
+    period: '2026-07',
+    net: '12,420.00',
+    status: '待 HR 确认',
+    risk: '迟到扣款高于部门均值',
+    suggestion: '建议核对考勤来源与扣款规则后再确认'
+  },
+  {
+    employee: '刘敏',
+    period: '2026-07',
+    net: '14,860.00',
+    status: '需复核',
+    risk: '补贴录入与上月差异较大',
+    suggestion: '建议复查交通补贴与餐补调整依据'
+  }
+];
 
 defineProps<{
   pageTitle: string;
@@ -123,13 +176,106 @@ defineEmits<{
   gap: 18px;
 }
 
+.payroll-risk {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+.payroll-risk__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.payroll-risk__header h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.payroll-risk__header button {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 800;
+}
+
+.payroll-risk__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.payroll-risk__item {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-soft);
+}
+
+.payroll-risk__item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.payroll-risk__item-head span {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.payroll-risk dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.payroll-risk dt {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.payroll-risk dd {
+  margin: 5px 0 0;
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+.payroll-risk__item p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
 @media (max-width: 1180px) {
   .dashboard-page__kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dashboard-page__grid,
-  .dashboard-page__lower {
+  .dashboard-page__lower,
+  .payroll-risk__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payroll-risk dl {
     grid-template-columns: 1fr;
   }
 }

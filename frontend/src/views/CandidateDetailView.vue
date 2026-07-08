@@ -43,6 +43,58 @@
           </div>
         </div>
 
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter mb-lg">
+          <div class="glass-card rounded-xl p-lg lg:col-span-2">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-md mb-md">
+              <div>
+                <h3 class="font-title-lg text-title-lg text-on-surface m-0">候选人池</h3>
+                <p class="font-body-md text-body-md text-on-surface-variant mt-xs">按岗位匹配度、综合评分和风险标签进行筛选排序。</p>
+              </div>
+              <div class="flex gap-sm">
+                <button class="bg-primary text-on-primary font-label-md py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors">智能筛选</button>
+                <button class="bg-surface-container-lowest border border-outline-variant text-primary font-label-md py-2 px-4 rounded-lg hover:bg-surface-container-low transition-colors">一键排序</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-sm">
+              <article v-for="candidate in rankedCandidates" :key="candidate.name" class="candidate-rank-card">
+                <div class="flex justify-between items-start gap-sm">
+                  <div>
+                    <strong>{{ candidate.name }}</strong>
+                    <p>{{ candidate.role }}</p>
+                  </div>
+                  <span>{{ candidate.score }}</span>
+                </div>
+                <div class="candidate-rank-card__metrics">
+                  <small>匹配度 {{ candidate.match }}</small>
+                  <small>{{ candidate.risk }}</small>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-xl p-lg">
+            <h3 class="font-title-lg text-title-lg text-on-surface m-0 mb-md">智能筛选条件</h3>
+            <div class="space-y-sm">
+              <div class="flex justify-between text-body-md">
+                <span class="text-on-surface-variant">岗位匹配</span>
+                <strong class="text-on-surface">首席数据科学家</strong>
+              </div>
+              <div class="flex justify-between text-body-md">
+                <span class="text-on-surface-variant">技能权重</span>
+                <strong class="text-on-surface">40%</strong>
+              </div>
+              <div class="flex justify-between text-body-md">
+                <span class="text-on-surface-variant">项目经验</span>
+                <strong class="text-on-surface">30%</strong>
+              </div>
+              <div class="flex justify-between text-body-md">
+                <span class="text-on-surface-variant">到岗时间</span>
+                <strong class="text-on-surface">7-30 天</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Bento Grid Layout -->
         <div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
           
@@ -57,7 +109,7 @@
               
               <div class="flex items-center gap-sm mb-md border-b border-outline-variant pb-sm relative z-10">
                 <span class="material-symbols-outlined text-primary-container animate-pulse">auto_awesome</span>
-                <h3 class="font-title-lg text-title-lg text-on-surface m-0">TalentOS AI 评估报告</h3>
+                <h3 class="font-title-lg text-title-lg text-on-surface m-0">AI 综合评估</h3>
               </div>
               
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-md relative z-10 mb-md">
@@ -92,10 +144,10 @@
                     Python <span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
                   </span>
                   <span class="bg-primary-container/10 border border-primary/20 text-primary font-code-sm px-sm py-xs rounded flex items-center gap-xs">
-                    LangGraph <span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
+                    多智能体协作 <span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
                   </span>
                   <span class="bg-primary-container/10 border border-primary/20 text-primary font-code-sm px-sm py-xs rounded flex items-center gap-xs">
-                    RAG 架构 <span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
+                    知识检索架构 <span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
                   </span>
                   <span class="bg-surface-container-low border border-outline-variant text-on-surface-variant font-code-sm px-sm py-xs rounded flex items-center gap-xs">
                     PyTorch <span class="w-2 h-2 rounded-full bg-surface-dim inline-block"></span>
@@ -128,12 +180,12 @@ Eleanor Vance
 San Francisco, CA | el.vance@email.com | linkedin.com/in/eleanorvance
 
 职业总结
-首席数据科学家，拥有 8 年以上自然语言处理和生成式 AI 专业经验。在设计和部署可扩展 RAG 架构方面有良好记录，可将企业数据检索效率提高 40% 以上。热衷于道德 AI 实施和构建强大的 Agent 框架。
+首席数据科学家，拥有 8 年以上自然语言处理和生成式智能应用经验。在设计和部署可扩展知识检索架构方面有良好记录，可将企业数据检索效率提高 40% 以上。热衷于可信智能系统实施和构建稳健的任务编排框架。
 
 工作经历
 高级 AI 工程师 | TechNova Solutions | 2021 - 至今
-- 使用 LangGraph 架构并实现多智能体系统，将客户服务升级率降低了 25%。
-- 领导 4 名 ML 工程师团队开发专有的 RAG 流水线，每日处理超过 5000 万份文档。
+- 使用智能任务编排架构并实现多角色协作系统，将客户服务升级率降低了 25%。
+- 领导 4 名 ML 工程师团队开发专有的知识检索流水线，每日处理超过 5000 万份文档。
 - 通过提示工程和模型量化技术将 LLM 推理成本优化了 30%。
 
 数据科学家 | DataCore Analytics | 2018 - 2021
@@ -150,7 +202,7 @@ San Francisco, CA | el.vance@email.com | linkedin.com/in/eleanorvance
             <!-- AI Insights -->
             <div class="glass-card rounded-xl p-lg border-t-4 border-t-primary">
               <h3 class="font-title-lg text-title-lg text-on-surface m-0 mb-md flex items-center gap-sm">
-                <span class="material-symbols-outlined text-primary">insights</span> AI 助手总结
+                <span class="material-symbols-outlined text-primary">insights</span> 智能分析总结
               </h3>
               
               <div class="mb-md">
@@ -158,7 +210,7 @@ San Francisco, CA | el.vance@email.com | linkedin.com/in/eleanorvance
                   <span class="material-symbols-outlined text-secondary text-[16px]">thumb_up</span> 优势
                 </h4>
                 <ul class="list-disc list-inside font-body-md text-on-surface space-y-xs ml-xs">
-                  <li>在多智能体系统（LangGraph）方面有卓越背景。</li>
+                  <li>在多智能体协作系统方面有卓越背景。</li>
                   <li>具备出色的团队领导经验（曾管理 4 名工程师）。</li>
                   <li>高度关注生产环境中的成本优化。</li>
                 </ul>
@@ -175,7 +227,7 @@ San Francisco, CA | el.vance@email.com | linkedin.com/in/eleanorvance
               </div>
               
               <button class="w-full bg-gradient-to-r from-primary to-tertiary text-on-primary font-label-md py-sm px-md rounded-lg mt-sm shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-sm">
-                <span class="material-symbols-outlined text-[18px]">chat</span> 向 AI 咨询详情
+                <span class="material-symbols-outlined text-[18px]">chat</span> 查看评估依据
               </button>
             </div>
 
@@ -230,7 +282,7 @@ San Francisco, CA | el.vance@email.com | linkedin.com/in/eleanorvance
 
           <!-- Slots Select -->
           <div>
-            <label class="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider block mb-2">选择面试时间段 (AI 推荐)</label>
+            <label class="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider block mb-2">选择面试时间段（系统推荐）</label>
             <div class="space-y-2">
               <label class="flex items-center justify-between p-3 rounded-lg border border-outline-variant/60 cursor-pointer hover:bg-primary/5 hover:border-primary/40 transition-colors" :class="{ 'border-primary bg-primary/5': selectedSlot === 'slot1' }">
                 <div class="flex items-center gap-2">
@@ -260,7 +312,7 @@ San Francisco, CA | el.vance@email.com | linkedin.com/in/eleanorvance
           <div>
             <label class="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider block mb-1">指定面试官</label>
             <select v-model="selectedInterviewer" class="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:border-primary text-on-surface">
-              <option>王刚 (技术负责人)</option>
+              <option>王刚 (技术面试官)</option>
               <option>林雨晴 (HR 专员)</option>
               <option>张伟 (高级工程师)</option>
             </select>
@@ -303,7 +355,13 @@ const status = ref<'最佳匹配' | '已拒绝' | '安排面试中'>('最佳匹�
 // Modal State
 const showModal = ref(false);
 const selectedSlot = ref('slot1');
-const selectedInterviewer = ref('王刚 (技术负责人)');
+const selectedInterviewer = ref('王刚 (技术面试官)');
+
+const rankedCandidates = [
+  { name: 'Eleanor Vance', role: '首席数据科学家', score: '94', match: '94%', risk: '低风险' },
+  { name: 'Michael Chen', role: '高级前端工程师', score: '89', match: '91%', risk: '需复核到岗时间' },
+  { name: 'Sarah Jenkins', role: '产品经理', score: '86', match: '88%', risk: '薪资期望偏高' }
+];
 const selectedFormat = ref('线上 - AI 面试间');
 
 function handleReject() {
@@ -332,3 +390,50 @@ function confirmSchedule() {
   }, 1500);
 }
 </script>
+
+<style scoped>
+.candidate-rank-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface-soft);
+}
+
+.candidate-rank-card strong {
+  display: block;
+  color: var(--color-text);
+}
+
+.candidate-rank-card p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.candidate-rank-card > div:first-child > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 800;
+}
+
+.candidate-rank-card__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.candidate-rank-card__metrics small {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-muted);
+  font-weight: 700;
+}
+</style>

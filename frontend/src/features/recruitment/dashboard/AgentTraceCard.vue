@@ -2,18 +2,18 @@
   <article class="trace-card">
     <div class="trace-card__header">
       <div>
-        <h2 class="tf-section-title">LangGraph 执行记录</h2>
-        <p class="tf-section-subtitle">前端模拟链路事件</p>
+        <h2 class="tf-section-title">智能分析记录</h2>
+        <p class="tf-section-subtitle">业务建议与依据追踪</p>
       </div>
       <span>实时</span>
     </div>
 
     <div class="trace-card__nodes">
-      <span>Input</span>
+      <span>输入</span>
       <i></i>
-      <span>Tool</span>
+      <span>分析</span>
       <i></i>
-      <span>LLM</span>
+      <span>建议</span>
     </div>
 
     <ul class="trace-card__logs">

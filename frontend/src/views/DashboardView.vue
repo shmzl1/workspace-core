@@ -77,7 +77,7 @@
           <div class="p-4 border-b border-white/10 flex justify-between items-center relative z-10">
             <h3 class="font-semibold text-white flex items-center gap-2">
               <span class="material-symbols-outlined text-primary-fixed text-[18px]">account_tree</span>
-              LangGraph 链路动态
+              智能分析链路
             </h3>
             <div class="flex items-center gap-1.5">
               <div class="w-2 h-2 rounded-full bg-emerald-500 pulse-dot" />
@@ -87,7 +87,7 @@
           <div class="p-4 flex-1 relative z-10 flex flex-col justify-center">
             <div class="flex justify-between items-center mb-4">
               <div class="text-center">
-                <div class="text-xs text-white/70 mb-1">向量数据库</div>
+                <div class="text-xs text-white/70 mb-1">知识检索</div>
                 <div class="text-xl font-bold text-white">4.2ms</div>
               </div>
               <div class="flex-1 px-4 relative h-4">
@@ -99,7 +99,7 @@
                 </svg>
               </div>
               <div class="text-center">
-                <div class="text-xs text-white/70 mb-1">LLM 节点</div>
+                <div class="text-xs text-white/70 mb-1">综合分析</div>
                 <div class="text-xl font-bold text-primary-fixed">1.8s</div>
               </div>
             </div>

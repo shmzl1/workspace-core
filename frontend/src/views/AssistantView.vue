@@ -55,7 +55,7 @@
               </div>
             </div>
 
-            <!-- AI Process Block -->
+            <!-- Intelligent process block -->
             <div class="flex justify-start pl-11 mb-2">
               <div class="bg-surface-container-low/50 rounded-xl p-4 border border-outline-variant/30 text-sm max-w-[85%] w-full shadow-inner">
                 <div class="flex items-center gap-2 mb-3 text-primary text-xs font-bold uppercase tracking-wide">
@@ -104,7 +104,7 @@
               </div>
             </div>
 
-            <!-- Agent Message -->
+            <!-- Assistant message -->
             <div class="flex justify-start gap-3 relative z-10">
               <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-tertiary/20 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-1 shadow-sm backdrop-blur-sm">
                 <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
@@ -164,7 +164,7 @@
                 </div>
                 <input 
                   type="text" 
-                  placeholder="问问 TalentOS 任何事..." 
+                  placeholder="问问智能助手任何事..." 
                   class="w-full h-14 bg-transparent border-none focus:ring-0 text-sm text-on-surface placeholder:text-outline/60 px-2 outline-none"
                 />
                 <div class="pr-2 flex gap-1">
@@ -178,7 +178,7 @@
               </div>
             </div>
             <div class="text-center mt-3">
-              <span class="text-[10px] text-outline/70 font-medium">TalentOS AI 可能会出错。请考虑核实重要信息。</span>
+              <span class="text-[10px] text-outline/70 font-medium">智能建议可能存在偏差，请核实重要信息。</span>
             </div>
           </div>
         </div>
@@ -190,7 +190,7 @@
               <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                 <span class="material-symbols-outlined text-[18px]">insights</span>
               </div>
-              <h3 class="text-base font-semibold text-on-surface m-0">AI 洞察</h3>
+              <h3 class="text-base font-semibold text-on-surface m-0">智能洞察</h3>
             </div>
             <p class="text-[13px] text-on-surface-variant m-0 leading-relaxed">
               根据您最近的查询，您可能正在计划休假。您还有 <strong class="text-primary font-semibold">14.5 天</strong> 余额。如果您在即将到来的假期中使用 5 天，明年您仍可结转 <strong class="text-primary font-semibold">4.5 天</strong>。

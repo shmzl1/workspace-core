@@ -51,7 +51,7 @@ const currentGroups = computed(() => {
         items: ['智能招聘看板', '候选人池', '面试日历', '招聘报告']
       },
       {
-        title: 'AI Agent',
+        title: '智能助手',
         items: ['智能筛选', '面试助手', '制度问答']
       },
       {

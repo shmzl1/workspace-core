@@ -145,7 +145,7 @@ function handleNavigate(view: string) {
 }
 
 function handleExportReport() {
-  showToast('招聘报告已生成演示预览。');
+  showToast('招聘报告预览已生成。');
 }
 
 function handleAgentCommand(command: string) {
@@ -154,10 +154,10 @@ function handleAgentCommand(command: string) {
   }
 
   traceLogs.value = [`已接收任务：${command}`, ...traceLogs.value].slice(0, 5);
-  showToast('Agent 演示任务已提交。');
+  showToast('智能助手任务已提交。');
 
   window.setTimeout(() => {
-    traceLogs.value = ['任务规划完成，等待后端 Agent 接入。', ...traceLogs.value].slice(0, 5);
+    traceLogs.value = ['任务规划完成，正在汇总业务建议。', ...traceLogs.value].slice(0, 5);
   }, 2000);
 }
 </script>

@@ -16,7 +16,7 @@
       <span class="agentbar__spark"></span>
       <input
         v-model="commandText"
-        :placeholder="role === 'hr' ? '让 TalentFlow AI 筛选候选人、安排面试或生成报表...' : '问问 TalentFlow AI 关于你的假期、薪资或考勤...'"
+        :placeholder="role === 'hr' ? '让智能助手筛选候选人、安排面试或生成报表...' : '问问智能助手关于你的假期、薪资或考勤...'"
       />
       <button class="agentbar__send" aria-label="发送指令" type="submit">
         <span></span>

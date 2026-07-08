@@ -54,7 +54,6 @@
           </div>
         </div>
 
-        <!-- Main Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter min-h-[600px]">
           <!-- Left: Calendar -->
           <div class="lg:col-span-4 glass-card rounded-xl p-6 flex flex-col h-full">
@@ -66,7 +65,6 @@
               </div>
             </div>
             
-            <!-- Calendar Grid Mockup -->
             <div class="grid grid-cols-7 gap-2 mb-2">
               <div class="text-center font-label-md text-label-md text-on-surface-variant py-2">一</div>
               <div class="text-center font-label-md text-label-md text-on-surface-variant py-2">二</div>
@@ -125,12 +123,20 @@
             </div>
             
             <div class="mt-4 pt-4 border-t border-outline-variant">
-              <h4 class="font-label-md text-label-md text-on-surface-variant mb-2">AI 排程建议</h4>
+              <h4 class="font-label-md text-label-md text-on-surface-variant mb-2">智能排期建议</h4>
               <div class="bg-surface-bright border border-primary/20 rounded-lg p-3 flex gap-3 items-start">
                 <span class="material-symbols-outlined text-primary text-[20px]">smart_toy</span>
                 <div>
                   <p class="font-body-md text-body-md text-on-surface text-sm">下周三下午有3个连续空闲时间段，建议安排后端工程师集中面试。</p>
                   <button class="text-primary font-label-md text-label-md mt-1 hover:underline">一键安排</button>
+                </div>
+              </div>
+
+              <div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-3 flex gap-3 items-start mt-3">
+                <span class="material-symbols-outlined text-[#EA580C] text-[20px]">rule</span>
+                <div>
+                  <p class="font-body-md text-body-md text-on-surface text-sm">冲突检测：2 名面试官在 14:00 后不可用，A-301 会议室 16:00 前空闲。</p>
+                  <button class="text-primary font-label-md text-label-md mt-1 hover:underline">查看推荐时段</button>
                 </div>
               </div>
             </div>
@@ -141,6 +147,9 @@
             <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface/50">
               <h3 class="font-title-lg text-title-lg text-on-surface">10月10日 面试日程</h3>
               <div class="flex gap-2">
+                <button class="px-3 py-1.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md flex items-center gap-1 hover:bg-primary/90 transition-colors">
+                  <span class="material-symbols-outlined text-[16px]">auto_awesome</span> 智能排期
+                </button>
                 <button class="px-3 py-1.5 border border-outline-variant rounded-lg font-label-md text-label-md text-on-surface flex items-center gap-1 hover:bg-surface-container-low transition-colors">
                   <span class="material-symbols-outlined text-[16px]">filter_list</span> 筛选
                 </button>
@@ -220,7 +229,7 @@
                     <span class="px-2 py-0.5 bg-surface-container text-on-surface-variant rounded text-xs font-label-md">UI/UX设计师</span>
                   </div>
                   <div class="flex items-center gap-4 font-body-md text-body-md text-on-surface-variant text-sm">
-                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">person</span> 面试官: AI Agent (初筛)</span>
+                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">person</span> 面试官: 智能初筛</span>
                     <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">videocam</span> 线上 - AI 面试间</span>
                   </div>
                 </div>
@@ -247,7 +256,7 @@
                     <span class="px-2 py-0.5 bg-secondary/10 text-secondary rounded text-xs font-label-md ml-auto">已结束</span>
                   </div>
                   <div class="flex items-center gap-4 font-body-md text-body-md text-outline text-sm">
-                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">person</span> 面试官: 王刚 (数据负责人)</span>
+                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">person</span> 面试官: 王刚 (数据面试官)</span>
                   </div>
                 </div>
                 <div class="flex flex-col gap-2 shrink-0">
