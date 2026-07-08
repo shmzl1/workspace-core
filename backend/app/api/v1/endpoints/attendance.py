@@ -15,7 +15,6 @@ from app.modules.attendance.schemas import (
     WeeklyAttendanceSummary,
 )
 from app.modules.attendance.service import AttendanceService
-from app.employee.models import Employee  # Alias target or dynamic import if needed
 from app.modules.employee.models import Employee
 from app.shared.response import ApiResponse, ok
 
