@@ -1,0 +1,4 @@
+[
+  {"id": 1, "employee_id": 2, "leave_type": "ANNUAL", "year": 2026, "total_days": "10.00", "used_days": "2.00"},
+  {"id": 2, "employee_id": 3, "leave_type": "ANNUAL", "year": 2026, "total_days": "12.00", "used_days": "1.00"}
+]

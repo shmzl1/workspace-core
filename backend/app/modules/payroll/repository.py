@@ -1,11 +1,23 @@
-"""Payroll repository boundary.
+"""Payroll repository database reads.
 
-Repositories will own database reads and writes only. Salary access checks must
-be orchestrated by services before repository access.
+Repositories own database reads and writes only. Salary access checks must be
+orchestrated by services before repository access.
 """
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.modules.payroll.models import SalaryRecord
 
 
 class PayrollRepository:
-    """Placeholder repository boundary without SQLAlchemy models."""
+    def __init__(self, session: Session) -> None:
+        self.session = session
 
-    pass
+    def get_latest_salary(self, employee_id: int) -> SalaryRecord | None:
+        return self.session.scalar(
+            select(SalaryRecord)
+            .where(SalaryRecord.employee_id == employee_id)
+            .order_by(SalaryRecord.effective_from.desc(), SalaryRecord.id.desc())
+            .limit(1)
+        )

@@ -1,0 +1,6 @@
+[
+  {"id": 1, "username": "hr_demo", "password_hash": "demo_only_not_for_login", "role": "HR_SPECIALIST", "is_active": true},
+  {"id": 2, "username": "employee_demo", "password_hash": "demo_only_not_for_login", "role": "EMPLOYEE", "is_active": true},
+  {"id": 3, "username": "manager_demo", "password_hash": "demo_only_not_for_login", "role": "DEPARTMENT_MANAGER", "is_active": true},
+  {"id": 4, "username": "payroll_demo", "password_hash": "demo_only_not_for_login", "role": "PAYROLL_ADMIN", "is_active": true}
+]

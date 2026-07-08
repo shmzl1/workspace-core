@@ -8,6 +8,8 @@ from typing import Generic, TypeVar
 
 from pydantic import BaseModel, Field
 
+from app.shared.trace import get_trace_id
+
 T = TypeVar("T")
 
 
@@ -24,8 +26,8 @@ class ApiResponse(BaseModel, Generic[T]):
 
 
 def ok(data: T | None = None, trace_id: str | None = None) -> ApiResponse[T]:
-    return ApiResponse(data=data, trace_id=trace_id)
+    return ApiResponse(data=data, trace_id=trace_id or get_trace_id())
 
 
 def fail(code: str, message: str, trace_id: str | None = None) -> ApiResponse[None]:
-    return ApiResponse(success=False, error=ErrorDetail(code=code, message=message), trace_id=trace_id)
+    return ApiResponse(success=False, error=ErrorDetail(code=code, message=message), trace_id=trace_id or get_trace_id())
