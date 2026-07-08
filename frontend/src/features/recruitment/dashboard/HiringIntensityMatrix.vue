@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { buildHeatmapValues, heatmapRows } from '../../../mock/recruitmentDashboard';
+import { buildHeatmapValues, heatmapRows } from '../../../shared/data/recruitmentDashboard';
 
 const values = buildHeatmapValues();
 </script>

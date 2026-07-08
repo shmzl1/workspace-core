@@ -1,4 +1,4 @@
-import type { KpiItem, PipelineStage, ScheduleItem, SidebarGroup } from '../shared/types/recruitmentDashboard';
+import type { KpiItem, PipelineStage, ScheduleItem, SidebarGroup } from '../types/recruitmentDashboard';
 
 export const topNavItems = ['招聘看板', '候选人', '面试排期', '政策中心'];
 
@@ -8,8 +8,8 @@ export const sidebarGroups: SidebarGroup[] = [
     items: ['智能招聘看板', '候选人池', '面试日历', '招聘报告']
   },
   {
-    title: 'AI Agent',
-    items: ['智能筛选', '面试助手', '制度问答']
+    title: '智能服务',
+    items: ['制度问答']
   },
   {
     title: '管理',
@@ -21,7 +21,7 @@ export const kpiItems: KpiItem[] = [
   { id: 'resumes', label: '新增简历', value: '12', trend: '+14%', variant: 'plain' },
   { id: 'screened', label: 'AI 筛选完成', value: '5', trend: '活跃中', variant: 'gradient' },
   { id: 'interviews', label: '进入面试阶段', value: '3', variant: 'bars' },
-  { id: 'graph', label: 'LangGraph 链路动态', value: '实时', variant: 'dark' }
+  { id: 'graph', label: '智能分析链路', value: '实时', variant: 'dark' }
 ];
 
 export const pipelineStages: PipelineStage[] = [
@@ -79,8 +79,8 @@ export const quickCommands = [
 
 export const initialTraceLogs = [
   '正在查询候选人 “React.js” 相关技能知识图谱...',
-  '候选人评分 Tool 已完成模拟计算',
-  'RAG 来源追踪等待后端 Agent 接入'
+  '候选人综合评估已生成',
+  '制度来源与评估依据已同步'
 ];
 
 export function buildHeatmapValues(): number[] {

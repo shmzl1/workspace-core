@@ -5,14 +5,14 @@
 - 状态：已接受
 - 决策：后端采用 FastAPI 模块化单体。
 - 原因：团队规模和周期更适合清晰模块边界、简单部署和快速联调。
-- 影响：不引入微服务治理、跨服务通信和 Kubernetes。
+- 影响：不引入微服务治理、跨服务通信、Redis、Celery、RabbitMQ 或 Kubernetes，除非后续团队明确重新决策并更新本文档。
 
 ## ADR-002：Web、小程序、Gradio 共用 FastAPI
 
 - 状态：已接受
 - 决策：Vue Web 管理端、微信小程序员工端和 Gradio 内部调试台共享一套 FastAPI 后端。
 - 原因：避免第二套后端和重复业务逻辑。
-- 影响：所有端必须复用统一 API、Service 和权限上下文。
+- 影响：所有端必须复用统一 API、Service 和权限上下文；前端、小程序和 Gradio 不直接访问数据库、禁飞区或底层算法。
 
 ## ADR-003：考勤作为独立模块
 
@@ -47,7 +47,7 @@
 - 状态：已接受
 - 决策：协作分支只使用 `dev` 和 `main`。
 - 原因：课程团队周期短，简化合并和验收路径。
-- 影响：文档和协作规范中不再使用其他分支工作流。
+- 影响：`dev` 是开发主线，`main` 是稳定版本分支；禁止直接向 `main` 提交；文档和协作规范中不再使用 `feature/*` 分支流程。
 
 ## ADR-008：建立 SQLAlchemy 2.0 ORM 与 Alembic 首次迁移
 
@@ -69,3 +69,24 @@
 - 决策：`0001_initial_schema` 只创建结构，不插入账号、员工、候选人、制度、薪资或演示数据。
 - 原因：结构迁移和演示数据应分离，避免真实数据、课程演示数据和数据库结构耦合。
 - 影响：后续如需演示数据，应在独立 seed 脚本或数据文档中处理，不混入 Alembic 结构迁移。
+
+## ADR-011：统一分层调用链
+
+- 状态：已接受
+- 决策：普通业务请求使用 `API -> Service -> Repository -> PostgreSQL`；普通业务调用核心算法使用 `API -> Service -> human_only`；Agent 任务调用核心算法使用 `Agent -> Tool -> Service -> human_only`；RAG 问答使用 `Agent/Tool -> RAG -> ChromaDB -> LLM -> 带来源回答`。
+- 原因：明确 Route、Service、Repository、Agent、RAG 和禁飞区职责，避免越层调用。
+- 影响：Route/API 不直接访问数据库或 `human_only`；Agent 不直接访问 Repository 或 `human_only`。
+
+## ADR-012：统一禁飞区公开函数入口
+
+- 状态：已接受
+- 决策：`human_only` 内部公开函数统一为 `score_resume(...)`、`schedule_interview(...)`、`check_salary_access(...)`；Service 层可以包装为 `score_candidates(...)`、`generate_schedule(...)`、`check_salary_access(...)`。
+- 原因：区分纯算法入口和工程 Service 入口，减少 Agent Tool 误调用禁飞区的风险。
+- 影响：Agent Tool 只能调用 Service 层函数，不能直接调用 `human_only` 函数；AI 不得创建、修改、移动、删除、格式化、补全禁飞区核心实现和核心测试。
+
+## ADR-013：命令执行默认保守
+
+- 状态：已接受
+- 决策：默认不运行 Conda、pip、npm、Docker、Git、数据库迁移、启动服务或构建命令；用户明确要求时可以执行只读检查、格式化、静态检查或测试。
+- 原因：避免在课程项目初始化阶段误启动服务、误迁移数据库或误推送 Git。
+- 影响：不自动执行 `git push`、`git reset --hard`、`git clean -fd`、数据库迁移、Docker 启动、服务启动；`alembic upgrade head` 必须由人工确认后执行。

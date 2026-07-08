@@ -7,16 +7,20 @@
 ## 架构规则
 
 - 仅维护一套 FastAPI 后端。
-- Web 管理端、微信小程序员工端和 Gradio 内部调试台共享后端 API 与业务 Service。
-- 普通业务调用链为 `API -> Service -> Repository -> PostgreSQL`。
-- Agent 调用链为 `Agent -> Tool -> Service -> human_only`。
-- 不新增微服务，不新增第二套后端，不引入 Redis、Celery、RabbitMQ、Kubernetes。
+- Vue Web 管理端、微信小程序员工端和 Gradio 内部调试台共享同一套 FastAPI 后端 API 与业务 Service。
+- 普通业务请求：`API -> Service -> Repository -> PostgreSQL`。
+- 普通业务调用核心算法：`API -> Service -> human_only`。
+- Agent 任务调用核心算法：`Agent -> Tool -> Service -> human_only`。
+- RAG 问答：`Agent/Tool -> RAG -> ChromaDB -> LLM -> 带来源回答`。
+- 不新增微服务，不新增第二套后端，不引入 Redis、Celery、RabbitMQ、Kubernetes，除非后续团队明确重新决策并更新 `.agent/decisions.md`。
 
 ## 模块边界
 
 - FastAPI 是唯一后端入口，`app/main.py` 是应用入口。
 - Route 不直接访问数据库。
 - Route 不直接调用 `human_only`。
+- Agent 不直接访问 Repository。
+- Agent 不直接调用 `human_only`。
 - `api/` 只负责路由聚合、请求校验、响应封装和调用 Service。
 - `modules/` 保存业务模块，每个模块内部再按模型、Schema、Repository、Service 分层。
 - Service 负责编排业务流程、权限和审计。
@@ -35,4 +39,13 @@
 - 不在 API 层直接访问数据库。
 - 不让 Agent 直接访问 Repository 或禁飞区。
 - 不在普通业务模块复制禁飞区算法。
+- AI 不得创建、修改、移动、删除、格式化、补全以下禁飞区核心实现和核心测试：
+  - `backend/app/human_only/resume_scoring.py`
+  - `backend/app/human_only/interview_scheduler.py`
+  - `backend/app/human_only/salary_access_control.py`
+  - `backend/tests/human_only/test_resume_scoring.py`
+  - `backend/tests/human_only/test_interview_scheduler.py`
+  - `backend/tests/human_only/test_salary_access_control.py`
+- 不自动执行数据库迁移、Docker 启动、服务启动或构建命令。
+- 数据库迁移 `alembic upgrade head` 必须由人工确认后执行。
 - 不创建真实 `.env`，不提交真实密钥或真实数据。

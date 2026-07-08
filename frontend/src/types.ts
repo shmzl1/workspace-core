@@ -29,7 +29,7 @@ export const MAIN_NAV: NavItem[] = [
   { id: 'interviews', label: '面试安排', icon: 'calendar_today' },
   { id: 'employees', label: '员工管理', icon: 'badge' },
   { id: 'reporting', label: '数据报表', icon: 'analytics' },
-  { id: 'assistant', label: 'AI 助手', icon: 'smart_toy' }
+  { id: 'assistant', label: '智能助手', icon: 'smart_toy' }
 ];
 
 export const EMP_NAV: NavItem[] = [
@@ -38,5 +38,5 @@ export const EMP_NAV: NavItem[] = [
   { id: 'leave', label: '假期查询', icon: 'event_available' },
   { id: 'payroll', label: '薪资明细', icon: 'account_balance_wallet' },
   { id: 'emp_policy', label: '政策中心', icon: 'policy' },
-  { id: 'emp_assistant', label: 'AI 助手', icon: 'smart_toy' }
+  { id: 'emp_assistant', label: '智能助手', icon: 'smart_toy' }
 ];
