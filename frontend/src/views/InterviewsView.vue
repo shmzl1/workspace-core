@@ -1,190 +1,262 @@
 <template>
-  <div class="interviews-page">
-    <section class="interviews-page__header">
-      <div>
-        <p>招聘流程</p>
-        <h2>面试日历</h2>
-        <span>统一管理候选人、面试官、会议室和时间槽。</span>
-      </div>
-      <button class="btn btn--primary" @click="generateSchedule">
-        <span class="material-symbols-outlined">auto_awesome</span>
-        智能排期
-      </button>
-    </section>
+  <div class="h-full flex flex-col bg-background">
+    <!-- 加载态 -->
+    <LoadingState
+      v-if="loading"
+      message="正在获取面试日程…"
+      detail="连接排期服务中"
+    />
 
-    <section class="interviews-page__metrics">
-      <article v-for="metric in metrics" :key="metric.label" class="metric-card">
-        <span class="material-symbols-outlined">{{ metric.icon }}</span>
-        <div>
-          <strong>{{ metric.value }}</strong>
-          <small>{{ metric.label }}</small>
-        </div>
-      </article>
-    </section>
+    <!-- 权限拒绝 -->
+    <PermissionDenied
+      v-else-if="permissionDenied"
+      description="你当前的角色无权访问面试日历，如需协助请联系 HR 管理员。"
+    />
 
-    <section class="interviews-page__grid">
-      <div class="calendar-card">
-        <div class="calendar-card__top">
+    <!-- 错误态 -->
+    <ErrorState
+      v-else-if="error"
+      :message="error"
+      retry-label="重新加载"
+      @retry="retry"
+    />
+
+    <!-- 正常内容 -->
+    <template v-else>
+      <div class="max-w-container-max mx-auto space-y-gutter">
+        <!-- Page Header -->
+        <div class="flex items-end justify-between gap-4">
           <div>
-            <h3>2026 年 7 月</h3>
-            <p>推荐日程会在日历中高亮展示。</p>
+            <p class="font-label-md text-label-md text-primary uppercase tracking-wider mb-1">招聘流程</p>
+            <h2 class="font-headline-lg md:font-display text-headline-lg-mobile md:text-display text-on-surface tracking-tight">面试日历</h2>
+            <p class="font-body-md text-body-md text-on-surface-variant mt-1">统一管理候选人、面试官、会议室和时间槽。</p>
           </div>
-          <div class="calendar-card__switch">
-            <button class="active">月视图</button>
-            <button>周视图</button>
-          </div>
-        </div>
-
-        <div class="calendar-weekdays">
-          <span v-for="day in weekdays" :key="day">{{ day }}</span>
-        </div>
-
-        <div class="calendar-grid">
           <button
-            v-for="day in calendarDays"
-            :key="day.date"
-            class="calendar-day"
-            :class="{
-              'calendar-day--muted': day.muted,
-              'calendar-day--today': day.today,
-              'calendar-day--has-event': day.events > 0,
-              'calendar-day--recommended': scheduleGenerated && day.recommended
-            }"
+            class="flex items-center gap-2 px-5 py-3 bg-primary text-on-primary rounded-xl font-label-md font-semibold shadow-md hover:shadow-lg hover:bg-primary-fixed-dim hover:text-on-primary-fixed transition-all disabled:opacity-50 disabled:cursor-wait"
+            :disabled="generating"
+            @click="generateSchedule"
           >
-            <strong>{{ day.date }}</strong>
-            <small v-if="day.events">{{ day.events }} 场</small>
-            <span v-if="scheduleGenerated && day.recommended">推荐</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="schedule-card">
-        <div class="schedule-card__top">
-          <div>
-            <h3>今日面试日程</h3>
-            <p>点击智能排期后会刷新推荐时间段。</p>
-          </div>
-          <button class="btn" @click="generateSchedule">
-            <span class="material-symbols-outlined">refresh</span>
-            刷新建议
+            <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+            {{ generating ? '排期中…' : '智能排期' }}
           </button>
         </div>
 
-        <div class="timeline">
-          <article
-            v-for="item in scheduleItems"
-            :key="item.time"
-            class="timeline-item"
-            :class="{ 'timeline-item--recommended': scheduleGenerated && item.recommended }"
-          >
-            <div class="timeline-item__time">
-              <strong>{{ item.time }}</strong>
-              <span>{{ item.duration }}</span>
-            </div>
-            <div class="timeline-item__body">
+        <!-- Overview Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+          <div class="glass-card rounded-xl p-6 relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 w-24 h-24 bg-primary-container/10 rounded-full blur-xl"></div>
+            <div class="flex justify-between items-start mb-4">
               <div>
-                <h4>{{ item.candidate }}</h4>
-                <p>{{ item.role }}</p>
+                <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">今日面试总数</p>
+                <h2 class="font-display text-display text-on-surface mt-1">{{ scheduleItems.length }}</h2>
               </div>
-              <div class="timeline-item__meta">
-                <span><i class="material-symbols-outlined">person</i>{{ item.interviewer }}</span>
-                <span><i class="material-symbols-outlined">meeting_room</i>{{ item.room }}</span>
+              <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <span class="material-symbols-outlined" :style="{ fontVariationSettings: '\'FILL\' 1' }">event</span>
               </div>
             </div>
-            <em>{{ item.status }}</em>
-          </article>
+            <div class="flex items-center gap-2">
+              <span class="font-body-md text-body-md text-secondary flex items-center gap-1">
+                <span class="material-symbols-outlined text-[16px]">trending_up</span> 20%
+              </span>
+              <span class="font-label-md text-label-md text-on-surface-variant">较昨日</span>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-xl p-6">
+            <div class="flex justify-between items-start mb-4">
+              <div>
+                <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">待评价面试</p>
+                <h2 class="font-display text-display text-on-surface mt-1">4</h2>
+              </div>
+              <div class="w-10 h-10 rounded-lg bg-[#FFF7ED] flex items-center justify-center text-[#EA580C]">
+                <span class="material-symbols-outlined" :style="{ fontVariationSettings: '\'FILL\' 1' }">rate_review</span>
+              </div>
+            </div>
+            <div class="w-full bg-surface-container h-2 rounded-full mt-4 overflow-hidden">
+              <div class="bg-[#EA580C] h-full rounded-full" :style="{ width: '33%' }"></div>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-xl p-6">
+            <div class="flex justify-between items-start mb-4">
+              <div>
+                <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">平均面试时长</p>
+                <h2 class="font-display text-display text-on-surface mt-1">45<span class="font-headline-md text-headline-md ml-1 text-on-surface-variant">min</span></h2>
+              </div>
+              <div class="w-10 h-10 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary">
+                <span class="material-symbols-outlined" :style="{ fontVariationSettings: '\'FILL\' 1' }">timer</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 mt-4">
+              <span class="material-symbols-outlined text-secondary text-[16px]">check_circle</span>
+              <span class="font-label-md text-label-md text-on-surface-variant">符合标准预期时长</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter min-h-[600px]">
+          <!-- Left: Calendar -->
+          <div class="lg:col-span-4 glass-card rounded-xl p-6 flex flex-col h-full">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="font-title-lg text-title-lg text-on-surface">2026 年 7 月</h3>
+              <div class="flex bg-surface-container-low rounded-lg p-1">
+                <button
+                  class="px-3 py-1 rounded font-label-md text-label-md transition-colors"
+                  :class="calendarView === 'month' ? 'bg-white shadow-sm text-on-surface' : 'text-on-surface-variant hover:text-on-surface'"
+                  @click="calendarView = 'month'"
+                >月视图</button>
+                <button
+                  class="px-3 py-1 rounded font-label-md text-label-md transition-colors"
+                  :class="calendarView === 'week' ? 'bg-white shadow-sm text-on-surface' : 'text-on-surface-variant hover:text-on-surface'"
+                  @click="calendarView = 'week'"
+                >周视图</button>
+              </div>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="grid grid-cols-7 gap-2 mb-2">
+              <div v-for="day in weekdays" :key="day" class="text-center font-label-md text-label-md text-on-surface-variant py-2">{{ day }}</div>
+            </div>
+
+            <div class="flex-1 grid grid-cols-7 gap-2 auto-rows-min content-start">
+              <button
+                v-for="day in calendarDays"
+                :key="day.date"
+                class="text-center py-2 rounded-lg font-label-md text-label-md transition-colors relative"
+                :class="{
+                  'text-outline': day.muted,
+                  'text-on-surface': !day.muted,
+                  'bg-primary text-on-primary rounded-full font-bold shadow-md shadow-primary/30': day.today && !scheduleGenerated,
+                  'bg-emerald-500 text-white rounded-full font-bold shadow-md': scheduleGenerated && day.recommended && !day.conflict,
+                  'bg-red-500 text-white rounded-full font-bold shadow-md': scheduleGenerated && day.conflict,
+                  'hover:bg-surface-container-low': !day.today,
+                }"
+              >
+                {{ day.date }}
+                <span v-if="!day.muted && day.events > 0 && !day.today" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></span>
+              </button>
+            </div>
+
+            <!-- AI 排程建议 -->
+            <div class="mt-4 pt-4 border-t border-outline-variant">
+              <h4 class="font-label-md text-label-md text-on-surface-variant mb-2">AI 排程建议</h4>
+              <div class="bg-surface-bright border border-primary/20 rounded-lg p-3 flex gap-3 items-start">
+                <span class="material-symbols-outlined text-primary text-[20px]">smart_toy</span>
+                <div>
+                  <p class="font-body-md text-body-md text-on-surface text-sm">{{ currentSuggestion.reason }}</p>
+                  <button class="text-primary font-label-md text-label-md mt-1 hover:underline" @click="generateSchedule">一键安排</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Interview List -->
+          <div class="lg:col-span-8 glass-card rounded-xl p-0 flex flex-col h-full overflow-hidden">
+            <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface/50">
+              <h3 class="font-title-lg text-title-lg text-on-surface">今日面试日程</h3>
+              <div class="flex gap-2">
+                <span
+                  class="px-3 py-1 rounded-lg font-label-md text-label-md"
+                  :class="scheduleGenerated ? 'bg-emerald-50 text-emerald-700' : 'bg-surface-container text-on-surface-variant'"
+                >{{ scheduleGenerated ? '已生成排期建议' : '共 ' + scheduleItems.length + ' 场' }}</span>
+              </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-6 space-y-4">
+              <!-- 无日程空态 -->
+              <EmptyState
+                v-if="scheduleItems.length === 0"
+                title="暂无今日日程"
+                description="今天没有安排面试，可以点击上方「智能排期」按钮生成推荐日程。"
+              />
+
+              <!-- Interview Items -->
+              <div
+                v-for="item in scheduleItems"
+                :key="item.time"
+                class="border rounded-xl p-4 flex items-center gap-6 relative shadow-sm transition-colors"
+                :class="{
+                  'border-primary/20 bg-primary/5': scheduleGenerated && item.recommended && !item.hasConflict,
+                  'border-[#EA580C]/20 bg-[#FFF7ED]': item.hasConflict,
+                  'border-outline-variant bg-white hover:border-primary/50': !scheduleGenerated || (!item.recommended && !item.hasConflict),
+                }"
+              >
+                <div v-if="scheduleGenerated && item.recommended && !item.hasConflict" class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500 rounded-l-lg"></div>
+                <div v-if="item.hasConflict" class="absolute left-0 top-0 bottom-0 w-1.5 bg-[#EA580C] rounded-l-lg"></div>
+
+                <div class="flex flex-col items-center justify-center min-w-[80px]">
+                  <span class="font-headline-md text-headline-md font-bold" :class="scheduleGenerated && item.recommended && !item.hasConflict ? 'text-emerald-600' : 'text-primary'">{{ item.time }}</span>
+                  <span class="font-label-md text-label-md text-on-surface-variant">{{ item.duration }}</span>
+                  <span
+                    v-if="scheduleGenerated"
+                    class="mt-1 px-2 py-0.5 font-label-md text-[10px] rounded"
+                    :class="{
+                      'bg-emerald-100 text-emerald-700': item.recommended && !item.hasConflict,
+                      'bg-[#FFEDD5] text-[#EA580C]': item.hasConflict,
+                    }"
+                  >{{ item.status }}</span>
+                </div>
+
+                <div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center shrink-0 text-on-surface-variant font-bold text-lg">
+                  {{ item.candidate.charAt(0) }}
+                </div>
+
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <h4 class="font-title-lg text-title-lg text-on-surface">{{ item.candidate }}</h4>
+                    <span class="px-2 py-0.5 bg-surface-container text-on-surface-variant rounded text-xs font-label-md">{{ item.role }}</span>
+                  </div>
+                  <div class="flex items-center gap-4 font-body-md text-body-md text-on-surface-variant text-sm">
+                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">person</span> 面试官: {{ item.interviewer }}</span>
+                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">{{ item.room.includes('线上') ? 'videocam' : 'location_on' }}</span> {{ item.room }}</span>
+                  </div>
+                </div>
+
+                <div class="flex flex-col gap-2 shrink-0">
+                  <button class="px-4 py-2 bg-white border border-outline-variant text-on-surface rounded-lg font-label-md text-label-md hover:bg-surface-container-low transition-colors">
+                    查看简历
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </section>
 
-    <section class="suggestion-panel">
-      <div class="suggestion-panel__header">
-        <div>
-          <p>排期建议</p>
-          <h3>{{ currentSuggestion.title }}</h3>
-        </div>
-        <span :class="scheduleGenerated ? 'status status--ready' : 'status'">
-          {{ scheduleGenerated ? '已生成' : '待生成' }}
-        </span>
-      </div>
-
-      <div class="suggestion-panel__grid">
-        <article>
-          <span class="material-symbols-outlined">schedule</span>
-          <strong>推荐面试时间</strong>
-          <p>{{ currentSuggestion.time }}</p>
-        </article>
-        <article>
-          <span class="material-symbols-outlined">badge</span>
-          <strong>面试官可用时间</strong>
-          <p>{{ currentSuggestion.interviewerAvailability }}</p>
-        </article>
-        <article>
-          <span class="material-symbols-outlined">person_check</span>
-          <strong>候选人可用时间</strong>
-          <p>{{ currentSuggestion.candidateAvailability }}</p>
-        </article>
-        <article>
-          <span class="material-symbols-outlined">rule</span>
-          <strong>冲突检测</strong>
-          <p>{{ currentSuggestion.conflict }}</p>
-        </article>
-      </div>
-
-      <div class="suggestion-panel__reason">
-        <span class="material-symbols-outlined">psychology</span>
-        <div>
-          <strong>推荐理由</strong>
-          <p>{{ currentSuggestion.reason }}</p>
-        </div>
-      </div>
-    </section>
+      <!-- FAB -->
+      <button class="fixed bottom-28 right-8 w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:bg-primary-fixed-dim hover:text-on-primary-fixed hover:scale-105 transition-all duration-200 z-50">
+        <span class="material-symbols-outlined text-3xl">add</span>
+      </button>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import LoadingState from '../shared/components/feedback/LoadingState.vue';
+import ErrorState from '../shared/components/feedback/ErrorState.vue';
+import EmptyState from '../shared/components/feedback/EmptyState.vue';
+import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
 
 const emit = defineEmits<{
   'show-toast': [message: string];
 }>();
 
+// ── 状态 ─────────────────────────────────────
+const loading = ref(true);
+const error = ref<string | null>(null);
+const permissionDenied = ref(false);
+
 const scheduleGenerated = ref(false);
+const generating = ref(false);
+const calendarView = ref<'month' | 'week'>('month');
 const activeSuggestionIndex = ref(0);
 
-const metrics = [
-  { label: '今日面试', value: '12', icon: 'event' },
-  { label: '待评价面试', value: '4', icon: 'rate_review' },
-  { label: '平均面试时长', value: '45 min', icon: 'timer' }
-];
-
+// ── 数据 ─────────────────────────────────────
 const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
-const calendarDays = [
-  { date: 29, muted: true, today: false, events: 0, recommended: false },
-  { date: 30, muted: true, today: false, events: 0, recommended: false },
-  { date: 1, muted: false, today: false, events: 1, recommended: false },
-  { date: 2, muted: false, today: false, events: 0, recommended: false },
-  { date: 3, muted: false, today: false, events: 2, recommended: false },
-  { date: 4, muted: false, today: false, events: 0, recommended: false },
-  { date: 5, muted: false, today: false, events: 0, recommended: false },
-  { date: 6, muted: false, today: false, events: 1, recommended: false },
-  { date: 7, muted: false, today: false, events: 0, recommended: false },
-  { date: 8, muted: false, today: true, events: 3, recommended: false },
-  { date: 9, muted: false, today: false, events: 1, recommended: true },
-  { date: 10, muted: false, today: false, events: 2, recommended: true },
-  { date: 11, muted: false, today: false, events: 0, recommended: false },
-  { date: 12, muted: false, today: false, events: 0, recommended: false },
-  { date: 13, muted: false, today: false, events: 1, recommended: false },
-  { date: 14, muted: false, today: false, events: 0, recommended: false },
-  { date: 15, muted: false, today: false, events: 0, recommended: false },
-  { date: 16, muted: false, today: false, events: 1, recommended: true },
-  { date: 17, muted: false, today: false, events: 0, recommended: false },
-  { date: 18, muted: false, today: false, events: 0, recommended: false },
-  { date: 19, muted: false, today: false, events: 0, recommended: false }
-];
-
-const scheduleItems = computed(() => [
+const scheduleItems = ref([
   {
     time: '10:00',
     duration: '60 分钟',
@@ -192,8 +264,9 @@ const scheduleItems = computed(() => [
     role: '首席数据科学家',
     interviewer: '王刚',
     room: '线上会议室 A',
-    status: scheduleGenerated.value ? '推荐时段' : '已确认',
-    recommended: true
+    status: '已确认',
+    recommended: false,
+    hasConflict: false,
   },
   {
     time: '14:00',
@@ -203,444 +276,121 @@ const scheduleItems = computed(() => [
     interviewer: '林雨晴',
     room: '会议室 B-201',
     status: '待确认',
-    recommended: false
+    recommended: false,
+    hasConflict: false,
   },
-  {
-    time: '16:30',
-    duration: '60 分钟',
-    candidate: 'Sarah Jenkins',
-    role: '产品经理',
-    interviewer: '赵敏',
-    room: '线上会议室 C',
-    status: scheduleGenerated.value ? '可替换' : '待协调',
-    recommended: scheduleGenerated.value
-  }
 ]);
 
 const suggestions = [
   {
     title: '优先安排 Eleanor Vance 技术终面',
     time: '7 月 10 日 10:00 - 11:00',
-    interviewerAvailability: '王刚 09:30 - 11:30 可用，技术负责人 10:00 - 11:00 可用。',
-    candidateAvailability: '候选人确认上午时段可参加，远程面试优先。',
-    conflict: '未发现会议室、面试官或候选人时间冲突。',
-    reason: '该候选人匹配度最高，且终面所需两位面试官在同一时间段均可用。'
+    interviewerAvailability: '王刚 09:30 - 11:30 可用',
+    candidateAvailability: '候选人确认上午时段可参加',
+    conflict: '未发现冲突',
+    reason: '该候选人匹配度最高，且终面所需两位面试官在同一时间段均可用，建议优先安排。',
+    hasConflict: false,
   },
   {
     title: '合并安排 Michael Chen 前端技术面',
     time: '7 月 16 日 15:00 - 15:45',
-    interviewerAvailability: '林雨晴与前端负责人 14:30 - 16:00 可用。',
-    candidateAvailability: '候选人下午时段可用，预计 6 周到岗。',
-    conflict: '原 14:00 时段与会议室占用冲突，建议顺延至 15:00。',
-    reason: '顺延后无需更换面试官，并能保留同一面试记录模板。'
-  }
+    interviewerAvailability: '林雨晴 14:30 - 16:00 可用',
+    candidateAvailability: '候选人下午时段可用',
+    conflict: '原 14:00 时段与会议室占用冲突',
+    reason: '顺延后无需更换面试官，并能保留同一面试记录模板。',
+    hasConflict: true,
+  },
 ];
 
 const currentSuggestion = computed(() => suggestions[activeSuggestionIndex.value]);
 
+const calendarDays = ref([
+  { date: 29, muted: true, today: false, events: 0, recommended: false, conflict: false },
+  { date: 30, muted: true, today: false, events: 0, recommended: false, conflict: false },
+  { date: 1, muted: false, today: false, events: 1, recommended: false, conflict: false },
+  { date: 2, muted: false, today: false, events: 0, recommended: false, conflict: false },
+  { date: 3, muted: false, today: false, events: 2, recommended: false, conflict: false },
+  { date: 4, muted: false, today: false, events: 0, recommended: false, conflict: false },
+  { date: 5, muted: false, today: false, events: 0, recommended: false, conflict: false },
+  { date: 6, muted: false, today: false, events: 1, recommended: false, conflict: false },
+  { date: 7, muted: false, today: false, events: 0, recommended: false, conflict: false },
+  { date: 8, muted: false, today: true, events: 2, recommended: false, conflict: false },
+  { date: 9, muted: false, today: false, events: 0, recommended: false, conflict: false },
+  { date: 10, muted: false, today: false, events: 0, recommended: false, conflict: false },
+  { date: 11, muted: false, today: false, events: 0, recommended: false, conflict: false },
+  { date: 12, muted: false, today: false, events: 0, recommended: false, conflict: false },
+  { date: 13, muted: false, today: false, events: 1, recommended: false, conflict: false },
+  { date: 14, muted: false, today: false, events: 0, recommended: false, conflict: false },
+  { date: 15, muted: false, today: false, events: 0, recommended: false, conflict: false },
+  { date: 16, muted: false, today: false, events: 1, recommended: false, conflict: false },
+  { date: 17, muted: false, today: false, events: 0, recommended: false, conflict: false },
+]);
+
+// ── 方法 ─────────────────────────────────────
 function generateSchedule() {
-  scheduleGenerated.value = true;
-  activeSuggestionIndex.value = (activeSuggestionIndex.value + 1) % suggestions.length;
-  emit('show-toast', '已生成智能排期建议。');
+  if (generating.value) return;
+  generating.value = true;
+
+  setTimeout(() => {
+    scheduleGenerated.value = true;
+    activeSuggestionIndex.value = (activeSuggestionIndex.value + 1) % suggestions.length;
+    generating.value = false;
+
+    // 更新日历日期
+    const days = calendarDays.value;
+    days[9].recommended = true;   // 7月10日
+    days[15].recommended = true;  // 7月16日
+    days[15].conflict = true;
+
+    // 更新日程
+    scheduleItems.value = [
+      {
+        time: '10:00',
+        duration: '60 分钟',
+        candidate: 'Eleanor Vance',
+        role: '首席数据科学家',
+        interviewer: '王刚',
+        room: '线上会议室 A',
+        status: '推荐时段',
+        recommended: true,
+        hasConflict: false,
+      },
+      {
+        time: '14:00',
+        duration: '45 分钟',
+        candidate: 'Michael Chen',
+        role: '高级前端工程师',
+        interviewer: '林雨晴',
+        room: '会议室 B-201',
+        status: '可替换',
+        recommended: false,
+        hasConflict: true,
+      },
+      {
+        time: '16:30',
+        duration: '60 分钟',
+        candidate: 'Sarah Jenkins',
+        role: '产品经理',
+        interviewer: '赵敏',
+        room: '线上会议室 C',
+        status: '新推荐',
+        recommended: true,
+        hasConflict: false,
+      },
+    ];
+
+    emit('show-toast', '已生成智能排期建议，请注意查看冲突提醒。');
+  }, 1200);
 }
+
+function retry() {
+  loading.value = false;
+  error.value = null;
+  loading.value = true;
+  setTimeout(() => { loading.value = false; }, 500);
+}
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false; }, 400);
+});
 </script>
-
-<style scoped>
-.interviews-page {
-  display: grid;
-  gap: 22px;
-  max-width: 1440px;
-  margin: 0 auto;
-}
-
-.interviews-page__header,
-.interviews-page__metrics,
-.interviews-page__grid,
-.suggestion-panel {
-  width: 100%;
-}
-
-.interviews-page__header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.interviews-page__header p,
-.suggestion-panel__header p {
-  margin: 0 0 8px;
-  color: var(--color-primary);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.interviews-page__header h2,
-.calendar-card__top h3,
-.schedule-card__top h3,
-.suggestion-panel__header h3 {
-  margin: 0;
-  color: var(--color-text);
-}
-
-.interviews-page__header h2 {
-  font-size: 30px;
-}
-
-.interviews-page__header span,
-.calendar-card__top p,
-.schedule-card__top p {
-  display: block;
-  margin-top: 8px;
-  color: var(--color-muted);
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 40px;
-  padding: 0 14px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-sm);
-  background: #fff;
-  color: var(--color-text);
-  font-weight: 800;
-  transition: 0.2s ease;
-}
-
-.btn:hover {
-  border-color: rgba(36, 85, 245, 0.35);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-}
-
-.btn--primary {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: #fff;
-}
-
-.btn--primary:hover {
-  background: #173fd1;
-  color: #fff;
-}
-
-.interviews-page__metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.metric-card,
-.calendar-card,
-.schedule-card,
-.suggestion-panel {
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  background: #fff;
-  box-shadow: var(--shadow-card);
-}
-
-.metric-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 18px;
-}
-
-.metric-card > span {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border-radius: 12px;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-}
-
-.metric-card strong,
-.metric-card small {
-  display: block;
-}
-
-.metric-card strong {
-  color: var(--color-text);
-  font-size: 24px;
-}
-
-.metric-card small {
-  margin-top: 4px;
-  color: var(--color-muted);
-  font-weight: 700;
-}
-
-.interviews-page__grid {
-  display: grid;
-  grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.4fr);
-  gap: 18px;
-}
-
-.calendar-card,
-.schedule-card {
-  padding: 20px;
-}
-
-.calendar-card__top,
-.schedule-card__top,
-.suggestion-panel__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.calendar-card__switch {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 12px;
-  background: var(--color-surface-soft);
-}
-
-.calendar-card__switch button {
-  min-height: 30px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--color-muted);
-  font-weight: 800;
-}
-
-.calendar-card__switch .active {
-  background: #fff;
-  color: var(--color-text);
-  box-shadow: var(--shadow-card);
-}
-
-.calendar-weekdays,
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.calendar-weekdays span {
-  color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 800;
-  text-align: center;
-}
-
-.calendar-grid {
-  margin-top: 8px;
-}
-
-.calendar-day {
-  display: grid;
-  min-height: 70px;
-  align-content: start;
-  gap: 5px;
-  padding: 9px;
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  background: #fff;
-  color: var(--color-text);
-  text-align: left;
-}
-
-.calendar-day small,
-.calendar-day span {
-  color: var(--color-muted);
-  font-size: 11px;
-}
-
-.calendar-day--muted {
-  color: var(--color-subtle);
-  background: var(--color-surface-soft);
-}
-
-.calendar-day--today {
-  border-color: var(--color-primary);
-  box-shadow: inset 0 0 0 1px var(--color-primary);
-}
-
-.calendar-day--has-event small {
-  color: var(--color-primary);
-  font-weight: 800;
-}
-
-.calendar-day--recommended {
-  border-color: #16a34a;
-  background: #f0fdf4;
-}
-
-.calendar-day--recommended span {
-  width: max-content;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: #dcfce7;
-  color: #15803d;
-  font-weight: 800;
-}
-
-.timeline {
-  display: grid;
-  gap: 12px;
-}
-
-.timeline-item {
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) 88px;
-  gap: 16px;
-  align-items: center;
-  padding: 16px;
-  border: 1px solid var(--color-line);
-  border-radius: 14px;
-  background: #fff;
-}
-
-.timeline-item--recommended {
-  border-color: rgba(22, 163, 74, 0.45);
-  background: #f0fdf4;
-}
-
-.timeline-item__time strong,
-.timeline-item__time span,
-.timeline-item__body h4,
-.timeline-item__body p {
-  display: block;
-  margin: 0;
-}
-
-.timeline-item__time strong {
-  color: var(--color-primary);
-  font-size: 22px;
-}
-
-.timeline-item__time span,
-.timeline-item__body p,
-.timeline-item__meta span {
-  color: var(--color-muted);
-  font-size: 13px;
-}
-
-.timeline-item__body h4 {
-  color: var(--color-text);
-}
-
-.timeline-item__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-.timeline-item__meta span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.timeline-item__meta i {
-  font-size: 16px;
-}
-
-.timeline-item em,
-.status {
-  justify-self: end;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: var(--color-surface-soft);
-  color: var(--color-muted);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 800;
-}
-
-.timeline-item--recommended em,
-.status--ready {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.suggestion-panel {
-  padding: 20px;
-}
-
-.suggestion-panel__grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.suggestion-panel__grid article,
-.suggestion-panel__reason {
-  padding: 14px;
-  border: 1px solid var(--color-line);
-  border-radius: 14px;
-  background: var(--color-surface-soft);
-}
-
-.suggestion-panel__grid span,
-.suggestion-panel__reason span {
-  color: var(--color-primary);
-}
-
-.suggestion-panel__grid strong,
-.suggestion-panel__reason strong {
-  display: block;
-  margin-top: 6px;
-  color: var(--color-text);
-}
-
-.suggestion-panel__grid p,
-.suggestion-panel__reason p {
-  margin: 7px 0 0;
-  color: var(--color-muted);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.suggestion-panel__reason {
-  display: flex;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.suggestion-panel__reason strong {
-  margin-top: 0;
-}
-
-@media (max-width: 1120px) {
-  .interviews-page__grid,
-  .suggestion-panel__grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 760px) {
-  .interviews-page__header,
-  .calendar-card__top,
-  .schedule-card__top,
-  .suggestion-panel__header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .interviews-page__metrics {
-    grid-template-columns: 1fr;
-  }
-
-  .timeline-item {
-    grid-template-columns: 1fr;
-  }
-
-  .timeline-item em {
-    justify-self: start;
-  }
-}
-</style>
