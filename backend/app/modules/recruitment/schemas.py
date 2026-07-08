@@ -1,4 +1,4 @@
-"""Recruitment schemas for Sprint 1 outer workflow."""
+"""Recruitment schemas."""
 
 from datetime import date, datetime
 from decimal import Decimal
@@ -64,6 +64,17 @@ class ScoreApplicationResponse(BaseModel):
     status: str
     message: str
     score_total: Decimal | None = None
+    match_score: Decimal | None = None
+    skill_match: str | None = None
+    experience_match: str | None = None
+    education_match: str | None = None
+    risk_tags: list[str] = Field(default_factory=list)
+    risk_prompt: str | None = None
+    recommended_action: str | None = None
+    scoring_basis: list[str] = Field(default_factory=list)
     score_breakdown: dict[str, Any] = Field(default_factory=dict)
     explanation: dict[str, Any] = Field(default_factory=dict)
+    expected_module: str | None = None
+    expected_function: str | None = None
+    fallback_data: dict[str, Any] = Field(default_factory=dict)
     requires_human_only: bool = False

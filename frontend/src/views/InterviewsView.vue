@@ -98,6 +98,11 @@
     </section>
 
     <section class="suggestion-panel">
+      <div v-if="scheduleNotice" class="service-notice">
+        <span class="material-symbols-outlined">info</span>
+        <p>{{ scheduleNotice }}</p>
+      </div>
+
       <div class="suggestion-panel__header">
         <div>
           <p>排期建议</p>
@@ -144,6 +149,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { generateInterviewSchedule } from '../shared/api/modules';
 
 const emit = defineEmits<{
   'show-toast': [message: string];
@@ -151,6 +157,15 @@ const emit = defineEmits<{
 
 const scheduleGenerated = ref(false);
 const activeSuggestionIndex = ref(0);
+const scheduleNotice = ref('');
+const apiSuggestion = ref<null | {
+  title: string;
+  time: string;
+  interviewerAvailability: string;
+  candidateAvailability: string;
+  conflict: string;
+  reason: string;
+}>(null);
 
 const metrics = [
   { label: '今日面试', value: '12', icon: 'event' },
@@ -236,12 +251,67 @@ const suggestions = [
   }
 ];
 
-const currentSuggestion = computed(() => suggestions[activeSuggestionIndex.value]);
+const currentSuggestion = computed(() => apiSuggestion.value ?? suggestions[activeSuggestionIndex.value]);
 
-function generateSchedule() {
+async function generateSchedule() {
+  scheduleNotice.value = '';
   scheduleGenerated.value = true;
-  activeSuggestionIndex.value = (activeSuggestionIndex.value + 1) % suggestions.length;
-  emit('show-toast', '已生成智能排期建议。');
+  try {
+    const result = await generateInterviewSchedule({
+      application_id: 1,
+      candidate: {
+        candidate_id: 1,
+        available_slots: [
+          { start: '2026-07-10T10:00:00', end: '2026-07-10T11:00:00' },
+          { start: '2026-07-16T15:00:00', end: '2026-07-16T15:45:00' }
+        ]
+      },
+      interviewers: [
+        {
+          interviewer_id: 1,
+          employee_name: '王刚',
+          specialties: ['技术终面', '数据科学'],
+          available_slots: [{ start: '2026-07-10T09:30:00', end: '2026-07-10T11:30:00' }]
+        }
+      ],
+      meeting_rooms: [
+        {
+          meeting_room_id: 1,
+          room_name: '线上会议室 A',
+          available_slots: [{ start: '2026-07-10T10:00:00', end: '2026-07-10T11:00:00' }]
+        }
+      ],
+      duration_minutes: 60
+    });
+
+    if (result.status === 'algorithm_not_ready') {
+      scheduleNotice.value = result.message;
+      emit('show-toast', result.message);
+      return;
+    }
+
+    apiSuggestion.value = {
+      title: result.message || '智能排期建议',
+      time: formatRecommendedTime(result.recommended_time),
+      interviewerAvailability: result.interviewer_availability ?? '面试官可用时间已返回。',
+      candidateAvailability: result.candidate_availability ?? '候选人可用时间已返回。',
+      conflict: result.conflict_detection ?? JSON.stringify(result.conflict_explanation ?? {}),
+      reason: result.recommendation_reason ?? '系统已根据候选人、面试官、会议室与时长约束生成建议。'
+    };
+    emit('show-toast', '已生成智能排期建议。');
+  } catch {
+    activeSuggestionIndex.value = (activeSuggestionIndex.value + 1) % suggestions.length;
+    scheduleNotice.value = '智能排期服务暂时不可用，请稍后重试。';
+    emit('show-toast', scheduleNotice.value);
+  }
+}
+
+function formatRecommendedTime(value: Record<string, unknown> | null | undefined) {
+  if (!value) return '推荐时间已返回。';
+  const start = value.start ?? value.start_time;
+  const end = value.end ?? value.end_time;
+  if (start && end) return `${String(start)} - ${String(end)}`;
+  return JSON.stringify(value);
 }
 </script>
 
@@ -569,6 +639,28 @@ function generateSchedule() {
 
 .suggestion-panel {
   padding: 20px;
+}
+
+.service-notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid rgba(36, 85, 245, 0.18);
+  border-radius: 12px;
+  background: #f7f9ff;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.service-notice span {
+  color: var(--color-primary);
+}
+
+.service-notice p {
+  margin: 0;
 }
 
 .suggestion-panel__grid {

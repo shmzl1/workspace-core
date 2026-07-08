@@ -1,4 +1,4 @@
-"""Payroll review schemas for Sprint 1 HR display."""
+"""Payroll review schemas."""
 
 from datetime import datetime
 from decimal import Decimal
@@ -38,3 +38,25 @@ class PayrollReviewRecordRead(BaseModel):
 class PayrollReviewListRead(BaseModel):
     records: list[PayrollReviewRecordRead]
     status_note: str
+
+
+class PayrollPreAuditReviewRequest(BaseModel):
+    requester_role: str = "HR_SPECIALIST"
+    requester_employee_id: int | None = None
+    target_record_ids: list[int] = Field(default_factory=list)
+    include_line_items: bool = True
+
+
+class PayrollPreAuditReviewResponse(BaseModel):
+    status: str
+    message: str
+    pending_batches: int = 0
+    abnormal_salary_items: list[dict[str, Any]] = Field(default_factory=list)
+    permission_risks: list[dict[str, Any]] = Field(default_factory=list)
+    deduction_sources: list[dict[str, Any]] = Field(default_factory=list)
+    approval_suggestion: str | None = None
+    risk_level: str | None = None
+    expected_module: str | None = None
+    expected_function: str | None = None
+    fallback_data: dict[str, Any] = Field(default_factory=dict)
+    requires_human_only: bool = False

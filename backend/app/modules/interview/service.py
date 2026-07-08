@@ -1,6 +1,5 @@
-"""Interview scheduling service for Sprint 1 outer workflow."""
+"""Interview scheduling service."""
 
-from importlib import import_module
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -8,6 +7,15 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import TalentFlowError
 from app.modules.interview.repository import InterviewRepository
 from app.modules.interview.schemas import SchedulePreviewRequest, SchedulePreviewResponse
+from app.shared.human_only_bridge import HumanOnlyContract, algorithm_not_ready, load_human_only_function
+
+
+INTERVIEW_SCHEDULER_CONTRACT = HumanOnlyContract(
+    module_name="app.human_only.interview_scheduler",
+    file_path="backend/app/human_only/interview_scheduler.py",
+    function_name="schedule_interview",
+    not_ready_message="智能排期服务暂未完成配置",
+)
 
 
 class InterviewService:
@@ -19,11 +27,22 @@ class InterviewService:
     def preview_schedule(self, payload: SchedulePreviewRequest) -> SchedulePreviewResponse:
         schedule_interview = self._load_schedule_interview()
         if schedule_interview is None:
+            not_ready = algorithm_not_ready(
+                INTERVIEW_SCHEDULER_CONTRACT,
+                {
+                    "application_id": payload.application_id,
+                    "candidate_slots": len(payload.candidate.available_slots),
+                    "interviewer_count": len(payload.interviewers),
+                    "meeting_room_count": len(payload.meeting_rooms),
+                },
+            )
             return SchedulePreviewResponse(
-                status="HUMAN_ONLY_ALGORITHM_NOT_READY",
-                message="面试排期禁飞区尚未由黄钧人工接入。",
+                status=not_ready["status"],
+                message=not_ready["message"],
+                expected_module=not_ready["expected_module"],
+                expected_function=not_ready["expected_function"],
+                fallback_data=not_ready["fallback_data"],
                 conflict_explanation={
-                    "expected_entry": "backend/app/human_only/interview_scheduler.py::schedule_interview(...)",
                     "service_entry": "InterviewService.preview_schedule(...)",
                     "candidate_slots": len(payload.candidate.available_slots),
                     "interviewer_count": len(payload.interviewers),
@@ -35,21 +54,36 @@ class InterviewService:
         if not self.repository.application_exists(payload.application_id):
             raise TalentFlowError("APPLICATION_NOT_FOUND", "候选人申请不存在，无法生成排期预览。")
 
-        result = schedule_interview(payload.model_dump(mode="json"))
+        try:
+            result = schedule_interview(payload.model_dump(mode="json"))
+        except NotImplementedError:
+            not_ready = algorithm_not_ready(
+                INTERVIEW_SCHEDULER_CONTRACT,
+                {"application_id": payload.application_id},
+            )
+            return SchedulePreviewResponse(
+                status=not_ready["status"],
+                message=not_ready["message"],
+                expected_module=not_ready["expected_module"],
+                expected_function=not_ready["expected_function"],
+                fallback_data=not_ready["fallback_data"],
+                requires_human_only=True,
+            )
+
         return SchedulePreviewResponse(
-            status=result.get("status", "PREVIEW_GENERATED"),
-            message=result.get("message", "排期预览已由禁飞区公开函数返回。"),
+            status=result.get("status", "schedule_generated"),
+            message=result.get("message", "智能排期建议已生成。"),
             recommended_time=result.get("recommended_time"),
             recommended_interviewer_id=result.get("recommended_interviewer_id"),
             recommended_room_id=result.get("recommended_room_id"),
+            interviewer_availability=result.get("interviewer_availability"),
+            candidate_availability=result.get("candidate_availability"),
+            conflict_detection=result.get("conflict_detection"),
+            recommendation_reason=result.get("recommendation_reason"),
             conflict_explanation=result.get("conflict_explanation", {}),
             requires_human_only=False,
         )
 
     @staticmethod
     def _load_schedule_interview() -> Any | None:
-        try:
-            module = import_module("app.human_only.interview_scheduler")
-        except ModuleNotFoundError:
-            return None
-        return getattr(module, "schedule_interview", None)
+        return load_human_only_function(INTERVIEW_SCHEDULER_CONTRACT)

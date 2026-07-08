@@ -39,7 +39,7 @@ import AppTopbar from './AppTopbar.vue';
 import AppSidebar from './AppSidebar.vue';
 import GlobalAgentBar from './GlobalAgentBar.vue';
 import ToastMessage from '../shared/components/base/ToastMessage.vue';
-import { initialTraceLogs } from '../mock/recruitmentDashboard';
+import { initialTraceLogs } from '../shared/data/recruitmentDashboard';
 
 const router = useRouter();
 const route = useRoute();
@@ -69,7 +69,6 @@ function handleNavigate(view: string) {
     'interviews': '/hr/interviews',
     'candidates': '/hr/candidates',
     'reporting': '/hr/reporting',
-    'assistant': '/hr/assistant',
     'policy': '/hr/policy',
     'audit': '/hr/audit',
     'settings': '/hr/settings',

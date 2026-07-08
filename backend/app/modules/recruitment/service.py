@@ -1,6 +1,5 @@
-"""Recruitment service for Sprint 1 outer workflow."""
+"""Recruitment service."""
 
-from importlib import import_module
 from decimal import Decimal
 from typing import Any
 
@@ -15,6 +14,15 @@ from app.modules.recruitment.schemas import (
     RecruitmentDashboardRead,
     ScoreApplicationRequest,
     ScoreApplicationResponse,
+)
+from app.shared.human_only_bridge import HumanOnlyContract, algorithm_not_ready, load_human_only_function
+
+
+RESUME_SCORING_CONTRACT = HumanOnlyContract(
+    module_name="app.human_only.resume_scoring",
+    file_path="backend/app/human_only/resume_scoring.py",
+    function_name="score_resume",
+    not_ready_message="智能评估服务暂未完成配置",
 )
 
 
@@ -34,7 +42,7 @@ class RecruitmentService:
             candidates_count=len(candidates),
             applications_count=len(applications),
             pending_score_count=len(pending),
-            ready_message="Sprint 1 外层已提供招聘评分入口；真实评分依赖黄钧人工禁飞区接入。",
+            ready_message="招聘评分外层入口已就绪，真实评分结果依赖人工维护的核心算法接入。",
         )
 
     def list_jobs(self) -> list[JobRead]:
@@ -63,15 +71,18 @@ class RecruitmentService:
     def score_application(self, application_id: int, payload: ScoreApplicationRequest) -> ScoreApplicationResponse:
         score_resume = self._load_score_resume()
         if score_resume is None:
+            not_ready = algorithm_not_ready(
+                RESUME_SCORING_CONTRACT,
+                {"application_id": application_id, "weights": self._json_ready(dict(payload.weights))},
+            )
             return ScoreApplicationResponse(
                 application_id=application_id,
-                status="HUMAN_ONLY_ALGORITHM_NOT_READY",
-                message="招聘评分禁飞区尚未由黄钧人工接入。",
+                status=not_ready["status"],
+                message=not_ready["message"],
+                expected_module=not_ready["expected_module"],
+                expected_function=not_ready["expected_function"],
+                fallback_data=not_ready["fallback_data"],
                 requires_human_only=True,
-                explanation={
-                    "expected_entry": "backend/app/human_only/resume_scoring.py::score_resume(...)",
-                    "service_entry": "RecruitmentService.score_application(...)",
-                },
             )
 
         detail = self.repository.get_application_detail(application_id)
@@ -79,27 +90,40 @@ class RecruitmentService:
             raise TalentFlowError("APPLICATION_NOT_FOUND", "候选人申请不存在。")
 
         application, candidate, job = detail
-        result = score_resume(
-            {
-                "job": {
-                    "id": job.id,
-                    "title": job.title,
-                    "required_skills": job.required_skills or [],
-                    "preferred_skills": job.preferred_skills or [],
-                    "min_experience_months": job.min_experience_months,
-                },
-                "candidate": {
-                    "id": candidate.id,
-                    "full_name": candidate.full_name,
-                    "skills": candidate.skills or [],
-                    "experience_months": candidate.experience_months,
-                    "available_from": candidate.available_from.isoformat() if candidate.available_from else None,
-                    "profile_json": candidate.profile_json or {},
-                },
-                    "weights": self._json_ready(dict(payload.weights)),
-            }
-        )
-        score_total = result.get("score_total")
+        input_payload = {
+            "job": {
+                "id": job.id,
+                "title": job.title,
+                "required_skills": job.required_skills or [],
+                "preferred_skills": job.preferred_skills or [],
+                "min_experience_months": job.min_experience_months,
+            },
+            "candidate": {
+                "id": candidate.id,
+                "full_name": candidate.full_name,
+                "skills": candidate.skills or [],
+                "experience_months": candidate.experience_months,
+                "available_from": candidate.available_from.isoformat() if candidate.available_from else None,
+                "profile_json": candidate.profile_json or {},
+            },
+            "weights": self._json_ready(dict(payload.weights)),
+        }
+        try:
+            result = score_resume(input_payload)
+        except NotImplementedError:
+            not_ready = algorithm_not_ready(RESUME_SCORING_CONTRACT, {"application_id": application_id})
+            return ScoreApplicationResponse(
+                application_id=application_id,
+                status=not_ready["status"],
+                message=not_ready["message"],
+                expected_module=not_ready["expected_module"],
+                expected_function=not_ready["expected_function"],
+                fallback_data=not_ready["fallback_data"],
+                requires_human_only=True,
+            )
+
+        score_total = result.get("score_total", result.get("total_score"))
+        match_score = result.get("match_score", result.get("job_match_score"))
         score_breakdown = result.get("score_breakdown", {})
         self.repository.save_application_score(
             application,
@@ -109,9 +133,17 @@ class RecruitmentService:
         )
         return ScoreApplicationResponse(
             application_id=application_id,
-            status="SCORED",
-            message="评分结果已由禁飞区公开函数返回。",
+            status=result.get("status", "scored"),
+            message=result.get("message", "智能评估结果已生成。"),
             score_total=score_total,
+            match_score=match_score,
+            skill_match=result.get("skill_match"),
+            experience_match=result.get("experience_match"),
+            education_match=result.get("education_match"),
+            risk_tags=result.get("risk_tags", []),
+            risk_prompt=result.get("risk_prompt"),
+            recommended_action=result.get("recommended_action"),
+            scoring_basis=result.get("scoring_basis", []),
             score_breakdown=score_breakdown,
             explanation=result.get("explanation", {}),
             requires_human_only=False,
@@ -119,11 +151,7 @@ class RecruitmentService:
 
     @staticmethod
     def _load_score_resume() -> Any | None:
-        try:
-            module = import_module("app.human_only.resume_scoring")
-        except ModuleNotFoundError:
-            return None
-        return getattr(module, "score_resume", None)
+        return load_human_only_function(RESUME_SCORING_CONTRACT)
 
     @classmethod
     def _json_ready(cls, value: Any) -> Any:

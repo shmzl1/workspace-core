@@ -77,6 +77,11 @@
       </div>
 
       <aside class="candidate-detail-card">
+        <div v-if="evaluationNotice" class="service-notice">
+          <span class="material-symbols-outlined">info</span>
+          <p>{{ evaluationNotice }}</p>
+        </div>
+
         <div class="candidate-detail-card__header">
           <div>
             <p>AI 综合评估</p>
@@ -106,6 +111,11 @@
             <p>{{ selectedCandidate.experienceMatch }}</p>
           </article>
           <article>
+            <span class="material-symbols-outlined">school</span>
+            <strong>学历匹配</strong>
+            <p>{{ selectedCandidate.educationMatch }}</p>
+          </article>
+          <article>
             <span class="material-symbols-outlined">warning</span>
             <strong>风险提示</strong>
             <p>{{ selectedCandidate.riskDetail }}</p>
@@ -125,9 +135,9 @@
             <span class="material-symbols-outlined">event_available</span>
             安排面试
           </button>
-          <button class="btn" @click="emit('show-toast', '评估依据已展开。')">
+          <button class="btn" :disabled="isScoring" @click="refreshEvaluation(selectedCandidate)">
             <span class="material-symbols-outlined">article</span>
-            查看评估依据
+            {{ isScoring ? '评估中' : '重新评估' }}
           </button>
         </div>
       </aside>
@@ -137,9 +147,11 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { scoreCandidate } from '../shared/api/modules';
 
 type Candidate = {
   id: number;
+  applicationId: number;
   name: string;
   role: string;
   stage: string;
@@ -153,6 +165,7 @@ type Candidate = {
   reason: string;
   skillMatch: string;
   experienceMatch: string;
+  educationMatch: string;
   riskDetail: string;
   interviewAdvice: string;
 };
@@ -165,6 +178,7 @@ const emit = defineEmits<{
 const candidates = ref<Candidate[]>([
   {
     id: 1,
+    applicationId: 1,
     name: 'Eleanor Vance',
     role: '首席数据科学家',
     stage: '待约面',
@@ -178,11 +192,13 @@ const candidates = ref<Candidate[]>([
     reason: '机器学习、知识检索与团队协作经验完整，核心能力覆盖岗位画像中的关键要求。',
     skillMatch: 'Python、模型评估、知识检索与数据治理匹配度高，云平台经验可迁移。',
     experienceMatch: '8 年相关经验，具备跨团队项目交付与算法产品化经验。',
+    educationMatch: '学历背景满足岗位要求。',
     riskDetail: '薪资期望偏高，需要在终面前确认预算区间。',
     interviewAdvice: '建议安排技术负责人和业务负责人联合面试，重点验证知识库落地经验和协作方式。'
   },
   {
     id: 2,
+    applicationId: 2,
     name: 'Michael Chen',
     role: '高级前端工程师',
     stage: '初筛通过',
@@ -196,11 +212,13 @@ const candidates = ref<Candidate[]>([
     reason: 'Vue、TypeScript 和复杂工作台项目经验突出，和前端岗位要求匹配。',
     skillMatch: 'Vue 3、组件抽象、数据可视化能力较强，企业 SaaS 经验充足。',
     experienceMatch: '5 年前端经验，最近项目和招聘工作台场景相近。',
+    educationMatch: '学历背景满足岗位要求。',
     riskDetail: '离职交接周期较长，可能影响紧急岗位入职节奏。',
     interviewAdvice: '建议先安排远程技术面，验证复杂表格、权限 UI 和性能优化经验。'
   },
   {
     id: 3,
+    applicationId: 3,
     name: 'Sarah Jenkins',
     role: '产品经理',
     stage: '待复核',
@@ -214,11 +232,13 @@ const candidates = ref<Candidate[]>([
     reason: '招聘产品和数据分析经验较好，候选人对 HR 场景理解充分。',
     skillMatch: '需求分析、流程设计、指标拆解匹配，数据建模经验略弱。',
     experienceMatch: '有招聘管理平台经验，但权限审计类项目经历较少。',
+    educationMatch: '学历背景满足岗位要求。',
     riskDetail: '期望薪资高于当前职级预算上沿，需要提前沟通。',
     interviewAdvice: '建议面试中加入业务流程建模题，观察其对多角色协作的拆解能力。'
   },
   {
     id: 4,
+    applicationId: 4,
     name: '刘伟',
     role: '后端工程师',
     stage: '简历筛选',
@@ -232,6 +252,7 @@ const candidates = ref<Candidate[]>([
     reason: 'FastAPI 和数据库经验可用，但 Agent 工具链项目经验不足。',
     skillMatch: 'Python、SQLAlchemy、PostgreSQL 匹配，LangGraph 和 RAG 经验较弱。',
     experienceMatch: '后端服务经验稳定，缺少复杂 HR 权限链路项目经历。',
+    educationMatch: '学历背景待结合岗位要求复核。',
     riskDetail: '需要确认其对权限边界和审计日志的理解深度。',
     interviewAdvice: '建议增加系统设计题，重点询问模块化单体、权限校验和审计追踪。'
   }
@@ -240,6 +261,8 @@ const candidates = ref<Candidate[]>([
 const selectedCandidate = ref<Candidate>(candidates.value[0]);
 const highMatchOnly = ref(false);
 const filterMode = ref<'all' | 'smart' | 'score'>('all');
+const isScoring = ref(false);
+const evaluationNotice = ref('');
 
 const visibleCandidates = computed(() => {
   const list = highMatchOnly.value
@@ -289,9 +312,10 @@ function toggleHighMatch() {
   emit('show-toast', highMatchOnly.value ? '已切换为只看高匹配候选人。' : '已恢复查看全部候选人。');
 }
 
-function selectCandidate(candidate: Candidate) {
+async function selectCandidate(candidate: Candidate) {
   selectedCandidate.value = candidate;
   emit('show-toast', `已打开 ${candidate.name} 的综合评估。`);
+  await refreshEvaluation(candidate);
 }
 
 function scheduleInterview(candidate: Candidate) {
@@ -299,6 +323,47 @@ function scheduleInterview(candidate: Candidate) {
   window.setTimeout(() => {
     emit('navigate', 'interviews');
   }, 500);
+}
+
+async function refreshEvaluation(candidate: Candidate) {
+  isScoring.value = true;
+  evaluationNotice.value = '';
+  try {
+    const result = await scoreCandidate(candidate.applicationId, {
+      weights: {
+        skill: 0.4,
+        project: 0.3,
+        availability: 0.2,
+        risk: 0.1
+      },
+      note: '候选人池综合评估'
+    });
+
+    if (result.status === 'algorithm_not_ready') {
+      evaluationNotice.value = result.message;
+      emit('show-toast', result.message);
+      return;
+    }
+
+    candidate.aiScore = Number(result.score_total ?? candidate.aiScore);
+    candidate.match = Number(result.match_score ?? candidate.match);
+    candidate.skillMatch = result.skill_match ?? candidate.skillMatch;
+    candidate.experienceMatch = result.experience_match ?? candidate.experienceMatch;
+    candidate.educationMatch = result.education_match ?? candidate.educationMatch;
+    candidate.riskDetail = result.risk_prompt ?? candidate.riskDetail;
+    candidate.reason = result.scoring_basis?.join('；') || candidate.reason;
+    candidate.recommendedAction = result.recommended_action ?? candidate.recommendedAction;
+    if (result.risk_tags?.length) {
+      candidate.riskLabel = result.risk_tags[0];
+    }
+    selectedCandidate.value = { ...candidate };
+    emit('show-toast', '候选人智能评估已刷新。');
+  } catch {
+    evaluationNotice.value = '智能评估服务暂时不可用，请稍后重试。';
+    emit('show-toast', evaluationNotice.value);
+  } finally {
+    isScoring.value = false;
+  }
 }
 
 function stageClass(stage: string) {
@@ -601,6 +666,27 @@ function riskClass(level: Candidate['riskLevel']) {
   display: grid;
   gap: 18px;
   padding: 20px;
+}
+
+.service-notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid rgba(36, 85, 245, 0.18);
+  border-radius: 12px;
+  background: #f7f9ff;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.service-notice span {
+  color: var(--color-primary);
+}
+
+.service-notice p {
+  margin: 0;
 }
 
 .candidate-detail-card__header {

@@ -8,8 +8,6 @@ TalentFlow 智聘中枢是面向招聘决策、员工服务、考勤薪资预审
 
 数据库层当前已建立 SQLAlchemy ORM 模型、Alembic 配置和首次迁移文件 `0001_initial_schema`。该迁移尚未执行，仓库当前不包含种子数据或已验证的部署结果。
 
-Sprint 1 黄钧工程外层当前已补充招聘评分、智能排期和 HR 薪资预审展示的最小页面与 API 外层。真实评分和排期仍依赖人工维护的 AI 禁飞区算法，当前不表示已完成运行验证。
-
 ## 项目定位
 
 TalentFlow 通过一套 FastAPI 后端支撑 Vue Web 管理端、微信小程序员工端和 Gradio 内部调试台。系统围绕招聘决策、员工服务、考勤事实、薪资预审、权限审计和 Agent Trace 建设，强调可解释、可追溯和权限隔离。
@@ -51,15 +49,15 @@ TalentFlow 通过一套 FastAPI 后端支撑 Vue Web 管理端、微信小程序
 
 ## 技术栈
 
-| 技术 | 用途 |
-| --- | --- |
-| Vue 3 + TypeScript + Vite | Web 管理端 |
-| FastAPI + Python 3.12 | 一套共享后端 |
-| PostgreSQL | 结构化业务数据 |
-| LangGraph + LangChain Tools | Agent 编排与工具调用 |
-| ChromaDB | 企业制度 RAG 检索 |
-| Gradio | 内部 Agent 调试台 |
-| Docker Compose + Nginx | Sprint 3 计划部署目标 |
+| 技术                        | 用途                  |
+| --------------------------- | --------------------- |
+| Vue 3 + TypeScript + Vite   | Web 管理端            |
+| FastAPI + Python 3.12       | 一套共享后端          |
+| PostgreSQL                  | 结构化业务数据        |
+| LangGraph + LangChain Tools | Agent 编排与工具调用  |
+| ChromaDB                    | 企业制度 RAG 检索     |
+| Gradio                      | 内部 Agent 调试台     |
+| Docker Compose + Nginx      | Sprint 3 计划部署目标 |
 
 ## 系统架构
 

@@ -1,10 +1,16 @@
 /**
  * 招聘模块 API
- *
- * 当前返回 mock 数据；后续只需将 mock 替换为 apiClient 调用即可接入后端。
  */
 import apiClient from '../apiClient';
-import type { ApiResponse, Job, CandidateSummary, CandidateApplication, PipelineStage } from '../types';
+import type {
+  ApiResponse,
+  CandidateApplication,
+  CandidateScoreRequest,
+  CandidateScoreResponse,
+  CandidateSummary,
+  Job,
+  PipelineStage
+} from '../types';
 
 // ── 岗位 ───────────────────────────────────
 
@@ -36,3 +42,16 @@ export async function fetchApplication(applicationId: number): Promise<ApiRespon
 export async function advanceStage(applicationId: number, toStage: PipelineStage, note?: string): Promise<ApiResponse<CandidateApplication>> {
   return apiClient.post(`/recruitment/applications/${applicationId}/advance`, { to_stage: toStage, note });
 }
+
+export async function scoreCandidate(
+  applicationId: number,
+  payload: CandidateScoreRequest
+): Promise<CandidateScoreResponse> {
+  const response = await apiClient.post<CandidateScoreResponse>(
+    `/recruitment/applications/${applicationId}/score`,
+    payload
+  );
+  return response.data;
+}
+
+export const fetchCandidateScore = scoreCandidate;

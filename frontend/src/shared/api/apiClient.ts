@@ -1,8 +1,5 @@
 /**
  * Axios 实例与通用拦截器
- *
- * 当前阶段所有页面使用 mock 数据，apiClient 预置了基础 URL 与拦截器，
- * 后续只需将各模块的 mock 调用替换为 apiClient 调用即可接入真实 API。
  */
 /// <reference types="vite/client" />
 

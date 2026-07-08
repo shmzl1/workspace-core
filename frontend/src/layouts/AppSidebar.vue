@@ -62,10 +62,8 @@ const currentGroups = computed<{ title: string; items: SidebarItem[] }[]>(() => 
         ],
       },
       {
-        title: 'AI Agent',
+        title: '智能服务',
         items: [
-          { id: 'pipeline', label: '智能筛选', path: '/hr/pipeline' },
-          { id: 'assistant', label: '面试助手', path: '/hr/assistant' },
           { id: 'policy', label: '制度问答', path: '/hr/policy' },
         ],
       },
@@ -92,7 +90,7 @@ const currentGroups = computed<{ title: string; items: SidebarItem[] }[]>(() => 
         title: '自助服务',
         items: [
           { id: 'emp_policy', label: '政策中心', path: '/employee/policy' },
-          { id: 'emp_assistant', label: 'AI 助手', path: '/employee/assistant' },
+          { id: 'emp_assistant', label: '智能助手', path: '/employee/assistant' },
         ],
       },
     ];

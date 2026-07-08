@@ -26,6 +26,17 @@ export interface PaginatedResponse<T> {
   page_size: number;
 }
 
+export type AlgorithmStatus = 'algorithm_not_ready' | 'scored' | 'schedule_generated' | 'reviewed' | string;
+
+export interface AlgorithmAwareResponse {
+  status: AlgorithmStatus;
+  message: string;
+  expected_module?: string | null;
+  expected_function?: string | null;
+  fallback_data?: Record<string, unknown>;
+  requires_human_only?: boolean;
+}
+
 // ── 枚举字面量 ─────────────────────────────
 
 export type EmploymentType = 'INTERN' | 'FULL_TIME' | 'PART_TIME';
@@ -103,6 +114,73 @@ export interface CandidateApplication {
   scored_at: string | null;
   applied_at: string;
   updated_at: string;
+}
+
+export interface CandidateScoreRequest {
+  weights: Record<string, number>;
+  note?: string;
+}
+
+export interface CandidateScoreResponse extends AlgorithmAwareResponse {
+  application_id: number;
+  score_total?: number | null;
+  match_score?: number | null;
+  skill_match?: string | null;
+  experience_match?: string | null;
+  education_match?: string | null;
+  risk_tags?: string[];
+  risk_prompt?: string | null;
+  recommended_action?: string | null;
+  scoring_basis?: string[];
+  score_breakdown?: Record<string, number>;
+  explanation?: Record<string, unknown>;
+}
+
+export interface SchedulePreviewRequest {
+  application_id: number;
+  candidate: {
+    candidate_id: number;
+    available_slots: Array<Record<string, string>>;
+  };
+  interviewers: Array<{
+    interviewer_id: number;
+    employee_name?: string;
+    specialties?: string[];
+    available_slots: Array<Record<string, string>>;
+  }>;
+  meeting_rooms: Array<{
+    meeting_room_id: number;
+    room_name?: string;
+    available_slots: Array<Record<string, string>>;
+  }>;
+  duration_minutes: number;
+}
+
+export interface SchedulePreviewResponse extends AlgorithmAwareResponse {
+  recommended_time?: Record<string, unknown> | null;
+  recommended_interviewer_id?: number | null;
+  recommended_room_id?: number | null;
+  interviewer_availability?: string | null;
+  candidate_availability?: string | null;
+  conflict_detection?: string | null;
+  recommendation_reason?: string | null;
+  conflict_explanation?: Record<string, unknown>;
+}
+
+export interface PayrollPreAuditRequest {
+  requester_role: string;
+  requester_employee_id?: number | null;
+  target_record_ids?: number[];
+  include_line_items?: boolean;
+}
+
+export interface PayrollPreAuditResponse extends AlgorithmAwareResponse {
+  pending_batches: number;
+  abnormal_salary_items: Array<Record<string, unknown>>;
+  permission_risks: Array<Record<string, unknown>>;
+  deduction_sources: Array<Record<string, unknown>>;
+  approval_suggestion?: string | null;
+  risk_level?: string | null;
 }
 
 export interface CandidatePipelineRecord {
