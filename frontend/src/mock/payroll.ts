@@ -1,5 +1,5 @@
-/**
- * 薪资 Mock 数据
+﻿/**
+ * 薪资样例数据
  */
 import type { Employee, LeaveBalance } from '../shared/api/types';
 import type { PayrollSummary } from '../shared/api/modules/employee';
@@ -15,7 +15,7 @@ export const mockEmployee: Employee = {
   email: 'zhangwei@talentflow.local',
   phone: '13800001111',
   hire_date: '2020-03-01',
-  employment_status: 'ACTIVE' as const,
+  employment_status: 'ACTIVE',
   created_at: '2020-03-01T00:00:00Z',
   updated_at: '2026-07-01T00:00:00Z',
 };
@@ -23,7 +23,7 @@ export const mockEmployee: Employee = {
 export const mockLeaveBalance: LeaveBalance = {
   id: 1,
   employee_id: 2,
-  leave_type: 'ANNUAL' as const,
+  leave_type: 'ANNUAL',
   year: 2026,
   total_days: 15,
   used_days: 3,
@@ -43,22 +43,12 @@ export const mockPayrollSummaries: PayrollSummary[] = [
       income_tax: 2350,
     },
   },
-  {
-    year: 2026,
-    month: 6,
-    gross_salary: 35000,
-    net_salary: 27800,
-    deductions: {
-      social_insurance: 2800,
-      housing_fund: 1400,
-      income_tax: 3000,
-    },
-  },
 ];
 
 export const mockPayrollDetail = {
   year: 2026,
   month: 7,
+  checkOutAt: '2026-07-31T18:00:00Z',
   gross_salary: 35000,
   net_salary: 28450,
   breakdown: {
@@ -72,7 +62,7 @@ export const mockPayrollDetail = {
     income_tax: 2350,
   },
   deduction_details: [
-    { name: '社保公积金（个人）', amount: 4200, note: '基数: 25000' },
+    { name: '社保公积金个人部分', amount: 4200, note: '基数：25000' },
     { name: '个人所得税', amount: 2350, note: '已扣除专项附加' },
   ],
 };

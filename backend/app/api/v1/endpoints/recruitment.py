@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 def get_recruitment_service(session: Session = Depends(get_db_session)) -> RecruitmentService:
-    return RecruitmentService.from_session(session)
+    return RecruitmentService(session)
 
 
 @router.get("/dashboard")

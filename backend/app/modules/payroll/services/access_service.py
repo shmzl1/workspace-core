@@ -26,6 +26,21 @@ class SalaryAccessDecision:
 
 
 class PayrollAccessService:
-    """Placeholder for server-side salary permission orchestration."""
+    """Only payroll engineering entry point for salary permission algorithms."""
 
-    pass
+    def check_salary_access(self, payload: dict[str, Any]) -> dict[str, Any]:
+        check_salary_access = load_human_only_function(SALARY_ACCESS_CONTRACT)
+        if check_salary_access is None:
+            return algorithm_not_ready(SALARY_ACCESS_CONTRACT, self._fallback(payload))
+
+        try:
+            return check_salary_access(payload)
+        except NotImplementedError:
+            return algorithm_not_ready(SALARY_ACCESS_CONTRACT, self._fallback(payload))
+
+    @staticmethod
+    def _fallback(payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "requester_role": payload.get("requester", {}).get("role"),
+            "record_count": len(payload.get("records", [])),
+        }

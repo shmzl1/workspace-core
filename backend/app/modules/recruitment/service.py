@@ -1,7 +1,6 @@
 """Recruitment service."""
 
 from decimal import Decimal
-from importlib import import_module
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -31,12 +30,15 @@ RESUME_SCORING_CONTRACT = HumanOnlyContract(
 class RecruitmentService:
     """Orchestrates recruitment reads and human-only scoring calls."""
 
-    def __init__(self, repository: RecruitmentRepository) -> None:
-        self.repository = repository
+    def __init__(self, session_or_repository: Session | RecruitmentRepository) -> None:
+        if isinstance(session_or_repository, RecruitmentRepository):
+            self.repository = session_or_repository
+        else:
+            self.repository = RecruitmentRepository(session_or_repository)
 
     @classmethod
     def from_session(cls, session: Session) -> "RecruitmentService":
-        return cls(RecruitmentRepository(session))
+        return cls(session)
 
     def get_dashboard(self) -> RecruitmentDashboardRead:
         jobs = self.repository.list_jobs()
@@ -178,7 +180,7 @@ class RecruitmentService:
             recommended_action=result.get("recommended_action"),
             scoring_basis=result.get("scoring_basis", []),
             score_breakdown=score_breakdown,
-            explanation=candidate_result.get("explanation", {}),
+            explanation=result.get("explanation", {}),
             requires_human_only=False,
         )
 
