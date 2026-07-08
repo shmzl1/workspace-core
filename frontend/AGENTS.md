@@ -9,7 +9,7 @@
 - 使用 Vue 3 + TypeScript + Vite。
 - Web 管理端只调用同一套 FastAPI 后端，与微信小程序员工端、Gradio 内部调试台共享后端业务 Service。
 - 后端采用模块化单体，不拆微服务，不新增第二套后端。
-- 当前静态视觉原型可以使用本地 mock 数据；接入后端前不得伪造 API 成功状态。
+- 当前静态视觉原型可以使用本地静态样例数据；接入后端前不得伪造 API 成功状态。
 - 共享组件放入 `src/shared/components/`。
 - 所有公共请求通过 `src/shared/api/`。
 - 全局布局放入 `src/layouts/`。
@@ -18,7 +18,7 @@
 - 员工端相关 Web 功能放入 `src/features/employee/`。
 - 页面按 `recruitment`、`employee`、`payroll-review` 等 feature 组织。
 - 异步页面必须有加载、空、错误和权限拒绝状态。
-- mock 仅用于开发兜底。
+- 本地静态样例数据仅用于前端展示兜底。
 
 ## 禁止事项
 

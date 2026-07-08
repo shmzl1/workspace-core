@@ -1,439 +1,714 @@
 <template>
-<div class="min-h-full flex flex-col">
-      <div class="max-w-[1440px] mx-auto">
-        
-        <!-- Header Section -->
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-lg gap-md">
+  <div class="candidate-pool">
+    <section class="candidate-pool__hero">
+      <div>
+        <p class="candidate-pool__eyebrow">招聘决策</p>
+        <h2>候选人池</h2>
+        <p>集中查看候选人评分、岗位匹配度、风险标签与下一步推荐动作。</p>
+      </div>
+      <div class="candidate-pool__actions">
+        <button class="btn btn--primary" @click="applySmartFilter">
+          <span class="material-symbols-outlined">auto_awesome</span>
+          智能筛选
+        </button>
+        <button class="btn" @click="sortByScore">
+          <span class="material-symbols-outlined">sort</span>
+          按 AI 评分排序
+        </button>
+        <button class="btn" :class="{ 'btn--active': highMatchOnly }" @click="toggleHighMatch">
+          <span class="material-symbols-outlined">verified</span>
+          只看高匹配候选人
+        </button>
+      </div>
+    </section>
+
+    <section class="candidate-pool__summary">
+      <article v-for="item in summaryCards" :key="item.label" class="metric-card">
+        <span class="material-symbols-outlined">{{ item.icon }}</span>
+        <div>
+          <strong>{{ item.value }}</strong>
+          <small>{{ item.label }}</small>
+        </div>
+      </article>
+    </section>
+
+    <section class="candidate-pool__content">
+      <div class="candidate-table-card">
+        <div class="candidate-table-card__header">
           <div>
-            <div class="flex items-center gap-sm mb-xs">
-              <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface m-0">Eleanor Vance</h2>
-              <span 
-                class="font-label-md px-sm py-xs rounded-full flex items-center gap-xs transition-colors duration-200"
-                :class="{
-                  'bg-secondary-container text-on-secondary-container': status === '最佳匹配',
-                  'bg-error/10 text-error': status === '已拒绝',
-                  'bg-amber-100 text-amber-800 animate-pulse': status === '安排面试中'
-                }"
-              >
-                <span class="material-symbols-outlined text-[14px]">
-                  {{ status === '最佳匹配' ? 'check_circle' : (status === '已拒绝' ? 'cancel' : 'schedule') }}
-                </span>
-                {{ status }}
+            <h3>候选人列表</h3>
+            <p>{{ filterHint }}</p>
+          </div>
+          <span>{{ visibleCandidates.length }} 人</span>
+        </div>
+
+        <div class="candidate-table">
+          <button
+            v-for="candidate in visibleCandidates"
+            :key="candidate.id"
+            class="candidate-row"
+            :class="{ 'candidate-row--selected': selectedCandidate.id === candidate.id }"
+            @click="selectCandidate(candidate)"
+          >
+            <span class="candidate-row__name">
+              <strong>{{ candidate.name }}</strong>
+              <small>{{ candidate.location }} · {{ candidate.availableIn }}</small>
+            </span>
+            <span>{{ candidate.role }}</span>
+            <span>
+              <em :class="stageClass(candidate.stage)">{{ candidate.stage }}</em>
+            </span>
+            <span class="score">{{ candidate.aiScore }}</span>
+            <span>
+              <span class="match-bar">
+                <i :style="{ width: `${candidate.match}%` }"></i>
               </span>
-            </div>
-            <p class="font-body-lg text-body-lg text-on-surface-variant">高级 AI 工程师 • 申请职位：首席数据科学家</p>
-          </div>
-          <div class="flex gap-3 w-full md:w-auto">
-            <button 
-              class="flex-1 md:flex-none bg-surface-container-lowest border border-outline-variant text-on-surface font-label-md py-2 px-4 rounded-lg hover:bg-surface-container-low transition-colors text-error flex items-center justify-center gap-1"
-              :class="{ 'opacity-50 cursor-not-allowed': status !== '最佳匹配' }"
-              :disabled="status !== '最佳匹配'"
-              @click="handleReject"
-            >
-              <span class="material-symbols-outlined text-[18px]">close</span> 拒绝
-            </button>
-            <button 
-              class="flex-1 md:flex-none bg-primary text-on-primary font-label-md py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors shadow-sm flex items-center justify-center gap-1"
-              :class="{ 'opacity-50 cursor-not-allowed bg-slate-400': status !== '最佳匹配' }"
-              :disabled="status !== '最佳匹配'"
-              @click="handleScheduleClick"
-            >
-              安排面试 <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter mb-lg">
-          <div class="glass-card rounded-xl p-lg lg:col-span-2">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-md mb-md">
-              <div>
-                <h3 class="font-title-lg text-title-lg text-on-surface m-0">候选人池</h3>
-                <p class="font-body-md text-body-md text-on-surface-variant mt-xs">按岗位匹配度、综合评分和风险标签进行筛选排序。</p>
-              </div>
-              <div class="flex gap-sm">
-                <button class="bg-primary text-on-primary font-label-md py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors">智能筛选</button>
-                <button class="bg-surface-container-lowest border border-outline-variant text-primary font-label-md py-2 px-4 rounded-lg hover:bg-surface-container-low transition-colors">一键排序</button>
-              </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-sm">
-              <article v-for="candidate in rankedCandidates" :key="candidate.name" class="candidate-rank-card">
-                <div class="flex justify-between items-start gap-sm">
-                  <div>
-                    <strong>{{ candidate.name }}</strong>
-                    <p>{{ candidate.role }}</p>
-                  </div>
-                  <span>{{ candidate.score }}</span>
-                </div>
-                <div class="candidate-rank-card__metrics">
-                  <small>匹配度 {{ candidate.match }}</small>
-                  <small>{{ candidate.risk }}</small>
-                </div>
-              </article>
-            </div>
-          </div>
-
-          <div class="glass-card rounded-xl p-lg">
-            <h3 class="font-title-lg text-title-lg text-on-surface m-0 mb-md">智能筛选条件</h3>
-            <div class="space-y-sm">
-              <div class="flex justify-between text-body-md">
-                <span class="text-on-surface-variant">岗位匹配</span>
-                <strong class="text-on-surface">首席数据科学家</strong>
-              </div>
-              <div class="flex justify-between text-body-md">
-                <span class="text-on-surface-variant">技能权重</span>
-                <strong class="text-on-surface">40%</strong>
-              </div>
-              <div class="flex justify-between text-body-md">
-                <span class="text-on-surface-variant">项目经验</span>
-                <strong class="text-on-surface">30%</strong>
-              </div>
-              <div class="flex justify-between text-body-md">
-                <span class="text-on-surface-variant">到岗时间</span>
-                <strong class="text-on-surface">7-30 天</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bento Grid Layout -->
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
-          
-          <!-- Left Column: AI Evaluation & Resume -->
-          <div class="md:col-span-8 flex flex-col gap-gutter">
-            
-            <!-- AI Evaluation Card -->
-            <div class="glass-card rounded-xl p-lg ai-glow relative overflow-hidden">
-              <div class="absolute top-0 right-0 p-md opacity-10">
-                <span class="material-symbols-outlined text-[100px] text-primary">psychology</span>
-              </div>
-              
-              <div class="flex items-center gap-sm mb-md border-b border-outline-variant pb-sm relative z-10">
-                <span class="material-symbols-outlined text-primary-container animate-pulse">auto_awesome</span>
-                <h3 class="font-title-lg text-title-lg text-on-surface m-0">AI 综合评估</h3>
-              </div>
-              
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-md relative z-10 mb-md">
-                <div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-md text-center">
-                  <div class="font-label-md text-on-surface-variant uppercase tracking-wider mb-xs">职位匹配度</div>
-                  <div class="font-display text-[40px] leading-none text-primary font-bold">94%</div>
-                </div>
-                
-                <div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-md text-center">
-                  <div class="font-label-md text-on-surface-variant uppercase tracking-wider mb-xs">技术熟练度</div>
-                  <div class="flex justify-center text-secondary mb-xs">
-                    <span class="material-symbols-outlined" :style="{ fontVariationSettings: '\'FILL\' 1' }">star</span>
-                    <span class="material-symbols-outlined" :style="{ fontVariationSettings: '\'FILL\' 1' }">star</span>
-                    <span class="material-symbols-outlined" :style="{ fontVariationSettings: '\'FILL\' 1' }">star</span>
-                    <span class="material-symbols-outlined" :style="{ fontVariationSettings: '\'FILL\' 1' }">star</span>
-                    <span class="material-symbols-outlined" :style="{ fontVariationSettings: '\'FILL\' 1' }">star_half</span>
-                  </div>
-                  <div class="font-label-md text-on-surface font-semibold">4.8 / 5.0</div>
-                </div>
-                
-                <div class="bg-surface-container-lowest border border-outline-variant rounded-lg p-md text-center">
-                  <div class="font-label-md text-on-surface-variant uppercase tracking-wider mb-xs">经验等级</div>
-                  <div class="font-headline-md text-headline-md text-on-surface">资深+</div>
-                  <div class="font-label-md text-on-surface-variant">8 年经验</div>
-                </div>
-              </div>
-              
-              <div class="relative z-10">
-                <h4 class="font-label-md text-on-surface-variant uppercase tracking-wider mb-sm">技术栈分析</h4>
-                <div class="flex flex-wrap gap-sm">
-                  <span class="bg-primary-container/10 border border-primary/20 text-primary font-code-sm px-sm py-xs rounded flex items-center gap-xs">
-                    Python <span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
-                  </span>
-                  <span class="bg-primary-container/10 border border-primary/20 text-primary font-code-sm px-sm py-xs rounded flex items-center gap-xs">
-                    多智能体协作 <span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
-                  </span>
-                  <span class="bg-primary-container/10 border border-primary/20 text-primary font-code-sm px-sm py-xs rounded flex items-center gap-xs">
-                    知识检索架构 <span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
-                  </span>
-                  <span class="bg-surface-container-low border border-outline-variant text-on-surface-variant font-code-sm px-sm py-xs rounded flex items-center gap-xs">
-                    PyTorch <span class="w-2 h-2 rounded-full bg-surface-dim inline-block"></span>
-                  </span>
-                  <span class="bg-surface-container-low border border-outline-variant text-on-surface-variant font-code-sm px-sm py-xs rounded flex items-center gap-xs">
-                    Docker <span class="w-2 h-2 rounded-full bg-surface-dim inline-block"></span>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Resume Preview -->
-            <div class="glass-card rounded-xl p-lg flex-1 flex flex-col min-h-[400px]">
-              <div class="flex justify-between items-center mb-md pb-sm border-b border-outline-variant">
-                <h3 class="font-title-lg text-title-lg text-on-surface m-0 flex items-center gap-sm">
-                  <span class="material-symbols-outlined text-on-surface-variant">description</span> 原始简历预览
-                </h3>
-                <button class="text-primary font-label-md hover:underline flex items-center gap-xs">
-                  <span class="material-symbols-outlined text-[16px]">open_in_new</span> 查看完整版
-                </button>
-              </div>
-              <div class="bg-surface-container-lowest border border-outline-variant rounded p-md flex-1 overflow-y-auto relative">
-                <div class="absolute inset-0 bg-gradient-to-b from-transparent to-surface-container-lowest pointer-events-none flex items-end justify-center pb-md z-10">
-                  <button class="bg-surface-container border border-outline-variant text-on-surface font-label-md py-xs px-md rounded shadow-sm hover:bg-surface-container-high transition-colors pointer-events-auto">
-                    向下滑动阅读更多
-                  </button>
-                </div>
-                <div class="font-code-sm text-on-surface-variant whitespace-pre-wrap blur-[1px] opacity-70">
-Eleanor Vance
-San Francisco, CA | el.vance@email.com | linkedin.com/in/eleanorvance
-
-职业总结
-首席数据科学家，拥有 8 年以上自然语言处理和生成式智能应用经验。在设计和部署可扩展知识检索架构方面有良好记录，可将企业数据检索效率提高 40% 以上。热衷于可信智能系统实施和构建稳健的任务编排框架。
-
-工作经历
-高级 AI 工程师 | TechNova Solutions | 2021 - 至今
-- 使用智能任务编排架构并实现多角色协作系统，将客户服务升级率降低了 25%。
-- 领导 4 名 ML 工程师团队开发专有的知识检索流水线，每日处理超过 5000 万份文档。
-- 通过提示工程和模型量化技术将 LLM 推理成本优化了 30%。
-
-数据科学家 | DataCore Analytics | 2018 - 2021
-- 为客户流失开发预测模型...
-                </div>
-              </div>
-            </div>
-            
-          </div>
-
-          <!-- Right Column: Summary & Actions -->
-          <div class="md:col-span-4 flex flex-col gap-gutter">
-            
-            <!-- AI Insights -->
-            <div class="glass-card rounded-xl p-lg border-t-4 border-t-primary">
-              <h3 class="font-title-lg text-title-lg text-on-surface m-0 mb-md flex items-center gap-sm">
-                <span class="material-symbols-outlined text-primary">insights</span> 智能分析总结
-              </h3>
-              
-              <div class="mb-md">
-                <h4 class="font-label-md text-on-surface-variant uppercase tracking-wider mb-xs flex items-center gap-xs">
-                  <span class="material-symbols-outlined text-secondary text-[16px]">thumb_up</span> 优势
-                </h4>
-                <ul class="list-disc list-inside font-body-md text-on-surface space-y-xs ml-xs">
-                  <li>在多智能体协作系统方面有卓越背景。</li>
-                  <li>具备出色的团队领导经验（曾管理 4 名工程师）。</li>
-                  <li>高度关注生产环境中的成本优化。</li>
-                </ul>
-              </div>
-              
-              <div class="mb-md">
-                <h4 class="font-label-md text-on-surface-variant uppercase tracking-wider mb-xs flex items-center gap-xs">
-                  <span class="material-symbols-outlined text-error text-[16px]">warning</span> 潜在风险
-                </h4>
-                <ul class="list-disc list-inside font-body-md text-on-surface space-y-xs ml-xs">
-                  <li>缺乏对本公司特定云平台（Azure）的直接经验，但技术底层可迁移。</li>
-                  <li>目前职位的在职时间略短于首席职位的平均水平。</li>
-                </ul>
-              </div>
-              
-              <button class="w-full bg-gradient-to-r from-primary to-tertiary text-on-primary font-label-md py-sm px-md rounded-lg mt-sm shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-sm">
-                <span class="material-symbols-outlined text-[18px]">chat</span> 查看评估依据
-              </button>
-            </div>
-
-            <!-- Quick Details -->
-            <div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
-              <h3 class="font-title-lg text-title-lg text-on-surface m-0 mb-md">候选人详情</h3>
-              <dl class="space-y-sm font-body-md">
-                <div class="flex justify-between border-b border-surface-variant pb-xs">
-                  <dt class="text-on-surface-variant">所在地</dt>
-                  <dd class="text-on-surface font-medium">旧金山, CA (可远程工作)</dd>
-                </div>
-                <div class="flex justify-between border-b border-surface-variant pb-xs">
-                  <dt class="text-on-surface-variant">期望薪资</dt>
-                  <dd class="text-on-surface font-medium">$180k - $210k</dd>
-                </div>
-                <div class="flex justify-between border-b border-surface-variant pb-xs">
-                  <dt class="text-on-surface-variant">到岗时间</dt>
-                  <dd class="text-on-surface font-medium">4 周</dd>
-                </div>
-                <div class="flex justify-between pb-xs">
-                  <dt class="text-on-surface-variant">来源</dt>
-                  <dd class="text-on-surface font-medium">直接申请</dd>
-                </div>
-              </dl>
-            </div>
-            
-          </div>
-        </div>
-      </div>
-    </div>
-
-  <!-- Schedule Interview Modal -->
-  <div v-if="showModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-2xl border border-outline-variant/30 shadow-2xl overflow-hidden shrink-0" style="width: 448px; max-width: 90vw;">
-        <!-- Modal Header -->
-        <div class="px-6 py-4 border-b border-outline-variant/30 bg-surface-container-low flex justify-between items-center">
-          <h3 class="font-title-lg text-[18px] font-bold text-on-surface flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary">calendar_month</span>
-            安排面试排期
-          </h3>
-          <button @click="showModal = false" class="text-outline-variant hover:text-on-surface transition-colors flex items-center justify-center">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-        </div>
-
-        <!-- Modal Body -->
-        <div class="p-6 space-y-4">
-          <div>
-            <label class="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider block mb-1">候选人</label>
-            <div class="text-sm font-semibold text-on-surface">Eleanor Vance (首席数据科学家申请者)</div>
-          </div>
-
-          <!-- Slots Select -->
-          <div>
-            <label class="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider block mb-2">选择面试时间段（系统推荐）</label>
-            <div class="space-y-2">
-              <label class="flex items-center justify-between p-3 rounded-lg border border-outline-variant/60 cursor-pointer hover:bg-primary/5 hover:border-primary/40 transition-colors" :class="{ 'border-primary bg-primary/5': selectedSlot === 'slot1' }">
-                <div class="flex items-center gap-2">
-                  <input type="radio" v-model="selectedSlot" value="slot1" class="text-primary focus:ring-primary w-4 h-4 cursor-pointer" />
-                  <span class="text-xs text-on-surface font-medium">明天 (周三) 10:00 - 11:00 AM</span>
-                </div>
-                <span class="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-bold">空闲</span>
-              </label>
-              <label class="flex items-center justify-between p-3 rounded-lg border border-outline-variant/60 cursor-pointer hover:bg-primary/5 hover:border-primary/40 transition-colors" :class="{ 'border-primary bg-primary/5': selectedSlot === 'slot2' }">
-                <div class="flex items-center gap-2">
-                  <input type="radio" v-model="selectedSlot" value="slot2" class="text-primary focus:ring-primary w-4 h-4 cursor-pointer" />
-                  <span class="text-xs text-on-surface font-medium">明天 (周三) 02:30 - 03:30 PM</span>
-                </div>
-                <span class="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-bold">空闲</span>
-              </label>
-              <label class="flex items-center justify-between p-3 rounded-lg border border-outline-variant/60 cursor-pointer hover:bg-primary/5 hover:border-primary/40 transition-colors" :class="{ 'border-primary bg-primary/5': selectedSlot === 'slot3' }">
-                <div class="flex items-center gap-2">
-                  <input type="radio" v-model="selectedSlot" value="slot3" class="text-primary focus:ring-primary w-4 h-4 cursor-pointer" />
-                  <span class="text-xs text-on-surface font-medium">本周四 09:30 - 10:30 AM</span>
-                </div>
-                <span class="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-bold">空闲</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Interviewer Select -->
-          <div>
-            <label class="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider block mb-1">指定面试官</label>
-            <select v-model="selectedInterviewer" class="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:border-primary text-on-surface">
-              <option>王刚 (技术面试官)</option>
-              <option>林雨晴 (HR 专员)</option>
-              <option>张伟 (高级工程师)</option>
-            </select>
-          </div>
-
-          <!-- Format Select -->
-          <div>
-            <label class="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider block mb-1">面试形式</label>
-            <select v-model="selectedFormat" class="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-xs outline-none focus:border-primary text-on-surface">
-              <option>线上 - AI 面试间</option>
-              <option>腾讯会议 / Zoom</option>
-              <option>线下 - A栋4楼会议室</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Modal Footer -->
-        <div class="px-6 py-4 border-t border-outline-variant/30 bg-surface-container-low flex justify-end gap-3">
-          <button @click="showModal = false" class="px-4 py-2 bg-white border border-outline-variant rounded-lg font-medium text-xs text-on-surface-variant hover:bg-surface-container-low transition-colors">
-            取消
-          </button>
-          <button @click="confirmSchedule" class="px-4 py-2 bg-primary text-on-primary rounded-lg font-semibold text-xs hover:bg-primary/95 transition-colors shadow-sm">
-            确认预约
+              <small>{{ candidate.match }}%</small>
+            </span>
+            <span>
+              <em :class="riskClass(candidate.riskLevel)">{{ candidate.riskLabel }}</em>
+            </span>
+            <span class="candidate-row__action">
+              <strong>{{ candidate.recommendedAction }}</strong>
+              <button class="link-button" @click.stop="selectCandidate(candidate)">查看评估</button>
+            </span>
           </button>
         </div>
       </div>
-    </div>
+
+      <aside class="candidate-detail-card">
+        <div class="candidate-detail-card__header">
+          <div>
+            <p>AI 综合评估</p>
+            <h3>{{ selectedCandidate.name }}</h3>
+            <small>{{ selectedCandidate.role }} · {{ selectedCandidate.stage }}</small>
+          </div>
+          <div class="candidate-detail-card__score">
+            <strong>{{ selectedCandidate.aiScore }}</strong>
+            <span>综合评分</span>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <article>
+            <span class="material-symbols-outlined">fact_check</span>
+            <strong>评分依据</strong>
+            <p>{{ selectedCandidate.reason }}</p>
+          </article>
+          <article>
+            <span class="material-symbols-outlined">hub</span>
+            <strong>技能匹配</strong>
+            <p>{{ selectedCandidate.skillMatch }}</p>
+          </article>
+          <article>
+            <span class="material-symbols-outlined">work_history</span>
+            <strong>经验匹配</strong>
+            <p>{{ selectedCandidate.experienceMatch }}</p>
+          </article>
+          <article>
+            <span class="material-symbols-outlined">warning</span>
+            <strong>风险提示</strong>
+            <p>{{ selectedCandidate.riskDetail }}</p>
+          </article>
+        </div>
+
+        <div class="interview-advice">
+          <div>
+            <span class="material-symbols-outlined">record_voice_over</span>
+            <strong>面试建议</strong>
+          </div>
+          <p>{{ selectedCandidate.interviewAdvice }}</p>
+        </div>
+
+        <div class="candidate-detail-card__footer">
+          <button class="btn btn--primary" @click="scheduleInterview(selectedCandidate)">
+            <span class="material-symbols-outlined">event_available</span>
+            安排面试
+          </button>
+          <button class="btn" @click="emit('show-toast', '评估依据已展开。')">
+            <span class="material-symbols-outlined">article</span>
+            查看评估依据
+          </button>
+        </div>
+      </aside>
+    </section>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+
+type Candidate = {
+  id: number;
+  name: string;
+  role: string;
+  stage: string;
+  aiScore: number;
+  match: number;
+  riskLabel: string;
+  riskLevel: 'low' | 'medium' | 'high';
+  recommendedAction: string;
+  location: string;
+  availableIn: string;
+  reason: string;
+  skillMatch: string;
+  experienceMatch: string;
+  riskDetail: string;
+  interviewAdvice: string;
+};
 
 const emit = defineEmits<{
   navigate: [view: string];
   'show-toast': [message: string];
 }>();
 
-const status = ref<'最佳匹配' | '已拒绝' | '安排面试中'>('最佳匹配');
+const candidates = ref<Candidate[]>([
+  {
+    id: 1,
+    name: 'Eleanor Vance',
+    role: '首席数据科学家',
+    stage: '待约面',
+    aiScore: 94,
+    match: 94,
+    riskLabel: '低风险',
+    riskLevel: 'low',
+    recommendedAction: '优先安排技术终面',
+    location: '上海',
+    availableIn: '4 周到岗',
+    reason: '机器学习、知识检索与团队协作经验完整，核心能力覆盖岗位画像中的关键要求。',
+    skillMatch: 'Python、模型评估、知识检索与数据治理匹配度高，云平台经验可迁移。',
+    experienceMatch: '8 年相关经验，具备跨团队项目交付与算法产品化经验。',
+    riskDetail: '薪资期望偏高，需要在终面前确认预算区间。',
+    interviewAdvice: '建议安排技术负责人和业务负责人联合面试，重点验证知识库落地经验和协作方式。'
+  },
+  {
+    id: 2,
+    name: 'Michael Chen',
+    role: '高级前端工程师',
+    stage: '初筛通过',
+    aiScore: 91,
+    match: 92,
+    riskLabel: '到岗需确认',
+    riskLevel: 'medium',
+    recommendedAction: '补充到岗时间确认',
+    location: '杭州',
+    availableIn: '6 周到岗',
+    reason: 'Vue、TypeScript 和复杂工作台项目经验突出，和前端岗位要求匹配。',
+    skillMatch: 'Vue 3、组件抽象、数据可视化能力较强，企业 SaaS 经验充足。',
+    experienceMatch: '5 年前端经验，最近项目和招聘工作台场景相近。',
+    riskDetail: '离职交接周期较长，可能影响紧急岗位入职节奏。',
+    interviewAdvice: '建议先安排远程技术面，验证复杂表格、权限 UI 和性能优化经验。'
+  },
+  {
+    id: 3,
+    name: 'Sarah Jenkins',
+    role: '产品经理',
+    stage: '待复核',
+    aiScore: 87,
+    match: 86,
+    riskLabel: '薪资偏高',
+    riskLevel: 'medium',
+    recommendedAction: '薪资范围预沟通',
+    location: '北京',
+    availableIn: '3 周到岗',
+    reason: '招聘产品和数据分析经验较好，候选人对 HR 场景理解充分。',
+    skillMatch: '需求分析、流程设计、指标拆解匹配，数据建模经验略弱。',
+    experienceMatch: '有招聘管理平台经验，但权限审计类项目经历较少。',
+    riskDetail: '期望薪资高于当前职级预算上沿，需要提前沟通。',
+    interviewAdvice: '建议面试中加入业务流程建模题，观察其对多角色协作的拆解能力。'
+  },
+  {
+    id: 4,
+    name: '刘伟',
+    role: '后端工程师',
+    stage: '简历筛选',
+    aiScore: 82,
+    match: 79,
+    riskLabel: '技能缺口',
+    riskLevel: 'high',
+    recommendedAction: '补充项目材料',
+    location: '广州',
+    availableIn: '2 周到岗',
+    reason: 'FastAPI 和数据库经验可用，但 Agent 工具链项目经验不足。',
+    skillMatch: 'Python、SQLAlchemy、PostgreSQL 匹配，LangGraph 和 RAG 经验较弱。',
+    experienceMatch: '后端服务经验稳定，缺少复杂 HR 权限链路项目经历。',
+    riskDetail: '需要确认其对权限边界和审计日志的理解深度。',
+    interviewAdvice: '建议增加系统设计题，重点询问模块化单体、权限校验和审计追踪。'
+  }
+]);
 
-// Modal State
-const showModal = ref(false);
-const selectedSlot = ref('slot1');
-const selectedInterviewer = ref('王刚 (技术面试官)');
+const selectedCandidate = ref<Candidate>(candidates.value[0]);
+const highMatchOnly = ref(false);
+const filterMode = ref<'all' | 'smart' | 'score'>('all');
 
-const rankedCandidates = [
-  { name: 'Eleanor Vance', role: '首席数据科学家', score: '94', match: '94%', risk: '低风险' },
-  { name: 'Michael Chen', role: '高级前端工程师', score: '89', match: '91%', risk: '需复核到岗时间' },
-  { name: 'Sarah Jenkins', role: '产品经理', score: '86', match: '88%', risk: '薪资期望偏高' }
-];
-const selectedFormat = ref('线上 - AI 面试间');
+const visibleCandidates = computed(() => {
+  const list = highMatchOnly.value
+    ? candidates.value.filter((candidate) => candidate.match >= 90)
+    : [...candidates.value];
 
-function handleReject() {
-  if (status.value === '已拒绝') return;
-  status.value = '已拒绝';
-  emit('show-toast', '已成功将候选人 Eleanor Vance 移出匹配池。自动下发谢绝信邮件。');
+  if (filterMode.value === 'smart') {
+    return list.sort((a, b) => b.match + b.aiScore - (a.match + a.aiScore));
+  }
+
+  if (filterMode.value === 'score') {
+    return list.sort((a, b) => b.aiScore - a.aiScore);
+  }
+
+  return list;
+});
+
+const summaryCards = computed(() => [
+  { label: '候选人总数', value: String(candidates.value.length), icon: 'groups' },
+  { label: '高匹配候选人', value: String(candidates.value.filter((item) => item.match >= 90).length), icon: 'verified' },
+  { label: '需复核风险', value: String(candidates.value.filter((item) => item.riskLevel !== 'low').length), icon: 'warning' }
+]);
+
+const filterHint = computed(() => {
+  if (highMatchOnly.value) return '当前仅展示岗位匹配度 90% 及以上候选人。';
+  if (filterMode.value === 'score') return '当前按 AI 评分从高到低排序。';
+  if (filterMode.value === 'smart') return '当前综合评分、匹配度和风险标签进行优先级排序。';
+  return '点击候选人行或查看评估，右侧会展示完整评估依据。';
+});
+
+function applySmartFilter() {
+  filterMode.value = 'smart';
+  highMatchOnly.value = true;
+  selectedCandidate.value = visibleCandidates.value[0] ?? candidates.value[0];
+  emit('show-toast', '已按岗位匹配度和风险标签完成智能筛选。');
 }
 
-function handleScheduleClick() {
-  if (status.value === '安排面试中') return;
-  showModal.value = true;
+function sortByScore() {
+  filterMode.value = 'score';
+  selectedCandidate.value = visibleCandidates.value[0] ?? candidates.value[0];
+  emit('show-toast', '候选人已按 AI 评分降序排列。');
 }
 
-function confirmSchedule() {
-  showModal.value = false;
-  status.value = '安排面试中';
-  
-  let timeStr = '明天 10:00 AM';
-  if (selectedSlot.value === 'slot2') timeStr = '明天 02:30 PM';
-  if (selectedSlot.value === 'slot3') timeStr = '本周四 09:30 AM';
-  
-  emit('show-toast', `已预定面试时间：${timeStr}！已自动向候选人与 ${selectedInterviewer.value} 推送日程通知。`);
-  
-  setTimeout(() => {
+function toggleHighMatch() {
+  highMatchOnly.value = !highMatchOnly.value;
+  selectedCandidate.value = visibleCandidates.value[0] ?? candidates.value[0];
+  emit('show-toast', highMatchOnly.value ? '已切换为只看高匹配候选人。' : '已恢复查看全部候选人。');
+}
+
+function selectCandidate(candidate: Candidate) {
+  selectedCandidate.value = candidate;
+  emit('show-toast', `已打开 ${candidate.name} 的综合评估。`);
+}
+
+function scheduleInterview(candidate: Candidate) {
+  emit('show-toast', `正在为 ${candidate.name} 准备面试排期建议。`);
+  window.setTimeout(() => {
     emit('navigate', 'interviews');
-  }, 1500);
+  }, 500);
+}
+
+function stageClass(stage: string) {
+  return {
+    'tag tag--blue': stage.includes('约面') || stage.includes('初筛'),
+    'tag tag--amber': stage.includes('复核') || stage.includes('筛选')
+  };
+}
+
+function riskClass(level: Candidate['riskLevel']) {
+  return {
+    'tag tag--green': level === 'low',
+    'tag tag--amber': level === 'medium',
+    'tag tag--red': level === 'high'
+  };
 }
 </script>
 
 <style scoped>
-.candidate-rank-card {
+.candidate-pool {
   display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  background: var(--color-surface-soft);
+  gap: 22px;
 }
 
-.candidate-rank-card strong {
-  display: block;
+.candidate-pool__hero,
+.candidate-pool__summary,
+.candidate-pool__content {
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.candidate-pool__hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.candidate-pool__eyebrow {
+  margin: 0 0 8px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.candidate-pool__hero h2 {
+  margin: 0;
   color: var(--color-text);
+  font-size: 30px;
+  line-height: 1.15;
 }
 
-.candidate-rank-card p {
-  margin: 4px 0 0;
+.candidate-pool__hero p {
+  margin: 8px 0 0;
   color: var(--color-muted);
-  font-size: 12px;
 }
 
-.candidate-rank-card > div:first-child > span {
+.candidate-pool__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--color-text);
+  font-weight: 800;
+  transition: 0.2s ease;
+}
+
+.btn:hover,
+.btn--active {
+  border-color: rgba(36, 85, 245, 0.35);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.btn--primary {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn--primary:hover {
+  background: #173fd1;
+  color: #fff;
+}
+
+.candidate-pool__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.metric-card > span {
   display: grid;
   width: 42px;
   height: 42px;
   place-items: center;
-  border-radius: 50%;
+  border-radius: 12px;
   background: var(--color-primary-soft);
   color: var(--color-primary);
+}
+
+.metric-card strong,
+.metric-card small {
+  display: block;
+}
+
+.metric-card strong {
+  color: var(--color-text);
+  font-size: 26px;
+}
+
+.metric-card small {
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.candidate-pool__content {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.candidate-table-card,
+.candidate-detail-card {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.candidate-table-card {
+  overflow: hidden;
+}
+
+.candidate-table-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.candidate-table-card__header h3,
+.candidate-detail-card__header h3 {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.candidate-table-card__header p,
+.candidate-detail-card__header p,
+.candidate-detail-card__header small {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+}
+
+.candidate-table-card__header > span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--color-surface-soft);
+  color: var(--color-muted);
   font-weight: 800;
 }
 
-.candidate-rank-card__metrics {
+.candidate-table {
+  display: grid;
+}
+
+.candidate-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.3fr) minmax(130px, 1fr) 92px 78px minmax(120px, 0.9fr) 112px minmax(150px, 1fr);
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 16px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--color-line);
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  transition: 0.18s ease;
+}
+
+.candidate-row:hover,
+.candidate-row--selected {
+  background: #f7f9ff;
+}
+
+.candidate-row:last-child {
+  border-bottom: 0;
+}
+
+.candidate-row__name strong,
+.candidate-row__name small,
+.candidate-row__action strong {
+  display: block;
+}
+
+.candidate-row__name small {
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.candidate-row .score {
+  color: var(--color-primary);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.candidate-row__action strong {
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.match-bar {
+  display: block;
+  height: 8px;
+  margin-bottom: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-soft);
+}
+
+.match-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2455f5, #16a34a);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.tag--blue {
+  background: #eaf0ff;
+  color: #2455f5;
+}
+
+.tag--green {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.tag--amber {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.tag--red {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.candidate-detail-card {
+  position: sticky;
+  top: 92px;
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+}
+
+.candidate-detail-card__header {
   display: flex;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.candidate-detail-card__score {
+  display: grid;
+  min-width: 92px;
+  place-items: center;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.candidate-detail-card__score strong {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.candidate-detail-card__score span {
+  margin-top: 5px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-grid article,
+.interview-advice {
+  padding: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-surface-soft);
+}
+
+.detail-grid article span,
+.interview-advice span {
+  color: var(--color-primary);
+}
+
+.detail-grid article strong,
+.interview-advice strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-text);
+}
+
+.detail-grid article p,
+.interview-advice p {
+  margin: 7px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.interview-advice > div {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 
-.candidate-rank-card__metrics small {
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: #fff;
-  color: var(--color-muted);
-  font-weight: 700;
+.interview-advice strong {
+  margin-top: 0;
+}
+
+.candidate-detail-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (max-width: 1180px) {
+  .candidate-pool__content {
+    grid-template-columns: 1fr;
+  }
+
+  .candidate-detail-card {
+    position: static;
+  }
+}
+
+@media (max-width: 860px) {
+  .candidate-pool__hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .candidate-pool__actions {
+    justify-content: flex-start;
+  }
+
+  .candidate-pool__summary,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .candidate-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -2,7 +2,7 @@
   <section class="dashboard-page">
     <div class="dashboard-page__header">
       <div>
-        <p class="dashboard-page__eyebrow">企业级 HR AI 助手概览</p>
+        <p class="dashboard-page__eyebrow">企业级 HR 智能助手概览</p>
         <h1>{{ pageTitle }}</h1>
       </div>
       <button class="dashboard-page__export" type="button" @click="$emit('exportReport')">
@@ -67,7 +67,7 @@ import AgentTraceCard from './AgentTraceCard.vue';
 import HiringIntensityMatrix from './HiringIntensityMatrix.vue';
 import ScreeningPipelineBoard from './ScreeningPipelineBoard.vue';
 import WeeklyScheduleCard from './WeeklyScheduleCard.vue';
-import { kpiItems } from '../../../mock/recruitmentDashboard';
+import { kpiItems } from '../../../shared/data/recruitmentDashboard';
 
 const payrollReviewItems = [
   {

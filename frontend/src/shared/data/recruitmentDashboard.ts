@@ -1,4 +1,4 @@
-import type { KpiItem, PipelineStage, ScheduleItem, SidebarGroup } from '../shared/types/recruitmentDashboard';
+import type { KpiItem, PipelineStage, ScheduleItem, SidebarGroup } from '../types/recruitmentDashboard';
 
 export const topNavItems = ['招聘看板', '候选人', '面试排期', '政策中心'];
 
@@ -8,8 +8,8 @@ export const sidebarGroups: SidebarGroup[] = [
     items: ['智能招聘看板', '候选人池', '面试日历', '招聘报告']
   },
   {
-    title: '智能助手',
-    items: ['智能筛选', '面试助手', '制度问答']
+    title: '智能服务',
+    items: ['制度问答']
   },
   {
     title: '管理',

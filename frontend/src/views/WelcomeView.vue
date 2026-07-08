@@ -74,7 +74,7 @@
             <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-tertiary-container/20 to-tertiary/5 flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-500 shadow-inner border border-white/50">
               <span class="material-symbols-outlined text-5xl text-tertiary drop-shadow-sm">smart_toy</span>
             </div>
-            <h2 class="text-2xl text-on-surface mb-4 font-bold">员工 AI 助手</h2>
+            <h2 class="text-2xl text-on-surface mb-4 font-bold">员工智能助手</h2>
             <p class="text-[15px] leading-relaxed text-on-surface-variant mb-8 flex-grow max-w-[280px]">
               自助查询假期、薪资及公司政策。与智能助手对话，快速解决日常行政和人事问题。
             </p>

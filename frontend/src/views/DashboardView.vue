@@ -3,7 +3,7 @@
       <div class="mb-6 flex justify-between items-end">
         <div>
           <h2 class="text-3xl font-bold text-on-surface mb-1">智能招聘看板</h2>
-          <p class="text-on-surface-variant">企业级 HR AI 助手概览</p>
+          <p class="text-on-surface-variant">企业级 HR 智能助手概览</p>
         </div>
         <button class="px-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-primary-container font-medium hover:bg-surface-container-low transition-colors flex items-center gap-2 shadow-sm">
           <span class="material-symbols-outlined text-[18px]">download</span>
@@ -249,6 +249,65 @@
           </div>
         </div>
       </div>
+
+      <section class="mt-6 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-outline-variant flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-surface-container-low/50">
+          <div>
+            <h3 class="font-semibold text-on-surface flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary-container">payments</span>
+              薪资预审与风险提示
+            </h3>
+            <p class="text-sm text-on-surface-variant mt-1">汇总待预审批次、异常薪资项、权限风险与 HR 审批建议。</p>
+          </div>
+          <div class="flex gap-2">
+            <button
+              class="px-3 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1"
+              @click="openPayrollReview"
+            >
+              <span class="material-symbols-outlined text-[16px]">visibility</span>
+              查看预审详情
+            </button>
+            <button
+              class="px-3 py-2 border border-outline-variant rounded-lg text-sm font-semibold text-on-surface hover:bg-surface-container-low transition-colors flex items-center gap-1"
+              :class="{ 'bg-secondary/10 text-secondary border-secondary/20': payrollHandled }"
+              @click="markPayrollHandled"
+            >
+              <span class="material-symbols-outlined text-[16px]">{{ payrollHandled ? 'check_circle' : 'task_alt' }}</span>
+              {{ payrollHandled ? '已标记处理' : '标记已处理' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 p-5">
+          <article
+            v-for="item in payrollReviewCards"
+            :key="item.label"
+            class="bg-surface rounded-lg border border-outline-variant p-4"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <span class="material-symbols-outlined text-primary-container">{{ item.icon }}</span>
+              <strong class="text-xl text-on-surface">{{ item.value }}</strong>
+            </div>
+            <h4 class="text-sm font-semibold text-on-surface mb-1">{{ item.label }}</h4>
+            <p class="text-xs text-on-surface-variant leading-relaxed">{{ item.description }}</p>
+          </article>
+        </div>
+
+        <div class="mx-5 mb-5 rounded-lg bg-[#F8FAFC] border border-outline-variant p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <h4 class="text-sm font-semibold text-on-surface mb-1">HR 审批建议</h4>
+            <p class="text-sm text-on-surface-variant">
+              优先复核绩效奖金与异常扣款来源，确认薪酬管理员访问范围后再提交审批。
+            </p>
+          </div>
+          <span
+            class="text-xs font-bold px-3 py-1 rounded-full"
+            :class="payrollHandled ? 'bg-secondary/10 text-secondary' : 'bg-[#FFF7ED] text-[#EA580C]'"
+          >
+            {{ payrollHandled ? '风险已记录' : '等待 HR 复核' }}
+          </span>
+        </div>
+      </section>
       
       <!-- Floating Action / Assistant Input -->
       <div class="mt-8 flex justify-center sticky bottom-8 z-40">
@@ -260,7 +319,7 @@
             </button>
             <input 
               type="text" 
-              placeholder="让 TalentOS AI 筛选候选人、安排面试或生成报表..." 
+              placeholder="让智能助手筛选候选人、安排面试或生成报表..." 
               class="flex-1 bg-transparent border-none focus:ring-0 text-sm px-2 text-on-surface placeholder:text-outline"
             />
             <button class="w-10 h-10 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors flex items-center justify-center flex-shrink-0 ml-2 shadow-sm">
@@ -273,4 +332,53 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
+
+const emit = defineEmits<{
+  'show-toast': [message: string];
+}>();
+
+const payrollHandled = ref(false);
+
+const payrollReviewCards = [
+  {
+    label: '待预审批次',
+    value: '3',
+    icon: 'pending_actions',
+    description: '本周薪资批次中仍有 3 个批次等待 HR 复核。'
+  },
+  {
+    label: '异常薪资项',
+    value: '5',
+    icon: 'report',
+    description: '包含绩效奖金、补贴调整和扣款金额波动。'
+  },
+  {
+    label: '权限风险',
+    value: '2',
+    icon: 'admin_panel_settings',
+    description: '检测到跨部门薪资查看申请，需要补充审批理由。'
+  },
+  {
+    label: '扣款来源说明',
+    value: '4',
+    icon: 'receipt_long',
+    description: '考勤扣款、社保补缴和福利抵扣需要逐项确认。'
+  },
+  {
+    label: '审批建议',
+    value: '复核',
+    icon: 'gavel',
+    description: '建议先处理高风险访问记录，再提交薪资批次。'
+  }
+];
+
+function openPayrollReview() {
+  emit('show-toast', '已展开薪资预审详情。');
+}
+
+function markPayrollHandled() {
+  payrollHandled.value = true;
+  emit('show-toast', '薪资预审风险已标记为已处理。');
+}
 </script>
