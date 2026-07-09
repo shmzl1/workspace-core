@@ -1,9 +1,10 @@
 """Payroll access service — salary permission check + audit logging."""
-
+ 
 from dataclasses import dataclass
 from importlib import import_module
 from typing import Any
 
+# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import TalentFlowError

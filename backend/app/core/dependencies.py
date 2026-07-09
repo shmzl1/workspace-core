@@ -1,6 +1,8 @@
 """Shared FastAPI dependencies."""
 
+# pyrefly: ignore [missing-import]
 from fastapi import Depends, Header, HTTPException, status
+# pyrefly: ignore [missing-import]
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 # pyrefly: ignore [missing-import]
