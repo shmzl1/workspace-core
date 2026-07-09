@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="candidate-pool">
     <LoadingState v-if="loading" message="正在加载候选人数据..." detail="正在读取招聘候选人与申请信息" />
 
@@ -34,6 +34,19 @@
             只看高匹配候选人
           </button>
         </div>
+      </section>
+
+      <!-- Job Filter Dropdown -->
+      <section v-if="jobs.length > 0" class="job-filter-bar">
+        <label for="job-select">
+          <span class="material-symbols-outlined">work</span> 
+          选择展示岗位：
+        </label>
+        <select id="job-select" v-model="selectedJobId" class="job-select">
+          <option v-for="job in jobs" :key="job.id" :value="job.id">
+            {{ job.title }} ({{ job.department }})
+          </option>
+        </select>
       </section>
 
       <p v-if="evaluationNotice" class="notice">{{ evaluationNotice }}</p>
@@ -189,17 +202,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import LoadingState from '../shared/components/feedback/LoadingState.vue';
 import EmptyState from '../shared/components/feedback/EmptyState.vue';
 import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
-import { fetchApplications, fetchCandidates, scoreCandidate } from '../shared/api/modules/recruitment';
+import { fetchApplications, fetchCandidates, scoreCandidate, fetchJobs } from '../shared/api/modules/recruitment';
 import type { CandidateApplicationListItem } from '../shared/api/modules/recruitment';
-import type { Candidate as ApiCandidate, CandidateScoreResponse } from '../shared/api/types';
+import type { Candidate as ApiCandidate, CandidateScoreResponse, Job as ApiJob } from '../shared/api/types';
+
+const router = useRouter();
 
 type Candidate = {
   id: number;
   applicationId: number;
+  jobId: number;
   name: string;
   role: string;
   stage: string;
@@ -230,6 +247,8 @@ const loading = ref(true);
 const scoring = ref(false);
 const permissionDenied = ref(false);
 const candidates = ref<Candidate[]>([]);
+const jobs = ref<ApiJob[]>([]);
+const selectedJobId = ref<number | null>(null);
 const selectedId = ref<number>(0);
 const highMatchOnly = ref(false);
 const filterMode = ref<'all' | 'smart' | 'score'>('all');
@@ -261,7 +280,10 @@ const summaryCards = computed(() => [
 ]);
 
 const visibleCandidates = computed(() => {
-  const list = highMatchOnly.value ? candidates.value.filter((item) => item.match >= 90) : [...candidates.value];
+  let list = highMatchOnly.value ? candidates.value.filter((item) => item.match >= 90) : [...candidates.value];
+  if (selectedJobId.value !== null) {
+    list = list.filter((item) => item.jobId === selectedJobId.value);
+  }
   if (filterMode.value === 'smart') {
     return list.sort((a, b) => b.match + computedScore(b) - (a.match + computedScore(a)));
   }
@@ -271,7 +293,11 @@ const visibleCandidates = computed(() => {
   return list;
 });
 
-const selectedCandidate = computed(() => candidates.value.find((item) => item.id === selectedId.value) ?? candidates.value[0]);
+const selectedCandidate = computed(() => visibleCandidates.value.find((item) => item.id === selectedId.value) ?? visibleCandidates.value[0]);
+
+watch(selectedJobId, () => {
+  selectedId.value = visibleCandidates.value[0]?.id ?? 0;
+});
 
 const filterHint = computed(() => {
   if (highMatchOnly.value) return '当前仅展示岗位匹配度 90% 及以上候选人。';
@@ -286,7 +312,17 @@ async function loadCandidatePool() {
   loading.value = true;
   evaluationNotice.value = '';
   try {
-    const [candidateRows, applicationRows] = await Promise.all([fetchCandidates(), fetchApplications()]);
+    const [jobRows, candidateRows, applicationRows] = await Promise.all([
+      fetchJobs(),
+      fetchCandidates(),
+      fetchApplications()
+    ]);
+    jobs.value = jobRows;
+    if (jobRows.length > 0) {
+      // Find Java Intern job or default to first
+      const javaJob = jobRows.find(j => j.title.includes('Java')) || jobRows[0];
+      selectedJobId.value = javaJob.id;
+    }
     const mapped = mapBackendCandidates(candidateRows, applicationRows);
     if (mapped.length) {
       candidates.value = mapped;
@@ -297,7 +333,7 @@ async function loadCandidatePool() {
     evaluationNotice.value = '智能评估暂时无法获取，已显示本地评估摘要。';
     useLocalCandidates();
   } finally {
-    selectedId.value = candidates.value[0]?.id ?? 0;
+    selectedId.value = visibleCandidates.value[0]?.id ?? 0;
     loading.value = false;
   }
 }
@@ -305,7 +341,7 @@ async function loadCandidatePool() {
 function mapBackendCandidates(apiCandidates: ApiCandidate[], applications: CandidateApplicationListItem[]): Candidate[] {
   const candidateMap = new Map(apiCandidates.map((item) => [item.id, item]));
   if (!applications.length) {
-    return apiCandidates.map((item) => fromApiCandidate(item, item.id, '待匹配岗位', '待初筛', null));
+    return apiCandidates.map((item) => fromApiCandidate(item, item.id, '待匹配岗位', '待初筛', null, 0));
   }
   return applications.map((application) => {
     const candidate = candidateMap.get(Number(application.candidate_id));
@@ -315,7 +351,8 @@ function mapBackendCandidates(apiCandidates: ApiCandidate[], applications: Candi
       Number(application.id),
       String(application.job_title || '待匹配岗位'),
       stageLabel(String(application.current_stage || 'APPLIED')),
-      score
+      score,
+      Number(application.job_id || 0)
     );
   });
 }
@@ -325,12 +362,14 @@ function fromApiCandidate(
   applicationId: number,
   role: string,
   stage: string,
-  score: number | null
+  score: number | null,
+  jobId: number
 ): Candidate {
   const safeScore = Math.round(score ?? 78);
   return {
     id: candidate?.id ?? applicationId,
     applicationId,
+    jobId,
     name: candidate?.full_name ?? '未命名候选人',
     role,
     stage,
@@ -381,6 +420,7 @@ function createCandidate(
   return {
     id,
     applicationId,
+    jobId: 1,
     name,
     role,
     stage,
@@ -509,7 +549,9 @@ function applyScoreResult(candidate: Candidate, result: CandidateScoreResponse) 
 
 function scheduleInterview(candidate: Candidate) {
   emit('show-toast', `正在为 ${candidate.name} 准备面试排期建议。`);
-  setTimeout(() => emit('navigate', 'interviews'), 300);
+  setTimeout(() => {
+    router.push({ path: '/hr/interviews', query: { applicationId: candidate.applicationId } });
+  }, 300);
 }
 
 function stageLabel(stage: string) {
@@ -618,6 +660,47 @@ function riskClass(level: Candidate['riskLevel']) {
 .weight-slider__header label { font-size: 13px; font-weight: 700; color: var(--color-muted); }
 .weight-slider__value { color: var(--color-primary); font-weight: 900; }
 .weight-slider__input { width: 100%; }
+.job-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 12px 18px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+.job-filter-bar label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+.job-filter-bar label span {
+  font-size: 18px;
+  color: var(--color-primary);
+}
+.job-select {
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  min-width: 260px;
+  transition: border-color 0.2s ease;
+}
+.job-select:focus {
+  border-color: var(--color-primary);
+}
 @media (max-width: 1180px) { .candidate-pool__content { grid-template-columns: 1fr; } .candidate-detail-card { position: static; } .weight-sandbox__sliders { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 860px) { .candidate-pool__hero { align-items: stretch; flex-direction: column; } .candidate-pool__summary, .detail-grid { grid-template-columns: 1fr; } .candidate-row { grid-template-columns: 1fr; } }
 </style>

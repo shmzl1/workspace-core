@@ -32,21 +32,21 @@
         <div class="flex flex-row justify-center gap-6 w-full max-w-md mx-auto mt-8 relative z-10">
           <button 
             @click="handleCheckIn" 
-            :disabled="hasCheckedIn"
+            :disabled="attendanceLoading || hasCheckedIn"
             :class="['px-8 py-4 min-w-[170px] rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center gap-2.5 active:scale-95', 
                      hasCheckedIn ? 'bg-surface-container text-on-surface-variant opacity-40 cursor-not-allowed border border-outline-variant/30 shadow-none hover:transform-none' : 'bg-gradient-to-r from-primary to-[#2455f5] text-on-primary']"
           >
             <span class="material-symbols-outlined text-[22px]">fingerprint</span>
-            <span class="text-base font-medium">签到打卡</span>
+            <span class="text-base font-medium">{{ attendanceLoading ? '处理中...' : '签到打卡' }}</span>
           </button>
           <button 
             @click="handleCheckOut" 
-            :disabled="!hasCheckedIn || hasCheckedOut"
+            :disabled="attendanceLoading || !hasCheckedIn || hasCheckedOut"
             :class="['px-8 py-4 min-w-[170px] rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center justify-center gap-2.5 active:scale-95', 
                      (!hasCheckedIn || hasCheckedOut) ? 'bg-surface-container text-on-surface-variant opacity-40 cursor-not-allowed border border-outline-variant/30 shadow-none hover:transform-none' : 'bg-gradient-to-r from-secondary to-[#2bb179] text-on-secondary']"
           >
             <span class="material-symbols-outlined text-[22px]">logout</span>
-            <span class="text-base font-medium">签退打卡</span>
+            <span class="text-base font-medium">{{ attendanceLoading ? '处理中...' : '签退打卡' }}</span>
           </button>
         </div>
         <p class="font-body-md text-body-md text-outline mt-3 text-center relative z-10">
@@ -118,17 +118,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import { checkIn, checkOut, fetchTodayAttendance, fetchWeeklyAttendance } from '../shared/api/modules/attendance';
+import { fetchMyProfile } from '../shared/api/modules/employee';
+import type { AttendanceRecord } from '../shared/api/types';
 
 const emit = defineEmits(['show-toast']);
 
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-const mockHeaders = {
-  'X-Mock-User-Id': '1',
-  'X-Mock-Role': 'EMPLOYEE',
-  'Content-Type': 'application/json'
-};
-
 const employeeName = ref('张伟');
+const attendanceLoading = ref(false);
 const time = ref('');
 const hasCheckedIn = ref(false);
 const hasCheckedOut = ref(false);
@@ -153,11 +150,8 @@ const updateClock = () => {
 
 const fetchEmployeeName = async () => {
   try {
-    const res = await fetch(`${apiBase}/employees/me`, { headers: mockHeaders });
-    const json = await res.json();
-    if (json.success && json.data) {
-      employeeName.value = json.data.employee.full_name;
-    }
+    const profile = await fetchMyProfile();
+    employeeName.value = profile.employee.full_name || employeeName.value;
   } catch (err) {
     console.error('Failed to fetch employee profile:', err);
   }
@@ -171,10 +165,8 @@ const formatTime = (isoString: string | null) => {
 
 const fetchTodayStatus = async () => {
   try {
-    const res = await fetch(`${apiBase}/attendance/today`, { headers: mockHeaders });
-    const json = await res.json();
-    if (json.success && json.data) {
-      const record = json.data;
+    const record = await fetchTodayAttendance();
+    if (record) {
       hasCheckedIn.value = !!record.check_in_at;
       hasCheckedOut.value = !!record.check_out_at;
       checkInTime.value = formatTime(record.check_in_at);
@@ -192,14 +184,12 @@ const fetchTodayStatus = async () => {
 
 const fetchWeeklySummary = async () => {
   try {
-    const res = await fetch(`${apiBase}/attendance/weekly`, { headers: mockHeaders });
-    const json = await res.json();
-    if (json.success && json.data) {
-      const records = json.data;
+    const records = await fetchWeeklyAttendance();
+    if (records) {
       const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
       const todayDateStr = new Date().toISOString().split('T')[0];
 
-      weeklySummary.value = records.map((r: any, idx: number) => {
+      weeklySummary.value = records.map((r: AttendanceRecord, idx: number) => {
         return {
           name: days[idx],
           status: r.status,
@@ -213,40 +203,30 @@ const fetchWeeklySummary = async () => {
 };
 
 const handleCheckIn = async () => {
+  if (attendanceLoading.value) return;
+  attendanceLoading.value = true;
   try {
-    const res = await fetch(`${apiBase}/attendance/check-in`, {
-      method: 'POST',
-      headers: mockHeaders
-    });
-    const json = await res.json();
-    if (json.success) {
-      emit('show-toast', '签到成功！');
-      await fetchTodayStatus();
-      await fetchWeeklySummary();
-    } else {
-      emit('show-toast', json.error?.message || '签到失败');
-    }
-  } catch (err) {
-    emit('show-toast', '网络连接失败');
+    const result = await checkIn();
+    emit('show-toast', result.message || '签到成功！');
+    await Promise.all([fetchTodayStatus(), fetchWeeklySummary()]);
+  } catch (err: any) {
+    emit('show-toast', err.message || '签到失败');
+  } finally {
+    attendanceLoading.value = false;
   }
 };
 
 const handleCheckOut = async () => {
+  if (attendanceLoading.value) return;
+  attendanceLoading.value = true;
   try {
-    const res = await fetch(`${apiBase}/attendance/check-out`, {
-      method: 'POST',
-      headers: mockHeaders
-    });
-    const json = await res.json();
-    if (json.success) {
-      emit('show-toast', '签退成功！');
-      await fetchTodayStatus();
-      await fetchWeeklySummary();
-    } else {
-      emit('show-toast', json.error?.message || '签退失败');
-    }
-  } catch (err) {
-    emit('show-toast', '网络连接失败');
+    const result = await checkOut();
+    emit('show-toast', result.message || '签退成功！');
+    await Promise.all([fetchTodayStatus(), fetchWeeklySummary()]);
+  } catch (err: any) {
+    emit('show-toast', err.message || '签退失败');
+  } finally {
+    attendanceLoading.value = false;
   }
 };
 

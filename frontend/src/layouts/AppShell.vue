@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import type { Role } from '../types';
 import { getSavedRole, setSavedRole, getDefaultRoute } from '../app/router/guards';
@@ -41,6 +41,7 @@ import AppSidebar from './AppSidebar.vue';
 import GlobalAgentBar from './GlobalAgentBar.vue';
 import ToastMessage from '../shared/components/base/ToastMessage.vue';
 import { initialTraceLogs } from '../shared/data/recruitmentDashboard';
+import { setDevIdentity } from '../shared/api/apiClient';
 
 const router = useRouter();
 const route = useRoute();
@@ -49,6 +50,18 @@ const role = ref<Role>(getSavedRole());
 const toastMessage = ref('');
 const traceLogs = ref<string[]>([...initialTraceLogs]);
 let toastTimer: number | undefined;
+
+watch(
+  role,
+  (value) => {
+    setDevIdentity(
+      value === 'hr'
+        ? { userId: 3, role: 'HR_SPECIALIST' }
+        : { userId: 1, role: 'EMPLOYEE' },
+    );
+  },
+  { immediate: true },
+);
 
 const currentLabel = computed(() => {
   return (route.meta?.label as string) ?? '';

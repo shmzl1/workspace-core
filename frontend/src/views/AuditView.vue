@@ -220,19 +220,12 @@ import LoadingState from '../shared/components/feedback/LoadingState.vue';
 import ErrorState from '../shared/components/feedback/ErrorState.vue';
 import EmptyState from '../shared/components/feedback/EmptyState.vue';
 import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
+import { ApiClientError } from '../shared/api/apiClient';
+import { fetchAuditLogs as requestAuditLogs } from '../shared/api/modules/audit';
 
 const emit = defineEmits<{
   'show-toast': [message: string];
 }>();
-
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-
-// Mock caller details to access audit logs
-const mockHeaders = {
-  'X-Mock-User-Id': '4', // Wang Qiang (PAYROLL_ADMIN)
-  'X-Mock-Role': 'PAYROLL_ADMIN',
-  'Content-Type': 'application/json'
-};
 
 interface AuditLogEntry {
   id: number;
@@ -351,18 +344,8 @@ const fetchAuditLogs = async () => {
   permissionDenied.value = false;
 
   try {
-    const res = await fetch(`${apiBase}/audit/logs?limit=100`, { headers: mockHeaders });
-    if (res.status === 403) {
-      permissionDenied.value = true;
-      loading.value = false;
-      return;
-    }
-    if (!res.ok) {
-      throw new Error(`Server returned code ${res.status}`);
-    }
-    const json = await res.json();
-    if (json.success && json.data) {
-      auditLogs.value = json.data.map((log: any) => {
+    const rows = await requestAuditLogs(100);
+    auditLogs.value = rows.map((log) => {
         return {
           id: log.id,
           operator_name: getActorName(log.actor_user_id),
@@ -377,11 +360,12 @@ const fetchAuditLogs = async () => {
           user_agent: log.user_agent || '--'
         };
       });
-    } else {
-      error.value = json.error?.message || '获取审计日志失败';
-    }
   } catch (err) {
-    error.value = '网络连接失败，无法载入审计记录';
+    if (err instanceof ApiClientError && err.status === 403) {
+      permissionDenied.value = true;
+    } else {
+      error.value = err instanceof Error ? err.message : '无法载入审计记录';
+    }
     console.error('Failed to fetch audit logs:', err);
   } finally {
     loading.value = false;

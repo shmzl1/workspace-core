@@ -208,6 +208,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import { setDevIdentity, type DevIdentity } from '../shared/api/apiClient';
+import { fetchEmployeeSalary, fetchMySalary } from '../shared/api/modules/payroll';
 
 const props = defineProps({
   role: {
@@ -218,9 +220,6 @@ const props = defineProps({
 
 const emit = defineEmits(['show-toast']);
 
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-
-// Mock caller details
 const mockUser = ref(1); // Default to Zhang Wei (EMPLOYEE)
 const targetEmployeeId = ref(1); // Default to querying Employee 1
 
@@ -237,48 +236,34 @@ const handleMockUserChange = () => {
   fetchSalaryDetails();
 };
 
-const getHeaders = () => {
-  let mockRole = 'EMPLOYEE';
-  if (mockUser.value === 2) mockRole = 'DEPARTMENT_MANAGER';
-  if (mockUser.value === 3) mockRole = 'HR_SPECIALIST';
-  if (mockUser.value === 4) mockRole = 'PAYROLL_ADMIN';
-
-  return {
-    'X-Mock-User-Id': mockUser.value.toString(),
-    'X-Mock-Role': mockRole,
-    'Content-Type': 'application/json'
+const applySelectedIdentity = () => {
+  const roles: Record<number, DevIdentity['role']> = {
+    1: 'EMPLOYEE',
+    2: 'DEPARTMENT_MANAGER',
+    3: 'HR_SPECIALIST',
+    4: 'PAYROLL_ADMIN',
   };
+  setDevIdentity({ userId: mockUser.value, role: roles[mockUser.value] || 'EMPLOYEE' });
 };
 
 const fetchSalaryDetails = async () => {
   accessError.value = null;
   
   try {
-    let url = `${apiBase}/payroll/me`;
-    // If the mock user is querying someone else, or they are admin/manager, query by employee ID
-    if (mockUser.value !== 1 || targetEmployeeId.value !== 1) {
-      url = `${apiBase}/payroll/employee/${targetEmployeeId.value}`;
-    }
-
-    const res = await fetch(url, { headers: getHeaders() });
-    const json = await res.json();
-    
-    if (json.success && json.data) {
-      const data = json.data;
-      salaryAmount.value = data.base_salary;
-      salaryCurrency.value = data.currency;
-      effectiveFrom.value = data.effective_from;
-      effectiveTo.value = data.effective_to;
-    } else {
-      // Clear data and display error
-      salaryAmount.value = null;
-      salaryCurrency.value = null;
-      effectiveFrom.value = null;
-      effectiveTo.value = null;
-      accessError.value = json.error?.message || '请求薪资信息失败';
-    }
-  } catch (err) {
-    accessError.value = '网络连接失败，无法获取薪资信息';
+    applySelectedIdentity();
+    const data = mockUser.value === targetEmployeeId.value
+      ? await fetchMySalary()
+      : await fetchEmployeeSalary(targetEmployeeId.value);
+    salaryAmount.value = data.base_salary;
+    salaryCurrency.value = data.currency;
+    effectiveFrom.value = data.effective_from;
+    effectiveTo.value = data.effective_to;
+  } catch (err: any) {
+    salaryAmount.value = null;
+    salaryCurrency.value = null;
+    effectiveFrom.value = null;
+    effectiveTo.value = null;
+    accessError.value = err.message || '无法获取薪资信息';
     console.error('Failed to fetch salary:', err);
   }
 };

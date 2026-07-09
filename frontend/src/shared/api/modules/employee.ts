@@ -2,18 +2,25 @@
  * 员工 / 假期 / 薪资模块 API
  */
 import apiClient from '../apiClient';
-import type { ApiResponse, Employee, LeaveBalance } from '../types';
+import type { Employee, LeaveBalance } from '../types';
+
+export interface EmployeeProfile {
+  employee: Employee;
+  leave_balance: LeaveBalance | null;
+}
 
 // ── 员工 ───────────────────────────────────
 
-export async function fetchMyProfile(): Promise<ApiResponse<Employee>> {
-  return apiClient.get('/employees/me');
+export async function fetchMyProfile(): Promise<EmployeeProfile> {
+  const response = await apiClient.get<EmployeeProfile>('/employees/me');
+  return response.data;
 }
 
 // ── 假期 ───────────────────────────────────
 
-export async function fetchLeaveBalance(year?: number): Promise<ApiResponse<LeaveBalance>> {
-  return apiClient.get('/leave/balance', { params: { year } });
+export async function fetchLeaveBalance(year?: number): Promise<LeaveBalance> {
+  const response = await apiClient.get<LeaveBalance>('/employees/me/leave-balance', { params: { year } });
+  return response.data;
 }
 
 // ── 薪资 ───────────────────────────────────
@@ -26,6 +33,7 @@ export interface PayrollSummary {
   deductions: Record<string, number>;
 }
 
-export async function fetchPayrollSummary(year?: number, month?: number): Promise<ApiResponse<PayrollSummary[]>> {
-  return apiClient.get('/payroll/me', { params: { year, month } });
+export async function fetchPayrollSummary(year?: number, month?: number): Promise<PayrollSummary[]> {
+  const response = await apiClient.get<PayrollSummary[]>('/payroll/me', { params: { year, month } });
+  return response.data;
 }

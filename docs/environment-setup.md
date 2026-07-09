@@ -679,3 +679,19 @@ git add .
 git commit -m "feat: 本次完成的功能"
 git push origin dev
 ```
+# 本地数据库与开发身份
+
+本地 PostgreSQL 容器对宿主机统一暴露 `5433`，后端、Alembic 与
+`scripts/seed_dev_data.py` 都读取同一个 `DATABASE_URL`：
+
+```env
+DATABASE_URL=postgresql+psycopg://talentflow:talentflow_dev_password_change_me@localhost:5433/talentflow
+POSTGRES_PORT=5433
+```
+
+未设置 `DATABASE_URL` 时，后端使用 `POSTGRES_HOST`、`POSTGRES_PORT`、
+`POSTGRES_USER`、`POSTGRES_PASSWORD`、`POSTGRES_DB` 拼接连接地址。
+
+Vue 开发环境由统一 API 客户端注入当前开发身份。员工工作台默认使用
+`zhangwei / EMPLOYEE`，HR 工作台默认使用 `linyuqing / HR_SPECIALIST`；
+请求头为 `X-Mock-User-Id` 与 `X-Mock-Role`，服务端会校验 ID 和角色是否匹配。

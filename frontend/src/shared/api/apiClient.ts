@@ -4,12 +4,43 @@
 /// <reference types="vite/client" />
 
 import axios, {
+  AxiosError,
   type AxiosInstance,
   type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from 'axios';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string || '/api/v1';
+const DEV_IDENTITY_KEY = 'talentflow.devIdentity';
+
+export interface DevIdentity {
+  userId: number;
+  role: 'EMPLOYEE' | 'DEPARTMENT_MANAGER' | 'HR_SPECIALIST' | 'PAYROLL_ADMIN';
+}
+
+export class ApiClientError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly code?: string,
+  ) {
+    super(message);
+  }
+}
+
+export function getDevIdentity(): DevIdentity {
+  const fallback: DevIdentity = { userId: 1, role: 'EMPLOYEE' };
+  if (!import.meta.env.DEV) return fallback;
+  try {
+    return { ...fallback, ...JSON.parse(localStorage.getItem(DEV_IDENTITY_KEY) || '{}') };
+  } catch {
+    return fallback;
+  }
+}
+
+export function setDevIdentity(identity: DevIdentity): void {
+  localStorage.setItem(DEV_IDENTITY_KEY, JSON.stringify(identity));
+}
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -19,9 +50,14 @@ const apiClient: AxiosInstance = axios.create({
 
 // ── 请求拦截器 ──────────────────────────────
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  // 后续接入认证后在此注入 token
-  // const token = getAuthToken();
-  // if (token) config.headers.Authorization = `Bearer ${token}`;
+  const token = localStorage.getItem('talentflow.token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  } else if (import.meta.env.DEV) {
+    const identity = getDevIdentity();
+    config.headers['X-Mock-User-Id'] = String(identity.userId);
+    config.headers['X-Mock-Role'] = identity.role;
+  }
   return config;
 });
 
@@ -39,7 +75,7 @@ apiClient.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  (error: AxiosError<{ error?: { code?: string; message?: string } }>) => {
     // 统一处理 HTTP 层错误
     if (error.response) {
       const { status } = error.response;
@@ -53,7 +89,16 @@ apiClient.interceptors.response.use(
     } else if (error.request) {
       console.error('[API] 网络错误：无响应');
     }
-    return Promise.reject(error);
+    const status = error.response?.status;
+    const serverError = error.response?.data?.error;
+    const message = serverError?.message || (
+      status === 401 ? '未登录或身份无效。'
+        : status === 403 ? '当前账号无权执行此操作。'
+          : status && status >= 500 ? '服务端处理失败，请稍后重试。'
+            : error.request ? '网络连接失败，服务端未响应。'
+              : error.message
+    );
+    return Promise.reject(new ApiClientError(message, status, serverError?.code));
   }
 );
 
