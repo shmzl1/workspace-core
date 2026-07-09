@@ -32,10 +32,11 @@ def get_current_user(
     """Retrieve the current user from JWT or mock headers for dev/test."""
     if x_mock_user_id is not None:
         user = db.query(User).filter(User.id == x_mock_user_id).first()
-        if user:
-            if x_mock_role:
-                user.role = x_mock_role
+        if user and user.is_active:
+            if x_mock_role and x_mock_role != user.role:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Mock identity role mismatch")
             return user
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Mock identity is invalid")
 
     if not credentials:
         raise HTTPException(

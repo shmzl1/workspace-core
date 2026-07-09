@@ -60,7 +60,13 @@ class InterviewService:
             raise TalentFlowError("APPLICATION_NOT_FOUND", "候选人申请不存在，无法生成排期预览。")
 
         try:
-            result = schedule_interview(payload.model_dump(mode="json"))
+            scheduler_payload = payload.model_dump(mode="json")
+            scheduler_payload["existing_events"] = [
+                {"start": interview.start_at.isoformat(), "end": interview.end_at.isoformat()}
+                for interview in self.repository.list_interviews()
+                if interview.status == "SCHEDULED"
+            ]
+            result = schedule_interview(scheduler_payload)
         except NotImplementedError:
             not_ready = algorithm_not_ready(
                 INTERVIEW_SCHEDULER_CONTRACT,

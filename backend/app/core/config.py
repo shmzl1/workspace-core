@@ -3,6 +3,7 @@
 from functools import lru_cache
 
 from pydantic import Field
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,7 +14,12 @@ class Settings(BaseSettings):
     app_name: str = "TalentFlow"
     app_host: str = "0.0.0.0"
     app_port: int = 8000
-    database_url: str = "postgresql+psycopg://talentflow:talentflow_dev_password_change_me@localhost:5432/talentflow"
+    database_url: str = ""
+    postgres_host: str = "localhost"
+    postgres_port: int = 5433
+    postgres_user: str = "talentflow"
+    postgres_password: str = "talentflow_dev_password_change_me"
+    postgres_db: str = "talentflow"
     jwt_secret_key: str = Field(default="replace_with_a_local_random_secret")
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 120
@@ -26,6 +32,17 @@ class Settings(BaseSettings):
     policy_data_dir: str = "../data/policies"
     upload_dir: str = "../data/runtime/uploads"
     report_dir: str = "../data/runtime/reports"
+
+    @model_validator(mode="after")
+    def build_database_url(self) -> "Settings":
+        """Use DATABASE_URL when set, otherwise build it from POSTGRES_* values."""
+
+        if not self.database_url:
+            self.database_url = (
+                f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}"
+                f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+            )
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

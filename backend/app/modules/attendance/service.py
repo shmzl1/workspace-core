@@ -42,6 +42,10 @@ class AttendanceService:
     def check_in(self, employee_id: int, check_in_time: datetime, source: str = "WEB") -> AttendanceRecord:
         attendance_date = check_in_time.date()
         calendar = self.calendar_repo.get_calendar_by_date(attendance_date)
+        if calendar is None:
+            raise TalentFlowError("WORK_CALENDAR_NOT_FOUND", "今日工作日历尚未配置，无法签到。")
+        if not calendar.is_workday:
+            raise TalentFlowError("NOT_A_WORKDAY", "今日不是工作日，无需签到。")
         
         record = self.repo.get_record(employee_id, attendance_date)
         if record and record.check_in_at is not None:
@@ -69,6 +73,10 @@ class AttendanceService:
     def check_out(self, employee_id: int, check_out_time: datetime, source: str = "WEB") -> AttendanceRecord:
         attendance_date = check_out_time.date()
         calendar = self.calendar_repo.get_calendar_by_date(attendance_date)
+        if calendar is None:
+            raise TalentFlowError("WORK_CALENDAR_NOT_FOUND", "今日工作日历尚未配置，无法签退。")
+        if not calendar.is_workday:
+            raise TalentFlowError("NOT_A_WORKDAY", "今日不是工作日，无需签退。")
 
         record = self.repo.get_record(employee_id, attendance_date)
         if not record or record.check_in_at is None:

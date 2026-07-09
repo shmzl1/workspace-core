@@ -1,7 +1,6 @@
 """Payroll access service — salary permission check + audit logging."""
  
 from dataclasses import dataclass
-from importlib import import_module
 from typing import Any
 
 # pyrefly: ignore [missing-import]
@@ -23,63 +22,11 @@ SALARY_ACCESS_CONTRACT = HumanOnlyContract(
 )
 
 
-# ── 本地 fallback 实现（salary_access_control.py 缺失时自动启用）─────────────
-def check_salary_access_local(
-    actor_role: str,
-    actor_employee_id: int | None,
-    target_employee_id: int,
-    target_department: str = "",
-    relation: str | None = None,
-    **kwargs,
-) -> dict:
-    # 1. 员工查询本人
-    if actor_employee_id == target_employee_id:
-        return {
-            "allowed": True,
-            "accessible_fields": ["base_salary", "currency", "effective_from", "effective_to"],
-            "fields": ["base_salary", "currency", "effective_from", "effective_to"],
-            "reason": "允许员工查询本人薪资信息",
-        }
-
-    # 2. 薪酬管理员
-    if actor_role == "PAYROLL_ADMIN":
-        return {
-            "allowed": True,
-            "accessible_fields": ["base_salary", "currency", "effective_from", "effective_to"],
-            "fields": ["base_salary", "currency", "effective_from", "effective_to"],
-            "reason": "允许薪酬管理员查询所有薪资信息",
-        }
-
-    # 3. HR 专员
-    if actor_role == "HR_SPECIALIST":
-        return {
-            "allowed": True,
-            "accessible_fields": ["base_salary", "currency", "effective_from"],
-            "fields": ["base_salary", "currency", "effective_from"],
-            "reason": "允许HR专员查询薪资信息（已脱敏截止日期）",
-        }
-
-    # 4. 部门经理查本部门员工
-    if actor_role == "DEPARTMENT_MANAGER" and relation == "manager":
-        return {
-            "allowed": True,
-            "accessible_fields": ["base_salary", "currency"],
-            "fields": ["base_salary", "currency"],
-            "reason": "允许部门经理查询本部门员工薪资信息（仅基本工资与币种）",
-        }
-
-    return {
-        "allowed": False,
-        "accessible_fields": [],
-        "fields": [],
-        "reason": "无权访问此员工的薪资数据",
-    }
-
-
-# ── 优先尝试加载 human_only 实现，缺失则回退到本地 fallback ──────────────────
 def _resolve_check_fn():
     fn = load_human_only_function(SALARY_ACCESS_CONTRACT)
-    return fn if fn is not None else check_salary_access_local
+    if fn is None:
+        raise TalentFlowError("SALARY_ACCESS_NOT_READY", "薪资权限校验服务暂不可用。", 500)
+    return fn
 
 
 @dataclass(frozen=True)
@@ -211,6 +158,6 @@ class PayrollAccessService:
         )
 
         if not allowed:
-            raise TalentFlowError("PERMISSION_DENIED", reason)
+            raise TalentFlowError("PERMISSION_DENIED", reason, 403)
 
         return accessible_fields

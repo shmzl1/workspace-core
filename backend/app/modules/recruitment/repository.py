@@ -1,5 +1,6 @@
 """Recruitment repository."""
 
+from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -61,6 +62,7 @@ class RecruitmentRepository:
         application.score_total = score_total
         application.score_breakdown = score_breakdown
         application.weights_snapshot = weights_snapshot
+        application.scored_at = datetime.now(timezone.utc)
         self.session.add(application)
         self.session.commit()
         self.session.refresh(application)

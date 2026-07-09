@@ -157,9 +157,16 @@ class RecruitmentService:
                 requires_human_only=True,
             )
 
-        score_total = result.get("score_total", result.get("total_score"))
-        match_score = result.get("match_score", result.get("job_match_score"))
-        score_breakdown = result.get("score_breakdown", {})
+        if not isinstance(result, dict):
+            raise TalentFlowError("INVALID_SCORING_RESULT", "招聘评分结果格式无效。", 500)
+
+        score_total = result.get("score_total", result.get("total_score", 0))
+        match_score = result.get("match_score", result.get("job_match_score", score_total))
+        score_breakdown = result.get("score_breakdown") or {}
+        if not isinstance(score_breakdown, dict):
+            score_breakdown = {}
+        risk_tags = result.get("risk_tags") or []
+        scoring_basis = result.get("scoring_basis") or []
         self.repository.save_application_score(
             application,
             score_total,
@@ -175,10 +182,14 @@ class RecruitmentService:
             skill_match=result.get("skill_match"),
             experience_match=result.get("experience_match"),
             education_match=result.get("education_match"),
-            risk_tags=result.get("risk_tags", []),
-            risk_prompt=result.get("risk_prompt"),
-            recommended_action=result.get("recommended_action"),
-            scoring_basis=result.get("scoring_basis", []),
+            risk_tags=list(risk_tags) if isinstance(risk_tags, (list, tuple)) else [str(risk_tags)],
+            risk_prompt=result.get("risk_prompt") or "未发现需要额外提示的风险。",
+            recommended_action=result.get("recommended_action") or "建议由招聘负责人结合面试结果复核。",
+            scoring_basis=(
+                list(scoring_basis)
+                if isinstance(scoring_basis, (list, tuple))
+                else [str(scoring_basis)]
+            ),
             score_breakdown=score_breakdown,
             explanation=result.get("explanation", {}),
             requires_human_only=False,
