@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class CandidateAvailability(BaseModel):
     candidate_id: int
+    name: str | None = None
     available_slots: list[dict[str, datetime]] = Field(default_factory=list)
 
 

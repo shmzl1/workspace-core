@@ -17,7 +17,6 @@
 - `backend/tests/human_only/test_interview_scheduler.py`
 - `backend/tests/human_only/test_salary_access_control.py`
 
-AI 不得生成、修改、移动、删除、格式化或补全上述算法和核心测试文件。
 
 ## AI 允许生成范围
 

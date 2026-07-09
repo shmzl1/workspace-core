@@ -140,6 +140,7 @@ export interface SchedulePreviewRequest {
   application_id: number;
   candidate: {
     candidate_id: number;
+    name?: string;
     available_slots: Array<Record<string, string>>;
   };
   interviewers: Array<{

@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.interview.models import Interview, Interviewer, MeetingRoom
+from app.modules.employee.models import Employee
 from app.modules.recruitment.models import CandidateApplication
 
 
@@ -24,6 +25,15 @@ class InterviewRepository:
                 select(Interviewer).where(Interviewer.is_active.is_(True)).order_by(Interviewer.id)
             ).all()
         )
+
+    def list_interviewers_with_employees(self) -> list[tuple[Interviewer, Employee | None]]:
+        rows = self.session.execute(
+            select(Interviewer, Employee)
+            .join(Employee, Employee.id == Interviewer.employee_id, isouter=True)
+            .where(Interviewer.is_active.is_(True))
+            .order_by(Interviewer.id)
+        )
+        return [(interviewer, employee) for interviewer, employee in rows.all()]
 
     def list_meeting_rooms(self) -> list[MeetingRoom]:
         return list(

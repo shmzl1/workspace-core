@@ -43,8 +43,9 @@
           选择展示岗位：
         </label>
         <select id="job-select" v-model="selectedJobId" class="job-select">
+          <option :value="null">全部岗位</option>
           <option v-for="job in jobs" :key="job.id" :value="job.id">
-            {{ job.title }} ({{ job.department }})
+            {{ formatJobLabel(job) }}
           </option>
         </select>
       </section>
@@ -71,7 +72,12 @@
             <span>{{ visibleCandidates.length }} 人</span>
           </div>
 
-          <div class="candidate-table">
+          <EmptyState
+            v-if="visibleCandidates.length === 0"
+            title="当前筛选无候选人"
+            :description="emptyFilterMessage"
+          />
+          <div v-else class="candidate-table">
             <button
               v-for="candidate in visibleCandidates"
               :key="candidate.id"
@@ -273,12 +279,6 @@ const defaultWeights: Record<WeightKey, number> = {
 const weights = reactive<Record<WeightKey, number>>({ ...defaultWeights });
 const isEmpty = computed(() => candidates.value.length === 0);
 
-const summaryCards = computed(() => [
-  { label: '候选人总数', value: String(candidates.value.length), icon: 'groups' },
-  { label: '高匹配候选人', value: String(candidates.value.filter((item) => item.match >= 90).length), icon: 'verified' },
-  { label: '需复核风险', value: String(candidates.value.filter((item) => item.riskLevel !== 'low').length), icon: 'warning' },
-]);
-
 const visibleCandidates = computed(() => {
   let list = highMatchOnly.value ? candidates.value.filter((item) => item.match >= 90) : [...candidates.value];
   if (selectedJobId.value !== null) {
@@ -293,7 +293,18 @@ const visibleCandidates = computed(() => {
   return list;
 });
 
+const summaryCards = computed(() => [
+  { label: '当前候选人', value: String(visibleCandidates.value.length), icon: 'groups' },
+  { label: '高匹配候选人', value: String(visibleCandidates.value.filter((item) => item.match >= 90).length), icon: 'verified' },
+  { label: '需复核风险', value: String(visibleCandidates.value.filter((item) => item.riskLevel !== 'low').length), icon: 'warning' },
+]);
+
 const selectedCandidate = computed(() => visibleCandidates.value.find((item) => item.id === selectedId.value) ?? visibleCandidates.value[0]);
+const emptyFilterMessage = computed(() => (
+  highMatchOnly.value
+    ? '当前筛选无候选人，可取消“只看高匹配候选人”后查看其他候选人。'
+    : '当前岗位暂无候选人，可选择“全部岗位”或其他岗位。'
+));
 
 watch(selectedJobId, () => {
   selectedId.value = visibleCandidates.value[0]?.id ?? 0;
@@ -317,19 +328,11 @@ async function loadCandidatePool() {
       fetchCandidates(),
       fetchApplications()
     ]);
-    jobs.value = jobRows;
-    if (jobRows.length > 0) {
-      // Find Java Intern job or default to first
-      const javaJob = jobRows.find(j => j.title.includes('Java')) || jobRows[0];
-      selectedJobId.value = javaJob.id;
-    }
+    jobs.value = Array.isArray(jobRows) ? jobRows : [];
+    selectedJobId.value = null;
     const mapped = mapBackendCandidates(candidateRows, applicationRows);
-    if (mapped.length) {
-      candidates.value = mapped;
-    } else {
-      useLocalCandidates();
-    }
-  } catch {
+    candidates.value = mapped;
+  } catch (error) {
     evaluationNotice.value = '智能评估暂时无法获取，已显示本地评估摘要。';
     useLocalCandidates();
   } finally {
@@ -470,8 +473,8 @@ function resetWeights() {
 
 function applySmartFilter() {
   filterMode.value = 'smart';
-  highMatchOnly.value = true;
-  selectedId.value = visibleCandidates.value[0]?.id ?? candidates.value[0]?.id ?? 0;
+  highMatchOnly.value = false;
+  selectedId.value = visibleCandidates.value[0]?.id ?? 0;
   emit('show-toast', '已按岗位匹配度和风险标签完成智能筛选。');
 }
 
@@ -483,8 +486,21 @@ function sortByScore() {
 
 function toggleHighMatch() {
   highMatchOnly.value = !highMatchOnly.value;
-  selectedId.value = visibleCandidates.value[0]?.id ?? candidates.value[0]?.id ?? 0;
-  emit('show-toast', highMatchOnly.value ? '已切换为只看高匹配候选人。' : '已恢复查看全部候选人。');
+  selectedId.value = visibleCandidates.value[0]?.id ?? 0;
+  emit(
+    'show-toast',
+    highMatchOnly.value && visibleCandidates.value.length === 0
+      ? '当前筛选无候选人，可取消高匹配筛选。'
+      : highMatchOnly.value ? '已切换为只看高匹配候选人。' : '已恢复查看全部候选人。',
+  );
+}
+
+function formatJobLabel(job: ApiJob): string {
+  const title = String(job.title || '').trim() || '未命名岗位';
+  const code = String(job.job_code || '').trim();
+  const department = String(job.department || '').trim();
+  const details = [code, department].filter(Boolean).join(' · ');
+  return details ? `${title}（${details}）` : title;
 }
 
 async function selectCandidate(candidate: Candidate) {

@@ -17,7 +17,7 @@
           </div>
           <button
             class="flex items-center gap-2 px-5 py-3 bg-primary text-on-primary rounded-xl font-label-md font-semibold shadow-md hover:shadow-lg hover:bg-primary-fixed-dim hover:text-on-primary-fixed transition-all disabled:opacity-50 disabled:cursor-wait"
-            :disabled="generating"
+            :disabled="generating || applications.length === 0"
             @click="generateSchedule"
           >
             <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
@@ -205,10 +205,13 @@
                   <label for="candidate-select" class="text-xs font-semibold text-on-surface-variant block">选择排期候选人：</label>
                   <select id="candidate-select" v-model="selectedApplicationId" class="w-full bg-white border border-outline-variant rounded-lg p-2.5 text-sm outline-none focus:border-primary cursor-pointer font-semibold">
                     <option v-for="app in applications" :key="app.id" :value="app.id">
-                      {{ app.candidate_name }} ({{ app.job_title }})
+                      {{ applicationLabel(app) }}
                     </option>
                   </select>
                 </div>
+                <p v-else class="rounded-lg bg-surface-container-low p-3 text-sm text-on-surface-variant">
+                  暂无可排期候选人，请先在候选人池创建申请记录。
+                </p>
 
                 <div class="rounded-xl border border-outline-variant bg-white p-4 space-y-3">
                   <div>
@@ -251,14 +254,30 @@ import { useRoute } from 'vue-router';
 import LoadingState from '../shared/components/feedback/LoadingState.vue';
 import EmptyState from '../shared/components/feedback/EmptyState.vue';
 import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
-import { generateInterviewSchedule } from '../shared/api/modules/interview';
-import { fetchApplications } from '../shared/api/modules/recruitment';
+import {
+  fetchInterviews,
+  fetchInterviewers,
+  fetchMeetingRooms,
+  generateInterviewSchedule,
+  type InterviewerResource,
+  type MeetingRoomResource,
+} from '../shared/api/modules/interview';
+import { fetchApplications, fetchCandidates, fetchJobs } from '../shared/api/modules/recruitment';
 import type { CandidateApplicationListItem } from '../shared/api/modules/recruitment';
-import type { SchedulePreviewRequest, SchedulePreviewResponse } from '../shared/api/types';
+import type {
+  Candidate as ApiCandidate,
+  Job as ApiJob,
+  SchedulePreviewRequest,
+  SchedulePreviewResponse,
+} from '../shared/api/types';
 
 const route = useRoute();
 const applications = ref<CandidateApplicationListItem[]>([]);
 const selectedApplicationId = ref<number | null>(null);
+const candidates = ref<ApiCandidate[]>([]);
+const jobs = ref<ApiJob[]>([]);
+const interviewerResources = ref<InterviewerResource[]>([]);
+const roomResources = ref<MeetingRoomResource[]>([]);
 
 type ScheduleItem = {
   time: string;
@@ -291,59 +310,22 @@ const permissionDenied = ref(false);
 const scheduleGenerated = ref(false);
 const generating = ref(false);
 const calendarView = ref<'month' | 'week'>('month');
-const activeSuggestionIndex = ref(0);
 const apiSuggestion = ref<Suggestion | null>(null);
 const scheduleNotice = ref('');
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
-const scheduleItems = ref<ScheduleItem[]>([
-  {
-    time: '10:00',
-    duration: '60 分钟',
-    candidate: 'Eleanor Vance',
-    role: '首席数据科学家',
-    interviewer: '王刚',
-    room: '线上会议室 A',
-    status: '已确认',
-    recommended: false,
-    hasConflict: false,
-  },
-  {
-    time: '14:00',
-    duration: '45 分钟',
-    candidate: 'Michael Chen',
-    role: '高级前端工程师',
-    interviewer: '林雨晴',
-    room: '会议室 B-201',
-    status: '待确认',
-    recommended: false,
-    hasConflict: false,
-  },
-]);
+const scheduleItems = ref<ScheduleItem[]>([]);
 
-const suggestions = ref<Suggestion[]>([
-  {
-    time: '7 月 10 日 10:00 - 11:00',
-    interviewerAvailability: '王刚 09:30 - 11:30 可用',
-    candidateAvailability: '候选人确认上午时段可参加',
-    conflict: '未发现冲突',
-    reason: '候选人匹配度较高，且面试官与会议室在同一时间段均可用，建议优先安排。',
-    score: 92,
-    hasConflict: false,
-  },
-  {
-    time: '7 月 16 日 15:00 - 15:45',
-    interviewerAvailability: '林雨晴 14:30 - 16:00 可用',
-    candidateAvailability: '候选人下午时段可用',
-    conflict: '原 14:00 时段与会议室占用冲突',
-    reason: '顺延后无需更换面试官，并能保留同一面试记录模板。',
-    score: 81,
-    hasConflict: true,
-  },
-]);
-
-const currentSuggestion = computed(() => apiSuggestion.value ?? suggestions.value[activeSuggestionIndex.value]);
+const currentSuggestion = computed<Suggestion>(() => apiSuggestion.value ?? {
+  time: '等待生成',
+  interviewerAvailability: '请选择候选人后生成排期建议。',
+  candidateAvailability: '等待读取候选人可用时间。',
+  conflict: '尚未检测',
+  reason: '排期结果将基于数据库中的申请、面试官、会议室和已有日程生成。',
+  score: '--',
+  hasConflict: false,
+});
 
 const calendarDays = ref([
   { date: 29, muted: true, today: false, events: 0, recommended: false, conflict: false },
@@ -369,8 +351,33 @@ const calendarDays = ref([
 
 onMounted(async () => {
   try {
-    const appRows = await fetchApplications();
+    const [appRows, candidateRows, jobRows, interviewerRows, roomRows, interviewRows] = await Promise.all([
+      fetchApplications(),
+      fetchCandidates(),
+      fetchJobs(),
+      fetchInterviewers(),
+      fetchMeetingRooms(),
+      fetchInterviews(),
+    ]);
     applications.value = appRows;
+    candidates.value = candidateRows;
+    jobs.value = jobRows;
+    interviewerResources.value = interviewerRows;
+    roomResources.value = roomRows;
+    scheduleItems.value = interviewRows.map((interview) => {
+      const application = appRows.find((item) => item.id === interview.application_id);
+      return {
+        time: formatClock(new Date(interview.start_at)),
+        duration: `${Math.round((new Date(interview.end_at).getTime() - new Date(interview.start_at).getTime()) / 60000)} 分钟`,
+        candidate: candidateName(application),
+        role: jobName(application),
+        interviewer: interviewerName(interview.interviewer_id),
+        room: roomName(interview.meeting_room_id),
+        status: interview.status === 'SCHEDULED' ? '已安排' : interview.status,
+        recommended: false,
+        hasConflict: false,
+      };
+    });
     
     // Parse query parameter applicationId
     const queryAppId = Number(route.query.applicationId);
@@ -379,7 +386,9 @@ onMounted(async () => {
     } else if (appRows.length > 0) {
       selectedApplicationId.value = appRows[0].id;
     }
-  } catch (err) {
+  } catch (err: any) {
+    scheduleNotice.value = err.message || '面试资源加载失败，请检查后端服务和开发数据。';
+    permissionDenied.value = err.status === 403;
     console.error('Failed to load candidate applications:', err);
   } finally {
     loading.value = false;
@@ -388,65 +397,103 @@ onMounted(async () => {
 
 async function generateSchedule() {
   if (generating.value) return;
+  if (!selectedApplicationId.value) {
+    scheduleNotice.value = '暂无可排期候选人，请先在候选人池创建申请记录。';
+    return;
+  }
+  if (!interviewerResources.value.length || !roomResources.value.length) {
+    scheduleNotice.value = '缺少面试官或会议室数据，请先执行开发数据初始化。';
+    return;
+  }
   generating.value = true;
   try {
     const result = await generateInterviewSchedule(buildSchedulePayload());
-    if (result.status === 'algorithm_not_ready') {
-      throw new Error('schedule unavailable');
+    if (result.status === 'algorithm_not_ready' || !result.recommended_time) {
+      throw new Error(result.message || '暂时没有可用排期建议。');
     }
     applyScheduleResult(result);
     scheduleNotice.value = '';
     emit('show-toast', '已生成智能排期建议。');
-  } catch {
-    applyLocalSuggestion();
-    scheduleNotice.value = '智能排期暂时无法获取，已显示本地排期建议。';
-    emit('show-toast', '智能排期暂时无法获取，已显示本地排期建议。');
+  } catch (error: any) {
+    scheduleGenerated.value = false;
+    scheduleNotice.value = error.message || '智能排期暂时无法获取，请稍后重试。';
+    emit('show-toast', scheduleNotice.value);
   } finally {
     generating.value = false;
   }
 }
 
 function buildSchedulePayload(): SchedulePreviewRequest {
-  const currentAppId = selectedApplicationId.value || 1;
+  const currentAppId = selectedApplicationId.value;
   const currentApp = applications.value.find(a => a.id === currentAppId);
+  if (!currentApp) throw new Error('选中的候选人申请不存在，请刷新页面后重试。');
+  const candidate = candidates.value.find((item) => item.id === currentApp.candidate_id);
+  const start = candidateStart(candidate?.available_from);
+  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
   
   return {
-    application_id: currentAppId,
+    application_id: currentApp.id,
     candidate: {
-      candidate_id: currentApp?.candidate_id || 1,
-      available_slots: [
-        { start: '2026-07-10T09:30:00', end: '2026-07-10T12:00:00' },
-        { start: '2026-07-16T14:00:00', end: '2026-07-16T17:00:00' },
-      ],
+      candidate_id: currentApp.candidate_id,
+      name: candidateName(currentApp),
+      available_slots: [{ start: start.toISOString(), end: end.toISOString() }],
     },
-    interviewers: [
-      {
-        interviewer_id: 11,
-        employee_name: '王刚',
-        specialties: ['算法', '数据平台'],
-        available_slots: [{ start: '2026-07-10T09:00:00', end: '2026-07-10T11:30:00' }],
-      },
-      {
-        interviewer_id: 12,
-        employee_name: '林雨晴',
-        specialties: ['前端工程'],
-        available_slots: [{ start: '2026-07-16T14:30:00', end: '2026-07-16T16:30:00' }],
-      },
-    ],
-    meeting_rooms: [
-      {
-        meeting_room_id: 21,
-        room_name: '线上会议室 A',
-        available_slots: [{ start: '2026-07-10T09:30:00', end: '2026-07-10T12:00:00' }],
-      },
-      {
-        meeting_room_id: 22,
-        room_name: '会议室 B-201',
-        available_slots: [{ start: '2026-07-16T15:00:00', end: '2026-07-16T17:00:00' }],
-      },
-    ],
+    interviewers: interviewerResources.value.map((item) => ({
+      interviewer_id: item.id,
+      employee_name: item.employee_name || `员工 #${item.employee_id}`,
+      specialties: item.specialties,
+      available_slots: [{ start: start.toISOString(), end: end.toISOString() }],
+    })),
+    meeting_rooms: roomResources.value.map((item) => ({
+      meeting_room_id: item.id,
+      room_name: item.name || `会议室 #${item.id}`,
+      available_slots: [{ start: start.toISOString(), end: end.toISOString() }],
+    })),
     duration_minutes: 60,
   };
+}
+
+function applicationLabel(application: CandidateApplicationListItem): string {
+  return `${candidateName(application)} - ${jobName(application)}`;
+}
+
+function candidateName(application?: CandidateApplicationListItem): string {
+  const joinedName = String(application?.candidate_name || '').trim();
+  if (joinedName) return joinedName;
+  const candidate = candidates.value.find((item) => item.id === application?.candidate_id);
+  return String(candidate?.full_name || '').trim() || '未命名候选人';
+}
+
+function jobName(application?: CandidateApplicationListItem): string {
+  const joinedTitle = String(application?.job_title || '').trim();
+  if (joinedTitle) return joinedTitle;
+  const job = jobs.value.find((item) => item.id === application?.job_id);
+  return String(job?.title || '').trim() || '待匹配岗位';
+}
+
+function interviewerName(interviewerId?: number | null): string {
+  const interviewer = interviewerResources.value.find((item) => item.id === Number(interviewerId));
+  return String(interviewer?.employee_name || '').trim()
+    || (interviewer ? `员工 #${interviewer.employee_id}` : '待分配面试官');
+}
+
+function roomName(roomId?: number | null): string {
+  const room = roomResources.value.find((item) => item.id === Number(roomId));
+  return String(room?.name || '').trim() || (room ? `会议室 #${room.id}` : '待分配会议室');
+}
+
+function candidateStart(availableFrom?: string | null): Date {
+  const now = new Date();
+  const value = availableFrom ? new Date(`${availableFrom}T10:00:00`) : new Date(now);
+  if (Number.isNaN(value.getTime()) || value <= now) {
+    value.setTime(now.getTime());
+    value.setDate(value.getDate() + 1);
+    value.setHours(10, 0, 0, 0);
+  }
+  while (value.getDay() === 0 || value.getDay() === 6) {
+    value.setDate(value.getDate() + 1);
+  }
+  return value;
 }
 
 function applyScheduleResult(result: SchedulePreviewResponse) {
@@ -457,10 +504,10 @@ function applyScheduleResult(result: SchedulePreviewResponse) {
   const timeLabel = `${formatClock(startDate)} - ${formatClock(endDate)}`;
   const score = Number(result.conflict_explanation?.priority_score ?? 90);
 
-  const currentAppId = selectedApplicationId.value || 1;
+  const currentAppId = selectedApplicationId.value;
   const currentApp = applications.value.find(a => a.id === currentAppId);
-  const candidateName = currentApp?.candidate_name || 'Eleanor Vance';
-  const roleName = currentApp?.job_title || '首席数据科学家';
+  const selectedCandidateName = candidateName(currentApp);
+  const roleName = jobName(currentApp);
 
   apiSuggestion.value = {
     time: `7 月 ${startDate.getDate()} 日 ${timeLabel}`,
@@ -478,34 +525,13 @@ function applyScheduleResult(result: SchedulePreviewResponse) {
     {
       time: formatClock(startDate),
       duration: `${Math.max(30, Math.round((endDate.getTime() - startDate.getTime()) / 60000))} 分钟`,
-      candidate: candidateName,
+      candidate: selectedCandidateName,
       role: roleName,
-      interviewer: Number(result.recommended_interviewer_id) === 12 ? '林雨晴' : '王刚',
-      room: Number(result.recommended_room_id) === 22 ? '会议室 B-201' : '线上会议室 A',
+      interviewer: interviewerName(result.recommended_interviewer_id),
+      room: roomName(result.recommended_room_id),
       status: '推荐时段',
       recommended: true,
       hasConflict: apiSuggestion.value.hasConflict,
-    },
-    ...scheduleItems.value.filter((item) => !item.recommended).slice(0, 2),
-  ];
-}
-
-function applyLocalSuggestion() {
-  activeSuggestionIndex.value = (activeSuggestionIndex.value + 1) % suggestions.value.length;
-  scheduleGenerated.value = true;
-  const suggestion = currentSuggestion.value;
-  markCalendarDay(activeSuggestionIndex.value === 0 ? 10 : 16, suggestion.hasConflict);
-  scheduleItems.value = [
-    {
-      time: activeSuggestionIndex.value === 0 ? '10:00' : '15:00',
-      duration: activeSuggestionIndex.value === 0 ? '60 分钟' : '45 分钟',
-      candidate: activeSuggestionIndex.value === 0 ? 'Eleanor Vance' : 'Michael Chen',
-      role: activeSuggestionIndex.value === 0 ? '首席数据科学家' : '高级前端工程师',
-      interviewer: activeSuggestionIndex.value === 0 ? '王刚' : '林雨晴',
-      room: activeSuggestionIndex.value === 0 ? '线上会议室 A' : '会议室 B-201',
-      status: suggestion.hasConflict ? '需复核' : '推荐时段',
-      recommended: true,
-      hasConflict: suggestion.hasConflict,
     },
     ...scheduleItems.value.filter((item) => !item.recommended).slice(0, 2),
   ];

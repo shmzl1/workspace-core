@@ -89,6 +89,7 @@ def add_employees(db: Session, today: date) -> None:
 
 
 def add_recruitment(db: Session, today: date) -> None:
+    log("写入招聘岗位")
     db.add_all([
         Job(id=1, job_code="JOB-BE-001", title="后端开发工程师", department="研发部",
             description="负责 FastAPI 业务模块开发。", required_skills=["Python", "FastAPI", "PostgreSQL"],
@@ -105,6 +106,7 @@ def add_recruitment(db: Session, today: date) -> None:
         ("CAN003", "吴桐", "wutong", ["Python", "SQL"], 20, 7, "熟悉 Python 与数据库开发。"),
         ("CAN004", "赵宁", "zhaoning", ["JavaScript", "Vue"], 16, 30, "前端工程化实践。"),
     ]
+    log("写入候选人")
     db.add_all([
         Candidate(id=index, candidate_no=no, full_name=name, email=f"{mail}@example.test",
                   skills=skills, experience_months=months, available_from=today + timedelta(days=delay),
@@ -113,6 +115,7 @@ def add_recruitment(db: Session, today: date) -> None:
         for index, (no, name, mail, skills, months, delay, resume) in enumerate(candidates, 1)
     ])
     db.flush()
+    log("写入候选人申请")
     db.add_all([
         CandidateApplication(id=1, candidate_id=1, job_id=1, current_stage="INTERVIEW_PENDING"),
         CandidateApplication(id=2, candidate_id=2, job_id=2, current_stage="AI_SCREENED"),
@@ -125,12 +128,17 @@ def add_recruitment(db: Session, today: date) -> None:
 def add_interviews(db: Session, now: datetime) -> None:
     start = (now + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
     end = start + timedelta(hours=1)
+    log("写入面试官")
     db.add_all([
         Interviewer(id=1, employee_id=2, specialties=["Python", "系统设计"], max_interviews_per_day=4),
         Interviewer(id=2, employee_id=3, specialties=["沟通能力", "文化匹配"], max_interviews_per_day=5),
-        MeetingRoom(id=1, room_code="R-A101", name="A101 会议室", location="上海办公室", capacity=6),
     ])
+    log("写入会议室")
+    db.add(
+        MeetingRoom(id=1, room_code="R-A101", name="A101 会议室", location="上海办公室", capacity=6),
+    )
     db.flush()
+    log("写入面试数据")
     db.add_all([
         InterviewSlot(resource_type="CANDIDATE", candidate_id=1, start_at=start, end_at=end),
         InterviewSlot(resource_type="INTERVIEWER", interviewer_id=1, start_at=start, end_at=end),
@@ -143,6 +151,7 @@ def add_interviews(db: Session, now: datetime) -> None:
 
 
 def add_attendance(db: Session, today: date, now: datetime) -> None:
+    log("写入工作日历")
     for offset in range(-7, 8):
         day = today + timedelta(days=offset)
         workday = day.weekday() < 5 or day == today
@@ -150,6 +159,7 @@ def add_attendance(db: Session, today: date, now: datetime) -> None:
                             standard_check_out_time=time(18), late_grace_minutes=10,
                             holiday_name=None if workday else "周末"))
     history_day = today - timedelta(days=1)
+    log("写入考勤记录")
     db.add(AttendanceRecord(
         employee_id=2, attendance_date=history_day,
         check_in_at=now.replace(year=history_day.year, month=history_day.month, day=history_day.day,
@@ -162,6 +172,7 @@ def add_attendance(db: Session, today: date, now: datetime) -> None:
 
 
 def add_payroll(db: Session, today: date) -> None:
+    log("写入薪资记录")
     amounts = ["25000", "35000", "18000", "20000"]
     salaries = [
         SalaryRecord(id=index, employee_id=index, base_salary=Decimal(amount),
@@ -198,6 +209,7 @@ def add_payroll(db: Session, today: date) -> None:
 
 
 def add_audit_logs(db: Session) -> None:
+    log("写入权限审计日志")
     rows = [
         (1, "EMPLOYEE", 1, "ALLOWED", "员工查看本人薪资"),
         (1, "EMPLOYEE", 2, "DENIED", "员工不能查看他人薪资"),

@@ -96,10 +96,15 @@ class InterviewService:
         )
 
     def list_interviewers(self) -> list[dict]:
-        return [
-            model_to_dict(interviewer, ["id", "employee_id", "specialties", "max_interviews_per_day", "is_active"])
-            for interviewer in self.repository.list_interviewers()
-        ]
+        results = []
+        for interviewer, employee in self.repository.list_interviewers_with_employees():
+            item = model_to_dict(
+                interviewer,
+                ["id", "employee_id", "specialties", "max_interviews_per_day", "is_active"],
+            )
+            item["employee_name"] = employee.full_name if employee else None
+            results.append(item)
+        return results
 
     def list_meeting_rooms(self) -> list[dict]:
         return [
