@@ -1,5 +1,7 @@
 """Recruitment service."""
 
+from collections import Counter, defaultdict
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any
 
@@ -13,6 +15,11 @@ from app.modules.recruitment.schemas import (
     CandidateRead,
     JobRead,
     RecruitmentDashboardRead,
+    RecruitmentDepartmentItem,
+    RecruitmentFunnelItem,
+    RecruitmentReportRead,
+    RecruitmentSourceItem,
+    RecruitmentTrendItem,
     ScoreApplicationRequest,
     ScoreApplicationResponse,
 )
@@ -103,6 +110,112 @@ class RecruitmentService:
             )
         return results
 
+    def get_report(self, time_range: str = "30d") -> RecruitmentReportRead:
+        if time_range not in {"30d", "90d", "all"}:
+            raise TalentFlowError("INVALID_TIME_RANGE", "time_range 仅支持 30d、90d 或 all。")
+        jobs = self.repository.list_jobs()
+        candidates = self.repository.list_candidates()
+        rows = self.repository.list_applications()
+        cutoff = None
+        if time_range != "all":
+            cutoff = datetime.now(timezone.utc) - timedelta(days=30 if time_range == "30d" else 90)
+        rows = [row for row in rows if cutoff is None or self._aware(row[0].applied_at) >= cutoff]
+        applications = [row[0] for row in rows]
+        scored = [item for item in applications if item.score_total is not None]
+        scores = [float(item.score_total) for item in scored]
+        match_scores = [self._match_score(item) for item in scored]
+        match_scores = [value for value in match_scores if value is not None]
+        stages = Counter(item.current_stage for item in applications)
+        application_count = len(applications)
+
+        funnel_counts = [
+            ("简历获取", application_count),
+            ("智能筛选", len(scored)),
+            ("面试阶段", sum(stages[name] for name in ("INTERVIEW_PENDING", "INTERVIEWING", "DECISION_PENDING"))),
+            ("Offer 阶段", stages["OFFERED"]),
+            ("正式入职", stages["HIRED"]),
+        ]
+        funnel = [
+            RecruitmentFunnelItem(
+                label=label,
+                count=count,
+                rate=round(count * 100 / application_count, 1) if application_count else 0,
+            )
+            for label, count in funnel_counts
+        ]
+
+        department_rows: dict[str, list] = defaultdict(list)
+        for application, _candidate, job in rows:
+            department_rows[job.department if job else "未分配部门"].append(application)
+        jobs_by_department = Counter(job.department or "未分配部门" for job in jobs)
+        departments = []
+        for department in sorted(set(jobs_by_department) | set(department_rows)):
+            department_apps = department_rows[department]
+            hired = sum(item.current_stage == "HIRED" for item in department_apps)
+            departments.append(
+                RecruitmentDepartmentItem(
+                    department=department,
+                    jobs_count=jobs_by_department[department],
+                    applications_count=len(department_apps),
+                    hired_count=hired,
+                    completion_rate=round(hired * 100 / len(department_apps), 1) if department_apps else 0,
+                )
+            )
+
+        filtered_candidate_ids = {application.candidate_id for application in applications}
+        source_counts = Counter(
+            candidate.source for candidate in candidates if candidate.id in filtered_candidate_ids
+        )
+        source_total = sum(source_counts.values())
+        sources = [
+            RecruitmentSourceItem(
+                source=source,
+                count=count,
+                rate=round(count * 100 / source_total, 1) if source_total else 0,
+            )
+            for source, count in sorted(source_counts.items())
+        ]
+
+        trend_rows: dict[str, list] = defaultdict(list)
+        for application in applications:
+            trend_rows[application.applied_at.strftime("%Y-%m")].append(application)
+        trends = []
+        for period in sorted(trend_rows):
+            period_rows = trend_rows[period]
+            period_scores = [float(item.score_total) for item in period_rows if item.score_total is not None]
+            trends.append(
+                RecruitmentTrendItem(
+                    period=period,
+                    applications_count=len(period_rows),
+                    hired_count=sum(item.current_stage == "HIRED" for item in period_rows),
+                    average_score=round(sum(period_scores) / len(period_scores), 2) if period_scores else 0,
+                )
+            )
+
+        return RecruitmentReportRead(
+            time_range=time_range,
+            jobs_count=len(jobs),
+            open_jobs_count=sum(job.status == "OPEN" for job in jobs),
+            candidates_count=len(filtered_candidate_ids),
+            applications_count=application_count,
+            scored_applications_count=len(scored),
+            pending_score_count=application_count - len(scored),
+            high_match_count=sum(
+                float(item.score_total) >= 85 or (self._match_score(item) or 0) >= 90 for item in scored
+            ),
+            interview_pending_count=stages["INTERVIEW_PENDING"],
+            interviewing_count=stages["INTERVIEWING"] + stages["DECISION_PENDING"],
+            offered_count=stages["OFFERED"],
+            hired_count=stages["HIRED"],
+            rejected_count=stages["REJECTED"],
+            average_score=round(sum(scores) / len(scores), 2) if scores else 0,
+            average_match_rate=round(sum(match_scores) / len(match_scores), 2) if match_scores else 0,
+            funnel=funnel,
+            departments=departments,
+            sources=sources,
+            trends=trends,
+        )
+
     def score_application(self, application_id: int, payload: ScoreApplicationRequest) -> ScoreApplicationResponse:
         score_resume = self._load_score_resume()
         if score_resume is None:
@@ -167,6 +280,12 @@ class RecruitmentService:
             score_breakdown = {}
         risk_tags = result.get("risk_tags") or []
         scoring_basis = result.get("scoring_basis") or []
+        reasons = result.get("reasons") or scoring_basis
+        score_breakdown = {
+            **score_breakdown,
+            "match_score": self._json_ready(match_score),
+            "overall_score": self._json_ready(result.get("overall_score", score_total)),
+        }
         self.repository.save_application_score(
             application,
             score_total,
@@ -178,7 +297,9 @@ class RecruitmentService:
             status=result.get("status", "scored"),
             message=result.get("message", "智能评估结果已生成。"),
             score_total=score_total,
+            overall_score=result.get("overall_score", score_total),
             match_score=match_score,
+            match_rate=result.get("match_rate", match_score),
             skill_match=result.get("skill_match"),
             experience_match=result.get("experience_match"),
             education_match=result.get("education_match"),
@@ -190,10 +311,25 @@ class RecruitmentService:
                 if isinstance(scoring_basis, (list, tuple))
                 else [str(scoring_basis)]
             ),
+            reasons=list(reasons) if isinstance(reasons, (list, tuple)) else [str(reasons)],
             score_breakdown=score_breakdown,
             explanation=result.get("explanation", {}),
             requires_human_only=False,
         )
+
+    @staticmethod
+    def _aware(value: datetime) -> datetime:
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+    @staticmethod
+    def _match_score(application: Any) -> float | None:
+        value = (application.score_breakdown or {}).get("match_score")
+        if value is None:
+            return float(application.score_total) if application.score_total is not None else None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
 
     @staticmethod
     def _load_score_resume() -> Any | None:

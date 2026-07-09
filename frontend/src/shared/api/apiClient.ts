@@ -10,7 +10,11 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL as string || '/api/v1';
+const configuredBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+const BASE_URL = configuredBaseUrl || '/api/v1';
+if (import.meta.env.DEV && !configuredBaseUrl) {
+  console.warn('[API] VITE_API_BASE_URL 未配置，当前通过 Vite /api 代理访问后端。');
+}
 const DEV_IDENTITY_KEY = 'talentflow.devIdentity';
 
 export interface DevIdentity {
@@ -44,7 +48,7 @@ export function setDevIdentity(identity: DevIdentity): void {
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 15_000,
+  timeout: 8_000,
   headers: { 'Content-Type': 'application/json' },
 });
 

@@ -6,6 +6,7 @@ import type {
   CandidateScoreResponse,
   Job,
   PipelineStage,
+  RecruitmentReportResponse,
 } from '../types';
 
 export interface CandidateApplicationListItem extends CandidateApplication {
@@ -35,6 +36,13 @@ export async function fetchCandidates(params?: {
 
 export async function fetchApplications(): Promise<CandidateApplicationListItem[]> {
   const response = await apiClient.get<CandidateApplicationListItem[]>('/recruitment/applications');
+  return response.data;
+}
+
+export async function fetchRecruitmentReport(
+  params?: { time_range?: '30d' | '90d' | 'all' },
+): Promise<RecruitmentReportResponse> {
+  const response = await apiClient.get<RecruitmentReportResponse>('/recruitment/report', { params });
   return response.data;
 }
 

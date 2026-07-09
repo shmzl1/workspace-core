@@ -12,7 +12,7 @@
         <div class="flex items-end justify-between gap-4">
           <div>
             <p class="font-label-md text-label-md text-primary uppercase tracking-wider mb-1">招聘流程</p>
-            <h2 class="font-headline-lg md:font-display text-headline-lg-mobile md:text-display text-on-surface tracking-tight">面试日历</h2>
+            <h2 class="font-headline-lg text-headline-lg-mobile text-on-surface tracking-tight">面试日历</h2>
             <p class="font-body-md text-body-md text-on-surface-variant mt-1">统一管理候选人、面试官、会议室和时间槽。</p>
           </div>
           <button
@@ -25,7 +25,17 @@
           </button>
         </div>
 
-        <p v-if="scheduleNotice" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+        <div v-if="serviceError" class="flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div>
+            <strong class="block">服务暂不可用，请确认后端已启动。</strong>
+            <span>{{ serviceError }}</span>
+          </div>
+          <button class="rounded-lg bg-primary px-4 py-2 font-semibold text-white" @click="loadInterviewData">
+            重新加载
+          </button>
+        </div>
+
+        <p v-else-if="scheduleNotice" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
           {{ scheduleNotice }}
         </p>
 
@@ -42,9 +52,9 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="font-body-md text-body-md text-secondary flex items-center gap-1">
-                <span class="material-symbols-outlined text-[16px]">trending_up</span> 20%
+                <span class="material-symbols-outlined text-[16px]">database</span> 数据库
               </span>
-              <span class="font-label-md text-label-md text-on-surface-variant">较昨日</span>
+              <span class="font-label-md text-label-md text-on-surface-variant">今日实时日程</span>
             </div>
           </div>
 
@@ -52,14 +62,14 @@
             <div class="flex justify-between items-start mb-4">
               <div>
                 <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">待评价面试</p>
-                <h2 class="font-display text-display text-on-surface mt-1">4</h2>
+                <h2 class="font-display text-display text-on-surface mt-1">{{ pendingEvaluationCount }}</h2>
               </div>
               <div class="w-10 h-10 rounded-lg bg-[#FFF7ED] flex items-center justify-center text-[#EA580C]">
                 <span class="material-symbols-outlined">rate_review</span>
               </div>
             </div>
             <div class="w-full bg-surface-container h-2 rounded-full mt-4 overflow-hidden">
-              <div class="bg-[#EA580C] h-full rounded-full" :style="{ width: '33%' }"></div>
+              <div class="bg-[#EA580C] h-full rounded-full" :style="{ width: `${pendingEvaluationRate}%` }"></div>
             </div>
           </div>
 
@@ -67,7 +77,7 @@
             <div class="flex justify-between items-start mb-4">
               <div>
                 <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">平均面试时长</p>
-                <h2 class="font-display text-display text-on-surface mt-1">45<span class="font-headline-md text-headline-md ml-1 text-on-surface-variant">min</span></h2>
+                <h2 class="font-display text-display text-on-surface mt-1">{{ averageDuration }}<span class="font-headline-md text-headline-md ml-1 text-on-surface-variant">min</span></h2>
               </div>
               <div class="w-10 h-10 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary">
                 <span class="material-symbols-outlined">timer</span>
@@ -80,7 +90,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter min-h-[600px]">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter min-h-[520px]">
           <div class="lg:col-span-4 glass-card rounded-xl p-6 flex flex-col h-full">
             <div class="flex justify-between items-center mb-6">
               <h3 class="font-title-lg text-title-lg text-on-surface">2026 年 7 月</h3>
@@ -270,6 +280,8 @@ import type {
   SchedulePreviewRequest,
   SchedulePreviewResponse,
 } from '../shared/api/types';
+import { checkBackendHealth } from '../shared/api/modules/health';
+import { ApiClientError } from '../shared/api/apiClient';
 
 const route = useRoute();
 const applications = ref<CandidateApplicationListItem[]>([]);
@@ -312,6 +324,7 @@ const generating = ref(false);
 const calendarView = ref<'month' | 'week'>('month');
 const apiSuggestion = ref<Suggestion | null>(null);
 const scheduleNotice = ref('');
+const serviceError = ref('');
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
@@ -325,6 +338,15 @@ const currentSuggestion = computed<Suggestion>(() => apiSuggestion.value ?? {
   reason: '排期结果将基于数据库中的申请、面试官、会议室和已有日程生成。',
   score: '--',
   hasConflict: false,
+});
+const pendingEvaluationCount = computed(() => scheduleItems.value.filter((item) => item.status === '待评价').length);
+const pendingEvaluationRate = computed(() => (
+  scheduleItems.value.length ? Math.round(pendingEvaluationCount.value / scheduleItems.value.length * 100) : 0
+));
+const averageDuration = computed(() => {
+  if (!scheduleItems.value.length) return 0;
+  const total = scheduleItems.value.reduce((sum, item) => sum + (Number.parseInt(item.duration) || 0), 0);
+  return Math.round(total / scheduleItems.value.length);
 });
 
 const calendarDays = ref([
@@ -349,8 +371,15 @@ const calendarDays = ref([
   { date: 17, muted: false, today: false, events: 0, recommended: false, conflict: false },
 ]);
 
-onMounted(async () => {
+onMounted(loadInterviewData);
+
+async function loadInterviewData() {
+  loading.value = true;
+  serviceError.value = '';
+  scheduleNotice.value = '';
+  permissionDenied.value = false;
   try {
+    await checkBackendHealth();
     const [appRows, candidateRows, jobRows, interviewerRows, roomRows, interviewRows] = await Promise.all([
       fetchApplications(),
       fetchCandidates(),
@@ -364,20 +393,23 @@ onMounted(async () => {
     jobs.value = jobRows;
     interviewerResources.value = interviewerRows;
     roomResources.value = roomRows;
-    scheduleItems.value = interviewRows.map((interview) => {
-      const application = appRows.find((item) => item.id === interview.application_id);
-      return {
-        time: formatClock(new Date(interview.start_at)),
-        duration: `${Math.round((new Date(interview.end_at).getTime() - new Date(interview.start_at).getTime()) / 60000)} 分钟`,
-        candidate: candidateName(application),
-        role: jobName(application),
-        interviewer: interviewerName(interview.interviewer_id),
-        room: roomName(interview.meeting_room_id),
-        status: interview.status === 'SCHEDULED' ? '已安排' : interview.status,
-        recommended: false,
-        hasConflict: false,
-      };
-    });
+    const today = new Date().toDateString();
+    scheduleItems.value = interviewRows
+      .filter((interview) => new Date(interview.start_at).toDateString() === today)
+      .map((interview) => {
+        const application = appRows.find((item) => item.id === interview.application_id);
+        return {
+          time: formatClock(new Date(interview.start_at)),
+          duration: `${Math.round((new Date(interview.end_at).getTime() - new Date(interview.start_at).getTime()) / 60000)} 分钟`,
+          candidate: candidateName(application),
+          role: jobName(application),
+          interviewer: interviewerName(interview.interviewer_id),
+          room: roomName(interview.meeting_room_id),
+          status: interview.status === 'COMPLETED' ? '待评价' : interview.status === 'SCHEDULED' ? '已安排' : interview.status,
+          recommended: false,
+          hasConflict: false,
+        };
+      });
     
     // Parse query parameter applicationId
     const queryAppId = Number(route.query.applicationId);
@@ -387,13 +419,22 @@ onMounted(async () => {
       selectedApplicationId.value = appRows[0].id;
     }
   } catch (err: any) {
-    scheduleNotice.value = err.message || '面试资源加载失败，请检查后端服务和开发数据。';
-    permissionDenied.value = err.status === 403;
+    applications.value = [];
+    candidates.value = [];
+    jobs.value = [];
+    interviewerResources.value = [];
+    roomResources.value = [];
+    scheduleItems.value = [];
+    if (err instanceof ApiClientError && err.status === 403) {
+      permissionDenied.value = true;
+    } else {
+      serviceError.value = err.message || '网络连接失败，服务端未响应。';
+    }
     console.error('Failed to load candidate applications:', err);
   } finally {
     loading.value = false;
   }
-});
+}
 
 async function generateSchedule() {
   if (generating.value) return;

@@ -14,6 +14,14 @@
     />
 
     <template v-else>
+      <section v-if="serviceError" class="service-error">
+        <div>
+          <strong>服务暂不可用，请确认后端已启动。</strong>
+          <span>{{ serviceError }}</span>
+        </div>
+        <button class="btn" @click="loadCandidatePool">重新加载</button>
+      </section>
+
       <section class="candidate-pool__hero">
         <div>
           <p class="candidate-pool__eyebrow">招聘决策</p>
@@ -91,11 +99,12 @@
               </span>
               <span>{{ candidate.role }}</span>
               <span><em :class="stageClass(candidate.stage)">{{ candidate.stage }}</em></span>
-              <span class="score">{{ computedScore(candidate) }}</span>
-              <span>
+              <span class="score">{{ computedScore(candidate) ?? '--' }}</span>
+              <span v-if="candidate.match !== null">
                 <span class="match-bar"><i :style="{ width: `${candidate.match}%` }"></i></span>
                 <small>{{ candidate.match }}%</small>
               </span>
+              <span v-else class="text-on-surface-variant">待评估</span>
               <span><em :class="riskClass(candidate.riskLevel)">{{ candidate.riskLabel }}</em></span>
               <span class="candidate-row__action">
                 <strong>{{ candidate.recommendedAction }}</strong>
@@ -113,7 +122,7 @@
               <small>{{ selectedCandidate.role }} · {{ selectedCandidate.stage }}</small>
             </div>
             <div class="candidate-detail-card__score">
-              <strong>{{ computedScore(selectedCandidate) }}</strong>
+              <strong>{{ computedScore(selectedCandidate) ?? '--' }}</strong>
               <span>综合评分</span>
             </div>
           </div>
@@ -214,6 +223,8 @@ import LoadingState from '../shared/components/feedback/LoadingState.vue';
 import EmptyState from '../shared/components/feedback/EmptyState.vue';
 import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
 import { fetchApplications, fetchCandidates, scoreCandidate, fetchJobs } from '../shared/api/modules/recruitment';
+import { checkBackendHealth } from '../shared/api/modules/health';
+import { ApiClientError } from '../shared/api/apiClient';
 import type { CandidateApplicationListItem } from '../shared/api/modules/recruitment';
 import type { Candidate as ApiCandidate, CandidateScoreResponse, Job as ApiJob } from '../shared/api/types';
 
@@ -226,8 +237,8 @@ type Candidate = {
   name: string;
   role: string;
   stage: string;
-  aiScore: number;
-  match: number;
+  aiScore: number | null;
+  match: number | null;
   riskLabel: string;
   riskLevel: 'low' | 'medium' | 'high';
   recommendedAction: string;
@@ -259,6 +270,7 @@ const selectedId = ref<number>(0);
 const highMatchOnly = ref(false);
 const filterMode = ref<'all' | 'smart' | 'score'>('all');
 const evaluationNotice = ref('');
+const serviceError = ref('');
 
 const weightDimensions = [
   { key: 'project_experience', label: '项目经历' },
@@ -280,22 +292,24 @@ const weights = reactive<Record<WeightKey, number>>({ ...defaultWeights });
 const isEmpty = computed(() => candidates.value.length === 0);
 
 const visibleCandidates = computed(() => {
-  let list = highMatchOnly.value ? candidates.value.filter((item) => item.match >= 90) : [...candidates.value];
+  let list = highMatchOnly.value
+    ? candidates.value.filter((item) => item.match !== null && item.match >= 90)
+    : [...candidates.value];
   if (selectedJobId.value !== null) {
     list = list.filter((item) => item.jobId === selectedJobId.value);
   }
   if (filterMode.value === 'smart') {
-    return list.sort((a, b) => b.match + computedScore(b) - (a.match + computedScore(a)));
+    return list.sort((a, b) => (b.match ?? -1) + (computedScore(b) ?? -1) - ((a.match ?? -1) + (computedScore(a) ?? -1)));
   }
   if (filterMode.value === 'score') {
-    return list.sort((a, b) => computedScore(b) - computedScore(a));
+    return list.sort((a, b) => (computedScore(b) ?? -1) - (computedScore(a) ?? -1));
   }
   return list;
 });
 
 const summaryCards = computed(() => [
   { label: '当前候选人', value: String(visibleCandidates.value.length), icon: 'groups' },
-  { label: '高匹配候选人', value: String(visibleCandidates.value.filter((item) => item.match >= 90).length), icon: 'verified' },
+  { label: '高匹配候选人', value: String(visibleCandidates.value.filter((item) => item.match !== null && item.match >= 90).length), icon: 'verified' },
   { label: '需复核风险', value: String(visibleCandidates.value.filter((item) => item.riskLevel !== 'low').length), icon: 'warning' },
 ]);
 
@@ -322,7 +336,10 @@ onMounted(loadCandidatePool);
 async function loadCandidatePool() {
   loading.value = true;
   evaluationNotice.value = '';
+  serviceError.value = '';
+  permissionDenied.value = false;
   try {
+    await checkBackendHealth();
     const [jobRows, candidateRows, applicationRows] = await Promise.all([
       fetchJobs(),
       fetchCandidates(),
@@ -333,6 +350,11 @@ async function loadCandidatePool() {
     const mapped = mapBackendCandidates(candidateRows, applicationRows);
     candidates.value = mapped;
   } catch (error) {
+    if (error instanceof ApiClientError && error.status === 403) {
+      permissionDenied.value = true;
+      return;
+    }
+    serviceError.value = error instanceof Error ? error.message : '网络连接失败，服务端未响应。';
     evaluationNotice.value = '智能评估暂时无法获取，已显示本地评估摘要。';
     useLocalCandidates();
   } finally {
@@ -344,7 +366,7 @@ async function loadCandidatePool() {
 function mapBackendCandidates(apiCandidates: ApiCandidate[], applications: CandidateApplicationListItem[]): Candidate[] {
   const candidateMap = new Map(apiCandidates.map((item) => [item.id, item]));
   if (!applications.length) {
-    return apiCandidates.map((item) => fromApiCandidate(item, item.id, '待匹配岗位', '待初筛', null, 0));
+    return apiCandidates.map((item) => fromApiCandidate(item, item.id, '待匹配岗位', '待初筛', null, {}, 0));
   }
   return applications.map((application) => {
     const candidate = candidateMap.get(Number(application.candidate_id));
@@ -355,6 +377,7 @@ function mapBackendCandidates(apiCandidates: ApiCandidate[], applications: Candi
       String(application.job_title || '待匹配岗位'),
       stageLabel(String(application.current_stage || 'APPLIED')),
       score,
+      application.score_breakdown || {},
       Number(application.job_id || 0)
     );
   });
@@ -366,9 +389,12 @@ function fromApiCandidate(
   role: string,
   stage: string,
   score: number | null,
+  scoreBreakdown: Record<string, number>,
   jobId: number
 ): Candidate {
-  const safeScore = Math.round(score ?? 78);
+  const safeScore = score === null ? null : Math.round(score);
+  const storedMatch = Number(scoreBreakdown.match_score);
+  const match = Number.isFinite(storedMatch) ? Math.round(storedMatch) : safeScore;
   return {
     id: candidate?.id ?? applicationId,
     applicationId,
@@ -377,24 +403,24 @@ function fromApiCandidate(
     role,
     stage,
     aiScore: safeScore,
-    match: Math.min(96, Math.max(62, safeScore + 3)),
-    riskLabel: safeScore >= 85 ? '低风险' : safeScore >= 70 ? '需复核' : '高风险',
-    riskLevel: safeScore >= 85 ? 'low' : safeScore >= 70 ? 'medium' : 'high',
-    recommendedAction: safeScore >= 85 ? '优先安排面试' : safeScore >= 70 ? '进入初筛复核' : '补充材料后评估',
+    match,
+    riskLabel: safeScore === null ? '待评估' : safeScore >= 85 ? '低风险' : safeScore >= 70 ? '需复核' : '高风险',
+    riskLevel: safeScore === null ? 'medium' : safeScore >= 85 ? 'low' : safeScore >= 70 ? 'medium' : 'high',
+    recommendedAction: safeScore === null ? '点击查看评估' : safeScore >= 85 ? '优先安排面试' : safeScore >= 70 ? '进入初筛复核' : '补充材料后评估',
     location: '待确认',
     availableIn: candidate?.available_from ? `${candidate.available_from} 可到岗` : '到岗时间待确认',
     reason: '已读取候选人申请信息，可点击查看评估获取后端评分依据。',
     skillMatch: (candidate?.skills ?? []).length ? `技能包含：${candidate?.skills.join('、')}` : '技能信息待补充。',
     experienceMatch: `候选人经验约 ${Math.round((candidate?.experience_months ?? 0) / 12)} 年。`,
     educationMatch: '学历信息将在评估中作为补充参考。',
-    riskDetail: safeScore >= 85 ? '未发现明显风险。' : '建议结合简历细节进一步复核。',
+    riskDetail: safeScore === null ? '尚未执行岗位评分。' : safeScore >= 85 ? '未发现明显风险。' : '建议结合简历细节进一步复核。',
     interviewAdvice: '建议根据岗位关键能力设置结构化面试问题。',
     dimScores: {
-      project_experience: Math.max(55, safeScore - 4),
-      skill_match: safeScore,
-      education: Math.max(60, safeScore - 8),
-      work_experience: Math.max(58, safeScore - 3),
-      overall_quality: Math.max(60, safeScore - 2),
+      project_experience: Number(scoreBreakdown.project ?? 0),
+      skill_match: Number(scoreBreakdown.skill ?? match ?? 0),
+      education: Number(scoreBreakdown.education ?? 0),
+      work_experience: Number(scoreBreakdown.experience ?? 0),
+      overall_quality: Number(scoreBreakdown.risk ?? safeScore ?? 0),
     },
   };
 }
@@ -450,7 +476,8 @@ function createCandidate(
   };
 }
 
-function computedScore(candidate: Candidate): number {
+function computedScore(candidate: Candidate): number | null {
+  if (candidate.aiScore === null) return null;
   const totalWeight = weightDimensions.reduce((sum, dim) => sum + weights[dim.key], 0);
   if (!totalWeight) return 0;
   const total = weightDimensions.reduce((sum, dim) => sum + weights[dim.key] * (candidate.dimScores[dim.key] ?? 0), 0);
@@ -541,8 +568,8 @@ function buildScoreWeights() {
 function applyScoreResult(candidate: Candidate, result: CandidateScoreResponse) {
   const target = candidates.value.find((item) => item.id === candidate.id);
   if (!target) return;
-  const total = Math.round(Number(result.score_total ?? target.aiScore));
-  const match = Math.round(Number(result.match_score ?? target.match));
+  const total = Math.round(Number(result.score_total ?? result.overall_score ?? target.aiScore ?? 0));
+  const match = Math.round(Number(result.match_score ?? result.match_rate ?? target.match ?? total));
   target.aiScore = total;
   target.match = match;
   target.skillMatch = result.skill_match || target.skillMatch;
@@ -610,6 +637,9 @@ function riskClass(level: Candidate['riskLevel']) {
 .candidate-pool__hero p { margin: 8px 0 0; color: var(--color-muted); }
 .candidate-pool__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .notice { padding: 12px 14px; border: 1px solid #fde68a; border-radius: var(--radius-md); background: #fffbeb; color: #92400e; font-weight: 700; }
+.service-error { max-width: 1440px; width: 100%; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid #fecaca; border-radius: var(--radius-md); background: #fff7f7; color: #991b1b; }
+.service-error strong, .service-error span { display: block; }
+.service-error span { margin-top: 3px; color: #b91c1c; font-size: 13px; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 14px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-text); font-weight: 800; cursor: pointer; transition: 0.2s ease; }
 .btn:hover, .btn--active { border-color: rgba(36,85,245,0.35); background: var(--color-primary-soft); color: var(--color-primary); }
 .btn--primary { border-color: var(--color-primary); background: var(--color-primary); color: #fff; }

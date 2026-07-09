@@ -695,3 +695,8 @@ POSTGRES_PORT=5433
 Vue 开发环境由统一 API 客户端注入当前开发身份。员工工作台默认使用
 `zhangwei / EMPLOYEE`，HR 工作台默认使用 `linyuqing / HR_SPECIALIST`；
 请求头为 `X-Mock-User-Id` 与 `X-Mock-Role`，服务端会校验 ID 和角色是否匹配。
+
+前端开发服务器默认将 `/api` 和 `/health` 代理到 `http://localhost:8000`，
+因此未创建 `frontend/.env.local` 时，`/api/v1` 请求仍可到达 FastAPI。
+如设置 `VITE_API_BASE_URL=http://localhost:8000/api/v1`，则浏览器直接访问该地址。
+候选人池和面试日历会先检查 `/health`，后端不可用时退出加载状态并提供重新加载入口。

@@ -35,6 +35,14 @@ def list_applications(service: RecruitmentService = Depends(get_recruitment_serv
     return ok(service.list_applications())
 
 
+@router.get("/report")
+def get_recruitment_report(
+    time_range: str = "30d",
+    service: RecruitmentService = Depends(get_recruitment_service),
+) -> object:
+    return ok(service.get_report(time_range))
+
+
 @router.get("/jobs/{job_id}/applications")
 def list_job_applications(job_id: int, service: RecruitmentService = Depends(get_recruitment_service)) -> object:
     return ok(service.list_applications_for_job(job_id))

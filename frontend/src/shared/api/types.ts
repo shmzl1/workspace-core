@@ -124,7 +124,9 @@ export interface CandidateScoreRequest {
 export interface CandidateScoreResponse extends AlgorithmAwareResponse {
   application_id: number;
   score_total?: number | null;
+  overall_score?: number | null;
   match_score?: number | null;
+  match_rate?: number | null;
   skill_match?: string | null;
   experience_match?: string | null;
   education_match?: string | null;
@@ -132,8 +134,39 @@ export interface CandidateScoreResponse extends AlgorithmAwareResponse {
   risk_prompt?: string | null;
   recommended_action?: string | null;
   scoring_basis?: string[];
+  reasons?: string[];
   score_breakdown?: Record<string, number>;
   explanation?: Record<string, unknown>;
+}
+
+export interface RecruitmentFunnelItem { label: string; count: number; rate: number; }
+export interface RecruitmentDepartmentItem {
+  department: string; jobs_count: number; applications_count: number; hired_count: number; completion_rate: number;
+}
+export interface RecruitmentSourceItem { source: string; count: number; rate: number; }
+export interface RecruitmentTrendItem {
+  period: string; applications_count: number; hired_count: number; average_score: number;
+}
+export interface RecruitmentReportResponse {
+  time_range: '30d' | '90d' | 'all';
+  jobs_count: number;
+  open_jobs_count: number;
+  candidates_count: number;
+  applications_count: number;
+  scored_applications_count: number;
+  pending_score_count: number;
+  high_match_count: number;
+  interview_pending_count: number;
+  interviewing_count: number;
+  offered_count: number;
+  hired_count: number;
+  rejected_count: number;
+  average_score: number;
+  average_match_rate: number;
+  funnel: RecruitmentFunnelItem[];
+  departments: RecruitmentDepartmentItem[];
+  sources: RecruitmentSourceItem[];
+  trends: RecruitmentTrendItem[];
 }
 
 export interface SchedulePreviewRequest {
