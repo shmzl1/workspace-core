@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="h-full flex flex-col bg-background">
     <LoadingState v-if="loading" message="正在获取面试日程..." detail="正在读取面试安排与资源可用时间" />
 
@@ -199,6 +199,17 @@
                   <p class="font-label-md text-label-md text-primary uppercase tracking-wider">智能排期</p>
                   <h3 class="font-title-lg text-title-lg text-on-surface mt-1">排期建议</h3>
                 </div>
+
+                <!-- Candidate Selection Dropdown -->
+                <div v-if="applications.length > 0" class="space-y-1">
+                  <label for="candidate-select" class="text-xs font-semibold text-on-surface-variant block">选择排期候选人：</label>
+                  <select id="candidate-select" v-model="selectedApplicationId" class="w-full bg-white border border-outline-variant rounded-lg p-2.5 text-sm outline-none focus:border-primary cursor-pointer font-semibold">
+                    <option v-for="app in applications" :key="app.id" :value="app.id">
+                      {{ app.candidate_name }} ({{ app.job_title }})
+                    </option>
+                  </select>
+                </div>
+
                 <div class="rounded-xl border border-outline-variant bg-white p-4 space-y-3">
                   <div>
                     <span class="text-xs text-on-surface-variant">推荐时间段</span>
@@ -236,11 +247,18 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import LoadingState from '../shared/components/feedback/LoadingState.vue';
 import EmptyState from '../shared/components/feedback/EmptyState.vue';
 import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
 import { generateInterviewSchedule } from '../shared/api/modules/interview';
+import { fetchApplications } from '../shared/api/modules/recruitment';
+import type { CandidateApplicationListItem } from '../shared/api/modules/recruitment';
 import type { SchedulePreviewRequest, SchedulePreviewResponse } from '../shared/api/types';
+
+const route = useRoute();
+const applications = ref<CandidateApplicationListItem[]>([]);
+const selectedApplicationId = ref<number | null>(null);
 
 type ScheduleItem = {
   time: string;
@@ -349,10 +367,23 @@ const calendarDays = ref([
   { date: 17, muted: false, today: false, events: 0, recommended: false, conflict: false },
 ]);
 
-onMounted(() => {
-  setTimeout(() => {
+onMounted(async () => {
+  try {
+    const appRows = await fetchApplications();
+    applications.value = appRows;
+    
+    // Parse query parameter applicationId
+    const queryAppId = Number(route.query.applicationId);
+    if (queryAppId && appRows.some(a => a.id === queryAppId)) {
+      selectedApplicationId.value = queryAppId;
+    } else if (appRows.length > 0) {
+      selectedApplicationId.value = appRows[0].id;
+    }
+  } catch (err) {
+    console.error('Failed to load candidate applications:', err);
+  } finally {
     loading.value = false;
-  }, 300);
+  }
 });
 
 async function generateSchedule() {
@@ -376,10 +407,13 @@ async function generateSchedule() {
 }
 
 function buildSchedulePayload(): SchedulePreviewRequest {
+  const currentAppId = selectedApplicationId.value || 1;
+  const currentApp = applications.value.find(a => a.id === currentAppId);
+  
   return {
-    application_id: 1,
+    application_id: currentAppId,
     candidate: {
-      candidate_id: 1,
+      candidate_id: currentApp?.candidate_id || 1,
       available_slots: [
         { start: '2026-07-10T09:30:00', end: '2026-07-10T12:00:00' },
         { start: '2026-07-16T14:00:00', end: '2026-07-16T17:00:00' },
@@ -423,12 +457,17 @@ function applyScheduleResult(result: SchedulePreviewResponse) {
   const timeLabel = `${formatClock(startDate)} - ${formatClock(endDate)}`;
   const score = Number(result.conflict_explanation?.priority_score ?? 90);
 
+  const currentAppId = selectedApplicationId.value || 1;
+  const currentApp = applications.value.find(a => a.id === currentAppId);
+  const candidateName = currentApp?.candidate_name || 'Eleanor Vance';
+  const roleName = currentApp?.job_title || '首席数据科学家';
+
   apiSuggestion.value = {
     time: `7 月 ${startDate.getDate()} 日 ${timeLabel}`,
     interviewerAvailability: result.interviewer_availability || '面试官在该时间段可用。',
     candidateAvailability: result.candidate_availability || '候选人在该时间段可用。',
     conflict: result.conflict_detection || '未发现冲突。',
-    reason: result.recommendation_reason || '该时间段满足候选人、面试官和会议室可用条件。',
+    reason: result.recommendation_reason || '该时间段满足候选人、面试官 and 会议室可用条件。',
     score,
     hasConflict: Boolean(result.conflict_explanation?.conflicts && Array.isArray(result.conflict_explanation.conflicts) && result.conflict_explanation.conflicts.length),
   };
@@ -439,8 +478,8 @@ function applyScheduleResult(result: SchedulePreviewResponse) {
     {
       time: formatClock(startDate),
       duration: `${Math.max(30, Math.round((endDate.getTime() - startDate.getTime()) / 60000))} 分钟`,
-      candidate: 'Eleanor Vance',
-      role: '首席数据科学家',
+      candidate: candidateName,
+      role: roleName,
       interviewer: Number(result.recommended_interviewer_id) === 12 ? '林雨晴' : '王刚',
       room: Number(result.recommended_room_id) === 22 ? '会议室 B-201' : '线上会议室 A',
       status: '推荐时段',
