@@ -59,7 +59,7 @@
 
 ## 13. Runtime 与 SSE
 
-进程内 RunStore、招聘策略 Runner、历史事件重放、新增事件订阅、心跳和终止关闭代码存在，待本地人工验收。Run 不是持久化任务，后端重启后丢失；当前不依赖 LangGraph、LLM 或 RAG。
+进程内 RunStore、招聘策略 Runner、历史事件重放、新增事件订阅、心跳和终止关闭代码存在，待本地人工验收。Snapshot 保存规范化招聘目标、岗位摘要和候选人 ID 范围；Run 不是持久化任务，后端重启后丢失；当前不依赖 LangGraph、LLM 或 RAG。
 
 ## 14. Tool 边界
 
@@ -75,11 +75,11 @@
 
 ## 17. 前端实时展示
 
-`RecruitmentEvaluationPage`、流程板、事件流、节点详情、目标表单、Agent API 和 SSE Composable 代码存在，待本地人工验收。页面不得使用随机日志、固定延迟或静态事件冒充执行。
+`RecruitmentEvaluationPage`、总体运行状态、流程板、事件流、节点详情、目标表单、Agent API 和 SSE Composable 代码存在，待本地人工验收。总体状态基于 Snapshot 和真实时间戳；卡片与详情只消费真实事件中的动作、Tool、来源、结果、回退和错误。无 Tool/RAG 时明确显示未调用或未检索，不得使用随机日志、固定延迟或静态事件冒充执行。
 
 ## 18. 隐私与安全
 
-事件与 Trace 只保存最小必要摘要；不记录 API Key、JWT、密码、数据库连接串、完整简历、完整联系方式或完整薪资。员工服务只能读取本人数据，HR 保留高影响决定权。
+事件与 Trace 只保存最小必要摘要；失败定位使用安全的 `failed_node` 和 `failed_step`，不记录异常原文、API Key、JWT、密码、数据库连接串、完整简历、完整联系方式或完整薪资。员工服务只能读取本人数据，HR 保留高影响决定权。
 
 ## 19. 降级策略
 

@@ -1,3 +1,4 @@
+/** @deprecated 请直接从 src/shared/agent/contracts.ts 导入。 */
 export type {
   AgentEvent,
   AgentRunSnapshot,

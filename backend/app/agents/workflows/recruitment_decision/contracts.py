@@ -70,6 +70,9 @@ class RecruitmentExecutionPlan(BaseModel):
 
 
 class RecruitmentRunSnapshot(AgentRunSnapshot):
+    goal: RecruitmentGoal
+    job: RecruitmentJobContext
+    candidate_ids: list[int] = Field(default_factory=list)
     execution_plan: RecruitmentExecutionPlan | None = None
 
 

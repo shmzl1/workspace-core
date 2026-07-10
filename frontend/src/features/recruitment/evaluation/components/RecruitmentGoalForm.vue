@@ -48,7 +48,7 @@
     <ul v-if="validationErrors.length" class="goal-form__errors">
       <li v-for="message in validationErrors" :key="message">{{ message }}</li>
     </ul>
-    <button type="submit" :disabled="disabled">{{ disabled ? '策略规划运行中…' : '开始策略规划' }}</button>
+    <button type="submit" :disabled="disabled">{{ disabled ? '多 Agent 评估运行中…' : '开始多 Agent 评估' }}</button>
   </form>
 </template>
 

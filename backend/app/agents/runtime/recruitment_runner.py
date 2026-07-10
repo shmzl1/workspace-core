@@ -37,6 +37,7 @@ async def run_recruitment_strategy(
     snapshot = record.snapshot
     state = record.state
     started_at = perf_counter()
+    current_step = "initialize_run"
     try:
         snapshot.status = AgentRunStatus.RUNNING
         snapshot.current_agent = STRATEGY_NODE
@@ -48,6 +49,7 @@ async def run_recruitment_strategy(
         state.node_statuses[STRATEGY_NODE] = AgentNodeStatus.RUNNING
         await store.update_snapshot(run_id, snapshot, state)
 
+        current_step = "publish_workflow_started"
         await _publish(
             store,
             _event(
@@ -63,6 +65,7 @@ async def run_recruitment_strategy(
                 },
             ),
         )
+        current_step = "publish_agent_started"
         await _publish(
             store,
             _event(
@@ -74,6 +77,7 @@ async def run_recruitment_strategy(
                 {"current_action": "读取已校验的企业招聘目标和静态工作流结构"},
             ),
         )
+        current_step = "publish_agent_thinking"
         await _publish(
             store,
             _event(
@@ -83,7 +87,10 @@ async def run_recruitment_strategy(
                 AgentNodeStatus.RUNNING,
                 "招聘策略 Agent 正在规划",
                 {
-                    "current_goal": context.request.goal.model_dump(mode="json"),
+                    "current_goal": context.request.goal.model_dump(
+                        mode="json",
+                        exclude={"optional_salary_budget"},
+                    ),
                     "candidate_count": len(context.candidate_ids),
                     "current_action": "生成结构化执行计划",
                     "missing_information": ["后续专业 Agent 所需分析结果尚未生成"],
@@ -92,6 +99,7 @@ async def run_recruitment_strategy(
             ),
         )
 
+        current_step = "build_execution_plan"
         plan = build_recruitment_execution_plan(
             context.request,
             context.job,
@@ -101,6 +109,7 @@ async def run_recruitment_strategy(
         state.execution_plan = plan
         snapshot.execution_plan = plan
         await store.update_snapshot(run_id, snapshot, state)
+        current_step = "publish_plan_created"
         await _publish(
             store,
             _event(
@@ -113,6 +122,7 @@ async def run_recruitment_strategy(
             ),
         )
 
+        current_step = "complete_strategy_node"
         strategy_duration_ms = _elapsed_ms(started_at)
         snapshot.nodes[STRATEGY_NODE] = AgentNodeStatus.COMPLETED
         state.node_statuses[STRATEGY_NODE] = AgentNodeStatus.COMPLETED
@@ -130,6 +140,7 @@ async def run_recruitment_strategy(
             ),
         )
 
+        current_step = "complete_workflow"
         for node_name in plan.skipped_nodes:
             snapshot.nodes[node_name] = AgentNodeStatus.SKIPPED
             state.node_statuses[node_name] = AgentNodeStatus.SKIPPED
@@ -161,7 +172,11 @@ async def run_recruitment_strategy(
         error = AgentErrorInfo(
             code="RECRUITMENT_STRATEGY_FAILED",
             message="招聘策略规划执行失败。",
-            details={"exception_type": type(exc).__name__},
+            details={
+                "exception_type": type(exc).__name__,
+                "failed_node": STRATEGY_NODE,
+                "failed_step": current_step,
+            },
         )
         snapshot.status = AgentRunStatus.FAILED
         snapshot.current_agent = STRATEGY_NODE
@@ -182,7 +197,11 @@ async def run_recruitment_strategy(
                 AgentEventType.WORKFLOW_FAILED,
                 AgentNodeStatus.FAILED,
                 "招聘策略规划失败",
-                {"failed_node": STRATEGY_NODE, "current_scope": RUN_SCOPE},
+                {
+                    "failed_node": STRATEGY_NODE,
+                    "failed_step": current_step,
+                    "current_scope": RUN_SCOPE,
+                },
                 duration_ms=_elapsed_ms(started_at),
                 error=error,
             ),

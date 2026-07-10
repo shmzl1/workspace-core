@@ -81,6 +81,7 @@ export interface AgentRunSnapshot {
   status: AgentRunStatus;
   current_agent: string | null;
   current_node: string | null;
+  current_candidate_id: number | null;
   completed_candidates: number;
   total_candidates: number;
   nodes: Record<string, AgentNodeStatus>;
@@ -113,6 +114,14 @@ export interface RecruitmentRunRequest {
   candidate_ids: number[];
 }
 
+export interface RecruitmentJobContext {
+  job_id: number;
+  job_code: string;
+  job_title: string;
+  department: string;
+  status: string;
+}
+
 export interface RecruitmentExecutionPlan {
   goal: RecruitmentGoal;
   candidate_ids: number[];
@@ -127,6 +136,9 @@ export interface RecruitmentExecutionPlan {
 }
 
 export interface RecruitmentRunSnapshot extends AgentRunSnapshot {
+  goal: RecruitmentGoal;
+  job: RecruitmentJobContext;
+  candidate_ids: number[];
   execution_plan: RecruitmentExecutionPlan | null;
 }
 

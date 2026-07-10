@@ -51,13 +51,16 @@ async def create_recruitment_run(
         run_id=run_id,
         trace_id=trace_id,
         status=AgentRunStatus.PENDING,
+        goal=context.request.goal,
+        job=context.job,
+        candidate_ids=context.candidate_ids,
         total_candidates=len(context.candidate_ids),
         nodes=initial_nodes,
         created_at=now,
         updated_at=now,
     )
     await agent_run_store.create(current_user.id, state, snapshot)
-    schedule_recruitment_strategy_run(run_id, context)
+    schedule_recruitment_strategy_run(run_id, context, agent_run_store)
     return ok(snapshot, trace_id)
 
 

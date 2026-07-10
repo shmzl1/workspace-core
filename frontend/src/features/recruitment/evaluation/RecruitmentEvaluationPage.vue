@@ -11,6 +11,7 @@
     <template v-else>
       <RecruitmentGoalForm :jobs="jobs" :applications="applications" :disabled="runBusy" @submit="start" />
       <div v-if="error" class="evaluation-page__error"><strong>运行提示</strong><span>{{ error }}</span></div>
+      <RecruitmentRunOverview :snapshot="snapshot" />
       <div class="evaluation-page__workspace">
         <MultiAgentWorkflowBoard :snapshot="snapshot" :selected-node="selectedNode" @select="selectedNode = $event" />
         <AgentEventFeed :events="events" :streaming="streaming" />
@@ -33,6 +34,7 @@ import AgentEventFeed from './components/AgentEventFeed.vue';
 import AgentNodeDetail from './components/AgentNodeDetail.vue';
 import MultiAgentWorkflowBoard from './components/MultiAgentWorkflowBoard.vue';
 import RecruitmentGoalForm from './components/RecruitmentGoalForm.vue';
+import RecruitmentRunOverview from './components/RecruitmentRunOverview.vue';
 import { useRecruitmentAgentRun } from './composables/useRecruitmentAgentRun';
 
 const route = useRoute();

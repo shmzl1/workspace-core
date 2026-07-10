@@ -1,4 +1,4 @@
-/** Feature-local compatibility exports for the canonical Agent API contracts. */
+/** @deprecated 请直接使用 shared Agent 契约与 shared Agent API。 */
 
 export type {
   AgentEvent,

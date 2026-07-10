@@ -112,6 +112,7 @@ class AgentRunSnapshot(BaseModel):
     status: AgentRunStatus
     current_agent: str | None = None
     current_node: str | None = None
+    current_candidate_id: int | None = None
     completed_candidates: int = Field(default=0, ge=0)
     total_candidates: int = Field(default=0, ge=0)
     nodes: dict[str, AgentNodeStatus] = Field(default_factory=dict)

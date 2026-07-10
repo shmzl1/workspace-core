@@ -1,13 +1,18 @@
 <template>
   <section class="event-feed">
     <header><div><span>真实 SSE</span><h2>实时事件</h2></div><strong>{{ streaming ? '已连接' : '未连接' }}</strong></header>
-    <div class="event-feed__notes"><p>当前策略规划阶段未调用业务 Tool</p><p>当前策略规划阶段尚未进入企业知识检索</p></div>
+    <div class="event-feed__notes"><p>无 Tool 事件时明确显示“未调用”</p><p>无来源事件时明确显示“未检索”</p></div>
     <div v-if="events.length" class="event-feed__list">
       <article v-for="event in events" :key="event.event_id">
-        <div><time>{{ formatTime(event.created_at) }}</time><strong>{{ event.display_name }}</strong><span>{{ event.event_type }} · {{ event.status }}</span></div>
+        <div class="event-feed__head"><time>{{ formatTime(event.created_at) }}</time><strong>{{ event.display_name }}</strong><span>{{ event.event_type }} · {{ event.status }}</span></div>
+        <dl>
+          <div><dt>Tool</dt><dd>{{ event.tool_name || '本事件未调用' }}</dd></div>
+          <div><dt>来源</dt><dd>{{ event.source_count ? `${event.source_count} 个` : '本事件未检索' }}</dd></div>
+          <div><dt>回退</dt><dd>{{ event.fallback_used ? '已使用' : '未使用' }}</dd></div>
+          <div><dt>耗时</dt><dd>{{ event.duration_ms === null ? '—' : `${event.duration_ms} ms` }}</dd></div>
+        </dl>
         <pre>{{ formatSummary(event.summary) }}</pre>
-        <small>耗时：{{ event.duration_ms === null ? '—' : `${event.duration_ms} ms` }}</small>
-        <p v-if="event.error" class="event-feed__error">{{ event.error.code }}：{{ event.error.message }}</p>
+        <p v-if="event.error" class="event-feed__error">{{ formatError(event) }}</p>
       </article>
     </div>
     <div v-else class="event-feed__empty">尚未收到运行事件。</div>
@@ -19,9 +24,15 @@ import type { AgentEvent } from '../../../../shared/agent/contracts';
 defineProps<{ events:AgentEvent[]; streaming:boolean }>();
 const formatTime=(value:string)=>new Date(value).toLocaleTimeString('zh-CN',{hour12:false});
 const formatSummary=(summary:Record<string,unknown>)=>JSON.stringify(summary,null,2);
+function formatError(event:AgentEvent):string {
+  if(!event.error) return '';
+  const node=typeof event.error.details.failed_node==='string' ? event.error.details.failed_node : event.node_name||'未知';
+  const step=typeof event.error.details.failed_step==='string' ? event.error.details.failed_step : '未知';
+  return `${event.error.code}：${event.error.message}；节点：${node}；步骤：${step}`;
+}
 </script>
 
 <style scoped>
-.event-feed { display:grid; min-height:520px; max-height:720px; grid-template-rows:auto auto 1fr; gap:14px; padding:22px; border:1px solid var(--color-line); border-radius:var(--radius-md); background:#fff; box-shadow:var(--shadow-card); }.event-feed header { display:flex; align-items:flex-end; justify-content:space-between; }.event-feed header span { color:var(--color-primary); font-size:12px; font-weight:800; }.event-feed h2 { margin:5px 0 0; }.event-feed header strong { color:var(--color-muted); font-size:12px; }.event-feed__notes { display:grid; grid-template-columns:1fr 1fr; gap:8px; }.event-feed__notes p { margin:0; padding:9px; border-radius:10px; background:var(--color-surface-soft); color:var(--color-muted); font-size:12px; }.event-feed__list { display:grid; align-content:start; gap:10px; overflow:auto; padding-right:4px; }.event-feed article { padding:12px; border:1px solid var(--color-line); border-radius:12px; }.event-feed article>div { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; }.event-feed time,.event-feed article span,.event-feed small { color:var(--color-subtle); font-size:11px; }.event-feed pre { overflow:auto; margin:10px 0; padding:10px; border-radius:8px; background:#f8fafc; color:#334155; font:12px/1.5 ui-monospace,monospace; white-space:pre-wrap; }.event-feed__empty { display:grid; place-items:center; color:var(--color-muted); }.event-feed__error { color:#b91c1c; } @media(max-width:700px){.event-feed__notes{grid-template-columns:1fr}.event-feed article>div{grid-template-columns:1fr}}
+.event-feed { display:grid; min-height:520px; max-height:760px; grid-template-rows:auto auto 1fr; gap:14px; padding:22px; border:1px solid var(--color-line); border-radius:var(--radius-md); background:#fff; box-shadow:var(--shadow-card); }.event-feed header { display:flex; align-items:flex-end; justify-content:space-between; }.event-feed header span { color:var(--color-primary); font-size:12px; font-weight:800; }.event-feed h2 { margin:5px 0 0; }.event-feed header strong { color:var(--color-muted); font-size:12px; }.event-feed__notes { display:grid; grid-template-columns:1fr 1fr; gap:8px; }.event-feed__notes p { margin:0; padding:9px; border-radius:10px; background:var(--color-surface-soft); color:var(--color-muted); font-size:12px; }.event-feed__list { display:grid; align-content:start; gap:10px; overflow:auto; padding-right:4px; }.event-feed article { padding:12px; border:1px solid var(--color-line); border-radius:12px; }.event-feed__head { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; }.event-feed time,.event-feed__head span { color:var(--color-subtle); font-size:11px; }.event-feed dl { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; margin:10px 0 0; }.event-feed dl div { min-width:0; padding:7px; border-radius:8px; background:var(--color-surface-soft); }.event-feed dt { color:var(--color-subtle); font-size:10px; }.event-feed dd { overflow:hidden; margin:3px 0 0; color:var(--color-muted); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }.event-feed pre { overflow:auto; margin:10px 0 0; padding:10px; border-radius:8px; background:#f8fafc; color:#334155; font:12px/1.5 ui-monospace,monospace; white-space:pre-wrap; }.event-feed__empty { display:grid; place-items:center; color:var(--color-muted); }.event-feed__error { color:#b91c1c; font-size:12px; }
+@media(max-width:700px){.event-feed__notes,.event-feed dl{grid-template-columns:1fr 1fr}.event-feed__head{grid-template-columns:1fr}}
 </style>
-

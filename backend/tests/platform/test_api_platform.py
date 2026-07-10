@@ -30,6 +30,9 @@ def test_openapi_contains_sprint1_route_groups() -> None:
     assert "/api/v1/attendance/today" in paths
     assert "/api/v1/payroll/me" in paths
     assert "/api/v1/audit/logs" in paths
+    assert "/api/v1/agent/recruitment/runs" in paths
+    assert "/api/v1/agent/recruitment/runs/{run_id}" in paths
+    assert "/api/v1/agent/recruitment/runs/{run_id}/events" in paths
 
 
 
