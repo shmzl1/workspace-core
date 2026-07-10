@@ -245,6 +245,7 @@
         无法获取月度汇总数据。
       </div>
     </div>
+    </template>
   </div>
 </template>
 
