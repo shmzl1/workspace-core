@@ -37,6 +37,12 @@
 - 前端共享组件放入 `frontend/src/shared/`。
 - 招聘功能放入 `frontend/src/features/recruitment/`。
 - 员工端 Web 功能放入 `frontend/src/features/employee/`。
+- 一个业务 Agent 工作流对应 `backend/app/agents/workflows/` 下一个目录；招聘工作流的每个顶层 Agent 当前对应一个 Python 文件，不提前拆成空子目录。
+- `agents/shared/` 只保存公共契约，`agents/runtime/` 只保存 Run 生命周期、事件分发和 SSE，`agents/tools/` 只通过 Service 调用业务能力，`agents/prompts/` 只保存角色和输出边界。
+- 推荐路径迁移采用兼容重导出，不删除仍被引用的旧路径，不在 `__init__.py` 中执行业务逻辑。
+- 文档状态只使用“代码存在，待本地人工验收”“已建立目录或契约”“计划中”。
+- RAG 未实现时不得伪造来源；前端不得伪造 Agent 日志、随机事件或固定延迟；`AGENT_THINKING` 不等于隐藏思维链。
+- 小程序范围只限员工便利功能，不扩展到招聘、面试、薪资预审、审计或 Gradio。
 
 ## AI 禁飞区
 

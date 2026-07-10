@@ -4,7 +4,7 @@ TalentFlow 智聘中枢是面向招聘决策、员工服务、考勤薪资预审
 
 ## 当前状态
 
-当前状态：Sprint 1 确定性业务闭环已存在，Sprint 2.1 已接入第一个可运行切片：进程内 Agent Run、招聘策略 Agent 规则式执行计划、真实 SSE 事件和前端实时流程看板。Run 在后端重启后会丢失。
+当前状态按三类记录：Sprint 1 业务代码以及 Sprint 2.1 的进程内 Agent Run、规则式招聘策略计划、SSE 和前端实时看板均为“代码存在，待本地人工验收”；多 Agent、Tool、RAG 与招聘 intelligence 的结构为“已建立目录或契约”；Sprint 2.2、Sprint 2.3 和 Sprint 3 的业务能力为“计划中”。Run 在后端重启后会丢失。
 
 数据库层当前已建立 SQLAlchemy ORM 模型、Alembic 配置和首次迁移文件 `0001_initial_schema`。该迁移尚未执行，仓库当前不包含种子数据或已验证的部署结果。
 
@@ -19,7 +19,7 @@ TalentFlow 通过一套 FastAPI 后端支撑 Vue Web 管理端、微信小程序
 - 考勤：员工签到、签退、今日考勤状态和本月考勤摘要。
 - 薪资预审：HR 查看预审明细、扣款来源、异常解释和待 HR 确认状态。
 - 权限审计：薪资访问控制、字段脱敏、敏感访问日志和 `trace_id`。
-- Agent 能力：当前只运行招聘策略 Agent；简历解析、岗位匹配、面试评估、决策审查和 HR 最终报告已建立数据、节点、Tool 与 Prompt 契约，但尚未执行。员工服务 Agent、薪资预审助手与 RAG 同样只有契约，尚未接入真实执行。
+- Agent 能力：招聘策略 Runtime 代码存在，待本地人工验收；简历解析、岗位匹配、面试评估、决策审查和 HR 最终报告已建立目录或契约。员工服务 Agent、薪资预审助手、LangGraph、LLM 与真实 RAG 均为计划中。
 
 ## 端与边界
 
@@ -103,9 +103,9 @@ flowchart LR
 
 | 状态 | 范围 |
 | --- | --- |
-| 已实现 | 招聘策略规则式计划、进程内 RunStore、真实 `run_id`/`trace_id`、SSE 与前端实时看板 |
-| 已建立契约 | 六节点静态图、候选人/证据/审查/报告类型、Tool/Service Protocol、RAG Schema/Protocol |
-| 后续规划 | LangGraph、LLM、真实 RAG/ChromaDB、员工服务 Agent、薪资预审助手及其余五个招聘节点执行 |
+| 代码存在，待本地人工验收 | 招聘策略规则式计划、进程内 RunStore、`run_id`/`trace_id`、SSE、Agent API 与前端实时看板 |
+| 已建立目录或契约 | 六节点静态图、候选人/证据/审查/报告类型、Tool/Service Protocol、RAG Schema/Protocol |
+| 计划中 | LangGraph、LLM、真实 RAG/ChromaDB、员工服务 Agent、薪资预审助手及其余五个招聘节点执行 |
 
 岗位匹配依赖简历解析，面试评估只能使用真实结构化面试数据。Agent 通过 Tool 调用 Service，不直接访问 Repository 或 `human_only`；Agent 不自动录用、淘汰、确认排期或确认薪资，最终决定由 HR 完成。
 

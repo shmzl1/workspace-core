@@ -17,6 +17,7 @@
 - `workflows/`：领域契约和静态节点元数据，不创建假可执行 Graph。
 - `tools/`：ToolContract 与兼容入口；新 Agent 代码只通过 Service 工作。
 - `prompts/`：职责与输出 Schema 边界，不代表模型已接入。
+- 一个业务工作流一个目录；招聘工作流的每个顶层 Agent 当前对应一个 Python 文件，只有出现多个内部节点、Schema、测试和大量逻辑时再拆子目录。
 
 ## 调用规则
 
@@ -52,3 +53,4 @@
 - 不引入 Redis、Celery、RabbitMQ、Kubernetes，除非后续团队明确重新决策并更新 `.agent/decisions.md`。
 - 默认不运行 Conda、pip、npm、Docker、Git、数据库迁移、启动服务或构建命令。
 - 目录重构保留旧 import 兼容入口；未完成依赖迁移和测试前不删除旧文件。
+- 当前状态只写“代码存在，待本地人工验收”“已建立目录或契约”“计划中”。

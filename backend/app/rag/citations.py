@@ -11,7 +11,12 @@ from app.rag.schemas import RetrievalHit
 class Citation(BaseModel):
     source_id: str
     title: str
+    document_type: str | None = None
+    department: str | None = None
+    job_code: str | None = None
     version: str | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
     effective_date: date | None = None
     excerpt: str
     relevance: float = Field(ge=0, le=1)

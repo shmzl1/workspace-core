@@ -9,4 +9,4 @@
 - `guardrails.py`：仅约束 Agent Runtime 与 Agent 节点的导入，不限制正常 API 通过依赖获取数据库 Session。
 - `model_gateway.py`：未来模型网关输入输出 Protocol，不读取密钥、不发 HTTP 请求。
 
-当前真实 SSE 位于 `agents/runtime/`；`AGENT_THINKING` 仅表示可审计结构化阶段摘要，不是隐藏思维链。
+SSE 实现代码位于 `agents/runtime/`，当前状态为“代码存在，待本地人工验收”；`AGENT_THINKING` 仅表示可审计结构化阶段摘要，不是隐藏思维链。

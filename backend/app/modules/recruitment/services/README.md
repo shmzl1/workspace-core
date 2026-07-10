@@ -4,4 +4,6 @@
 
 后续专业链路约定为 `Agent -> Tool -> 专业 Service -> 现有 RecruitmentService / Repository / human_only`。Agent 和 Tool 不得直接访问 Repository 或 `human_only`。
 
-`contracts.py` 只定义候选人评估、招聘要求和报告汇总 Protocol，不代表这些专业 Service 已实现。现有 `RecruitmentService` 及其业务行为保持不变。
+`contracts.py` 只定义候选人评估、招聘要求和报告汇总 Protocol；同名专业 Service 文件是推荐兼容导出入口，不代表这些 Service 已实现。现有 `RecruitmentService` 及其业务行为保持不变。
+
+当前状态：`recruitment_run_context_service.py` 代码存在，待本地人工验收；其余专业 Service 已建立目录或契约。

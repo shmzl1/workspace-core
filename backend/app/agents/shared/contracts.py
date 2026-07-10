@@ -51,7 +51,12 @@ class AgentErrorInfo(BaseModel):
 class KnowledgeSourceReference(BaseModel):
     source_id: str
     title: str
+    document_type: str | None = None
+    department: str | None = None
+    job_code: str | None = None
     version: str | None = None
+    effective_from: date | None = None
+    effective_to: date | None = None
     effective_date: date | None = None
     excerpt: str | None = None
     relevance: float | None = Field(default=None, ge=0, le=1)

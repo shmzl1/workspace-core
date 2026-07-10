@@ -44,7 +44,12 @@ export interface AgentErrorInfo {
 export interface KnowledgeSourceReference {
   source_id: string;
   title: string;
+  document_type: string | null;
+  department: string | null;
+  job_code: string | null;
   version: string | null;
+  effective_from: string | null;
+  effective_to: string | null;
   effective_date: string | null;
   excerpt: string | null;
   relevance: number | null;
