@@ -38,10 +38,11 @@
         <div>
           <button 
             @click="fetchSalaryDetails"
+            :disabled="salaryLoading"
             class="w-full bg-primary text-on-primary font-semibold py-2.5 px-4 rounded-lg text-sm hover:bg-primary-container transition-all flex items-center justify-center gap-1"
           >
             <span class="material-symbols-outlined text-sm">search</span>
-            查询薪资
+            {{ salaryLoading ? '查询中……' : '查询薪资' }}
           </button>
         </div>
         <div class="text-xs text-outline leading-tight py-1">
@@ -50,8 +51,10 @@
       </div>
     </div>
 
+    <LoadingState v-if="initialLoading" message="正在读取薪资信息..." detail="正在执行薪资权限校验并写入审计记录" />
+
     <!-- Access Denied State -->
-    <div v-if="accessError" class="bg-error-container/20 border border-error/30 rounded-xl p-8 text-center flex flex-col items-center justify-center mb-8">
+    <div v-else-if="accessError" class="bg-error-container/20 border border-error/30 rounded-xl p-8 text-center flex flex-col items-center justify-center mb-8">
       <div class="w-16 h-16 rounded-full bg-error/10 flex items-center justify-center text-error mb-4">
         <span class="material-symbols-outlined text-[36px]">gpp_bad</span>
       </div>
@@ -60,6 +63,14 @@
         系统鉴权服务拒绝了本次访问请求：{{ accessError }}。此尝试已被实时记录至权限审计日志中。
       </p>
     </div>
+
+    <ErrorState
+      v-else-if="serviceError"
+      title="薪资数据暂时无法获取"
+      :message="serviceError"
+      retry-label="重新加载"
+      @retry="fetchSalaryDetails"
+    />
 
     <!-- Main Grid Layout (If Allowed) -->
     <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
@@ -208,6 +219,9 @@ import { fetchEmployeeSalary, fetchMySalary } from '../shared/api/modules/payrol
 import { fetchPayrollReviewRecords, reviewPayrollPreAudit, type PayrollReviewSummary } from '../shared/api/modules/payrollReview';
 import { fetchEmployees } from '../shared/api/modules/employee';
 import type { Employee } from '../shared/api/types';
+import LoadingState from '../shared/components/feedback/LoadingState.vue';
+import ErrorState from '../shared/components/feedback/ErrorState.vue';
+import { ApiClientError } from '../shared/api/apiClient';
 
 const emit = defineEmits(['show-toast']);
 const { currentUser, hasAnyPermission, hasPermission } = useAuthStore();
@@ -221,6 +235,9 @@ const salaryCurrency = ref<string | null>(null);
 const effectiveFrom = ref<string | null>(null);
 const effectiveTo = ref<string | null>(null);
 const accessError = ref<string | null>(null);
+const serviceError = ref('');
+const salaryLoading = ref(false);
+const initialLoading = ref(true);
 
 const currentRoleLabel = computed(() => ({
   EMPLOYEE: '普通员工',
@@ -232,7 +249,10 @@ const canSelectTarget = computed(() => hasAnyPermission(['payroll.department.rea
 const canReviewPayroll = computed(() => hasAnyPermission(['payroll.review.read', 'payroll.review.manage']));
 
 const fetchSalaryDetails = async () => {
+  if (salaryLoading.value) return;
+  salaryLoading.value = true;
   accessError.value = null;
+  serviceError.value = '';
   
   try {
     const data = currentUser.value?.employee_id === targetEmployeeId.value && hasPermission('payroll.self.read')
@@ -247,8 +267,11 @@ const fetchSalaryDetails = async () => {
     salaryCurrency.value = null;
     effectiveFrom.value = null;
     effectiveTo.value = null;
-    accessError.value = err.message || '无法获取薪资信息';
-    console.error('Failed to fetch salary:', err);
+    const message = err.message || '无法获取薪资信息';
+    if (err instanceof ApiClientError && err.status === 403) accessError.value = message;
+    else serviceError.value = message;
+  } finally {
+    salaryLoading.value = false;
   }
 };
 
@@ -273,12 +296,19 @@ async function runPreAudit() {
 }
 
 onMounted(async () => {
-  if (!currentUser.value?.employee_id) return;
-  targetEmployeeId.value = currentUser.value.employee_id;
-  if (canSelectTarget.value) {
-    try { employees.value = await fetchEmployees(); } catch { employees.value = []; }
+  try {
+    if (!currentUser.value?.employee_id) {
+      serviceError.value = '当前账号未关联员工档案，无法查询薪资。';
+      return;
+    }
+    targetEmployeeId.value = currentUser.value.employee_id;
+    if (canSelectTarget.value) {
+      try { employees.value = await fetchEmployees(); } catch { employees.value = []; }
+    }
+    await loadPayrollReviews();
+    await fetchSalaryDetails();
+  } finally {
+    initialLoading.value = false;
   }
-  await loadPayrollReviews();
-  await fetchSalaryDetails();
 });
 </script>

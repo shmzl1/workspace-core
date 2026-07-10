@@ -222,6 +222,8 @@ import EmptyState from '../shared/components/feedback/EmptyState.vue';
 import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
 import { ApiClientError } from '../shared/api/apiClient';
 import { fetchAuditLogs as requestAuditLogs } from '../shared/api/modules/audit';
+import { fetchEmployees } from '../shared/api/modules/employee';
+import type { Employee } from '../shared/api/types';
 
 const emit = defineEmits<{
   'show-toast': [message: string];
@@ -318,20 +320,14 @@ function resultLabel(result: string): string {
   return map[result] ?? result;
 }
 
-const getActorName = (userId: number | null): string => {
-  if (userId === 1) return '张伟';
-  if (userId === 2) return '李明';
-  if (userId === 3) return '林雨晴';
-  if (userId === 4) return '王强';
-  return `用户 #${userId || '未知'}`;
-};
-
-const getRoleDisplay = (role: string): string => {
-  if (role === 'EMPLOYEE') return '研发部 • 员工';
-  if (role === 'DEPARTMENT_MANAGER') return '研发部 • 部门主管';
-  if (role === 'HR_SPECIALIST') return '招聘部 • HR专员';
-  if (role === 'PAYROLL_ADMIN') return '财务部 • 薪酬管理员';
-  return role;
+const getRoleDisplay = (role: string, employee?: Employee): string => {
+  const roleName = {
+    EMPLOYEE: '员工',
+    DEPARTMENT_MANAGER: '部门主管',
+    HR_SPECIALIST: 'HR 专员',
+    PAYROLL_ADMIN: '薪酬管理员',
+  }[role] ?? role;
+  return employee?.department ? `${employee.department} • ${roleName}` : roleName;
 };
 
 const handleReinforce = () => {
@@ -344,16 +340,23 @@ const fetchAuditLogs = async () => {
   permissionDenied.value = false;
 
   try {
-    const rows = await requestAuditLogs(100);
+    const [rows, employees] = await Promise.all([
+      requestAuditLogs(100),
+      fetchEmployees().catch((): Employee[] => []),
+    ]);
+    const employeesByUserId = new Map(employees.filter((item) => item.user_id !== null).map((item) => [item.user_id, item]));
+    const employeesById = new Map(employees.map((item) => [item.id, item]));
     auditLogs.value = rows.map((log) => {
+        const actor = employeesByUserId.get(log.actor_user_id);
+        const target = employeesById.get(log.target_employee_id ?? -1);
         return {
           id: log.id,
-          operator_name: getActorName(log.actor_user_id),
-          operator_role: getRoleDisplay(log.actor_role),
-          resource: `${log.resource_type} [ID: ${log.target_employee_id || ''}]`,
+          operator_name: actor?.full_name || '账号未关联员工档案',
+          operator_role: getRoleDisplay(log.actor_role, actor),
+          resource: `${log.resource_type} · ${target?.full_name || '目标员工信息缺失'}`,
           action: log.action === 'QUERY_SALARY' ? 'READ' : log.action,
           timestamp: log.created_at,
-          ip_address: log.ip_address || '127.0.0.1',
+          ip_address: log.ip_address || '--',
           result: log.result,
           trace_id: log.trace_id || '--',
           detail: log.reason || '获取资源详情',
@@ -366,7 +369,6 @@ const fetchAuditLogs = async () => {
     } else {
       error.value = err instanceof Error ? err.message : '无法载入审计记录';
     }
-    console.error('Failed to fetch audit logs:', err);
   } finally {
     loading.value = false;
   }

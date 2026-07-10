@@ -1,10 +1,14 @@
 <template>
   <div class="space-y-4 max-w-container-max mx-auto w-full h-full">
     <LoadingState v-if="loading" message="正在生成招聘报告..." detail="正在汇总招聘数据库数据" />
+    <PermissionDenied
+      v-else-if="permissionDenied"
+      description="当前账号没有查看招聘报告的权限。"
+    />
     <ErrorState
       v-else-if="error"
       title="招聘报告暂时无法获取"
-      message="请检查后端服务后重试。"
+      :message="error"
       retry-label="重新加载"
       @retry="loadReport"
     />
@@ -12,7 +16,7 @@
     <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
       <div>
         <h2 class="font-display text-[28px] font-bold text-on-background mb-1">数据报表与智能分析</h2>
-        <p class="font-body-md text-body-md text-on-surface-variant">TalentOS AI 实时生成的人才趋势和漏斗转化报告。</p>
+        <p class="font-body-md text-body-md text-on-surface-variant">TalentFlow 实时汇总的人才趋势和漏斗转化报告。</p>
       </div>
       <div class="flex gap-3 flex-shrink-0">
         <select v-model="timeRange" class="whitespace-nowrap px-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-lg text-primary text-sm shadow-sm" @change="loadReport">
@@ -149,8 +153,10 @@ import VChart from 'vue-echarts';
 import { computed, onMounted, ref } from 'vue';
 import LoadingState from '../shared/components/feedback/LoadingState.vue';
 import ErrorState from '../shared/components/feedback/ErrorState.vue';
+import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
 import { fetchRecruitmentReport } from '../shared/api/modules/recruitment';
 import type { RecruitmentReportResponse } from '../shared/api/types';
+import { ApiClientError } from '../shared/api/apiClient';
 
 use([
   CanvasRenderer,
@@ -164,6 +170,7 @@ use([
 
 const loading = ref(true);
 const error = ref('');
+const permissionDenied = ref(false);
 const report = ref<RecruitmentReportResponse | null>(null);
 const timeRange = ref<'30d' | '90d' | 'all'>('30d');
 const analysisNotice = ref('');
@@ -260,12 +267,14 @@ onMounted(loadReport);
 async function loadReport() {
   loading.value = true;
   error.value = '';
+  permissionDenied.value = false;
   analysisNotice.value = '';
   try {
     report.value = await fetchRecruitmentReport({ time_range: timeRange.value });
   } catch (reason) {
     report.value = null;
-    error.value = reason instanceof Error ? reason.message : '招聘报告暂时无法获取，请检查后端服务。';
+    if (reason instanceof ApiClientError && reason.status === 403) permissionDenied.value = true;
+    else error.value = reason instanceof Error ? reason.message : '招聘报告暂时无法获取，请检查后端服务。';
   } finally {
     loading.value = false;
   }

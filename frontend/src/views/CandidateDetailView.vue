@@ -9,10 +9,10 @@
 
     <section v-else-if="serviceError" class="service-error">
       <div>
-        <strong>候选人数据暂不可用。</strong>
+        <strong>{{ serviceErrorTitle }}</strong>
         <span>{{ serviceError }}</span>
       </div>
-      <button class="btn" @click="loadCandidatePool">重新加载</button>
+      <button class="btn" @click="loadCandidatePool()">重新加载</button>
     </section>
 
     <EmptyState
@@ -174,28 +174,42 @@
             <p>{{ selectedCandidate.interviewAdvice }}</p>
           </div>
 
+          <div v-if="canManageStage" class="stage-management">
+            <p><strong>当前阶段：</strong>{{ selectedCandidate.stage }}</p>
+            <template v-if="nextStageOptions.length">
+              <select v-model="targetStage" class="stage-select" :disabled="advancing">
+                <option v-for="option in nextStageOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+              <input
+                v-model.trim="stageNote"
+                class="stage-note"
+                maxlength="2000"
+                placeholder="可选备注"
+                :disabled="advancing"
+              />
+              <button class="btn" :disabled="advancing || !targetStage" @click="advanceSelectedStage">
+                <span class="material-symbols-outlined">trending_flat</span>
+                {{ advancing ? '推进中……' : '推进阶段' }}
+              </button>
+            </template>
+            <span v-else class="terminal-stage">当前阶段为终态，不能继续推进。</span>
+          </div>
+
           <div class="candidate-detail-card__footer">
-            <select v-model="targetStage" class="stage-select" :disabled="advancing">
-              <option v-for="option in nextStageOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
-            <button class="btn" :disabled="advancing || !targetStage" @click="advanceSelectedStage">
-              <span class="material-symbols-outlined">trending_flat</span>
-              {{ advancing ? '推进中...' : '推进阶段' }}
-            </button>
-            <button class="btn btn--primary" @click="scheduleInterview(selectedCandidate)">
+            <button v-if="canManageInterview" class="btn btn--primary" @click="scheduleInterview(selectedCandidate)">
               <span class="material-symbols-outlined">event_available</span>
               安排面试
             </button>
-            <button class="btn" :disabled="scoring" @click="refreshEvaluation(selectedCandidate)">
+            <button v-if="canScoreCandidate" class="btn" :disabled="scoring" @click="refreshEvaluation(selectedCandidate)">
               <span class="material-symbols-outlined">article</span>
               {{ scoring ? '评估中...' : '查看评估依据' }}
             </button>
           </div>
         </aside>
 
-        <section class="weight-sandbox weight-sandbox--inline">
+        <section v-if="canScoreCandidate" class="weight-sandbox weight-sandbox--inline">
           <div class="weight-sandbox__header">
             <h3><span class="material-symbols-outlined">tune</span>评分维度权重调整</h3>
             <button class="weight-sandbox__reset" @click="resetWeights">
@@ -231,13 +245,15 @@ import { useRouter } from 'vue-router';
 import LoadingState from '../shared/components/feedback/LoadingState.vue';
 import EmptyState from '../shared/components/feedback/EmptyState.vue';
 import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
-import { advanceStage, fetchApplication, fetchApplications, fetchCandidates, fetchJobs, scoreCandidate } from '../shared/api/modules/recruitment';
+import { advanceCandidateStage, fetchApplication, fetchApplications, fetchCandidates, fetchJobs, scoreCandidate } from '../shared/api/modules/recruitment';
 import { checkBackendHealth } from '../shared/api/modules/health';
 import { ApiClientError } from '../shared/api/apiClient';
+import { useAuthStore } from '../features/auth/authStore';
 import type { CandidateApplicationListItem } from '../shared/api/modules/recruitment';
 import type { Candidate as ApiCandidate, CandidateScoreResponse, Job as ApiJob, PipelineStage } from '../shared/api/types';
 
 const router = useRouter();
+const { hasPermission } = useAuthStore();
 
 type Candidate = {
   id: number;
@@ -279,10 +295,20 @@ const jobs = ref<ApiJob[]>([]);
 const selectedJobId = ref<number | null>(null);
 const selectedId = ref<number>(0);
 const targetStage = ref<PipelineStage | ''>('');
+const stageNote = ref('');
 const highMatchOnly = ref(false);
 const filterMode = ref<'all' | 'smart' | 'score'>('all');
 const evaluationNotice = ref('');
 const serviceError = ref('');
+const serviceErrorStatus = ref<number | undefined>();
+const canScoreCandidate = computed(() => hasPermission('candidate.score'));
+const canManageStage = computed(() => hasPermission('candidate.stage.manage'));
+const canManageInterview = computed(() => hasPermission('interview.manage'));
+const serviceErrorTitle = computed(() => {
+  if (serviceErrorStatus.value === 403) return '权限不足。';
+  if (serviceErrorStatus.value) return '候选人数据加载失败。';
+  return '无法连接后端服务。';
+});
 
 const weightDimensions = [
   { key: 'project_experience', label: '项目经历' },
@@ -361,11 +387,12 @@ const filterHint = computed(() => {
 
 onMounted(loadCandidatePool);
 
-async function loadCandidatePool() {
+async function loadCandidatePool(preferredApplicationId?: number) {
   loading.value = true;
   evaluationNotice.value = '';
   serviceError.value = '';
   permissionDenied.value = false;
+  serviceErrorStatus.value = undefined;
   try {
     await checkBackendHealth();
     const [jobRows, candidateRows, applicationRows] = await Promise.all([
@@ -377,15 +404,19 @@ async function loadCandidatePool() {
     selectedJobId.value = null;
     const mapped = mapBackendCandidates(candidateRows, applicationRows);
     candidates.value = mapped;
+    selectedId.value = mapped.find((item) => item.applicationId === preferredApplicationId)?.id
+      ?? mapped[0]?.id
+      ?? 0;
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 403) {
       permissionDenied.value = true;
+      candidates.value = [];
       return;
     }
+    serviceErrorStatus.value = error instanceof ApiClientError ? error.status : undefined;
     serviceError.value = error instanceof Error ? error.message : '网络连接失败，服务端未响应。';
     candidates.value = [];
   } finally {
-    selectedId.value = visibleCandidates.value[0]?.id ?? 0;
     loading.value = false;
   }
 }
@@ -393,7 +424,7 @@ async function loadCandidatePool() {
 function mapBackendCandidates(apiCandidates: ApiCandidate[], applications: CandidateApplicationListItem[]): Candidate[] {
   const candidateMap = new Map(apiCandidates.map((item) => [item.id, item]));
   if (!applications.length) {
-    return apiCandidates.map((item) => fromApiCandidate(item, item.id, '待匹配岗位', '待初筛', null, {}, 0));
+    return [];
   }
   return applications.map((application) => {
     const candidate = candidateMap.get(Number(application.candidate_id));
@@ -425,7 +456,7 @@ function fromApiCandidate(
   const storedMatch = Number(scoreBreakdown.match_score);
   const match = Number.isFinite(storedMatch) ? Math.round(storedMatch) : safeScore;
   return {
-    id: candidate?.id ?? applicationId,
+    id: applicationId,
     applicationId,
     jobId,
     name: candidate?.full_name ?? '未命名候选人',
@@ -520,15 +551,20 @@ async function selectCandidate(candidate: Candidate) {
 
 async function refreshEvaluation(candidate: Candidate) {
   if (!candidate.applicationId || scoring.value) return;
+  const weightValues = Object.values(weights);
+  if (weightValues.some((value) => !Number.isFinite(value) || value < 0) || weightValues.reduce((sum, value) => sum + value, 0) <= 0) {
+    evaluationNotice.value = '评分权重必须是非负数字，且总和必须大于 0。';
+    emit('show-toast', evaluationNotice.value);
+    return;
+  }
   scoring.value = true;
   try {
     const result = await scoreCandidate(candidate.applicationId, { weights: buildScoreWeights() });
     if (result.status === 'algorithm_not_ready') {
-      throw new Error('score unavailable');
+      throw new Error(result.message || '智能评估服务暂不可用。');
     }
     applyScoreResult(candidate, result);
-    await loadCandidatePool();
-    selectedId.value = candidate.id;
+    await loadCandidatePool(candidate.applicationId);
     evaluationNotice.value = '';
     emit('show-toast', '已刷新候选人智能评估结果。');
   } catch (error) {
@@ -544,9 +580,13 @@ async function advanceSelectedStage() {
   if (!candidate || !targetStage.value || advancing.value) return;
   advancing.value = true;
   try {
-    await advanceStage(candidate.applicationId, targetStage.value, '由候选人池推进');
-    await loadCandidatePool();
-    selectedId.value = candidate.id;
+    await advanceCandidateStage(candidate.applicationId, {
+      to_stage: targetStage.value,
+      note: stageNote.value || undefined,
+    });
+    await loadCandidatePool(candidate.applicationId);
+    stageNote.value = '';
+    evaluationNotice.value = '候选人阶段已保存。';
     emit('show-toast', '候选人阶段已保存。');
   } catch (error) {
     const message = error instanceof Error ? error.message : '候选人阶段保存失败。';
@@ -612,9 +652,7 @@ function applyApplicationDetail(candidate: Candidate, application: CandidateAppl
 
 function scheduleInterview(candidate: Candidate) {
   emit('show-toast', `正在为 ${candidate.name} 准备面试排期建议。`);
-  setTimeout(() => {
-    router.push({ path: '/hr/interviews', query: { applicationId: candidate.applicationId } });
-  }, 300);
+  router.push({ path: '/hr/interviews', query: { application_id: candidate.applicationId } });
 }
 
 function stageLabel(stage: string) {
@@ -715,7 +753,11 @@ function riskClass(level: Candidate['riskLevel']) {
 .interview-advice > div { display: flex; align-items: center; gap: 8px; }
 .interview-advice strong { margin-top: 0; }
 .candidate-detail-card__footer { display: flex; flex-wrap: wrap; gap: 10px; }
+.stage-management { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--color-line); border-radius: 12px; background: var(--color-surface-soft); }
+.stage-management p { margin: 0; color: var(--color-muted); font-size: 13px; }
 .stage-select { min-height: 40px; max-width: 180px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-text); padding: 0 10px; font-weight: 700; }
+.stage-note { min-height: 40px; padding: 0 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-text); }
+.terminal-stage { color: var(--color-muted); font-size: 13px; }
 .weight-sandbox { max-width: 1440px; margin: 0 auto 22px; padding: 20px 24px; border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: linear-gradient(135deg, rgba(36,85,245,0.03), rgba(36,85,245,0.01)); box-shadow: 0 2px 12px rgba(36,85,245,0.06); }
 .weight-sandbox--inline { grid-column: 1 / -1; max-width: none; margin: 0; }
 .weight-sandbox__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
