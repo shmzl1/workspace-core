@@ -15,6 +15,7 @@ from app.modules.payroll.schemas import (
     PayrollReviewRecordRead,
 )
 from app.modules.payroll.services.access_service import PayrollAccessService
+from app.modules.audit.service import AuditLogService
 
 
 class PayrollPreAuditService:
@@ -22,6 +23,7 @@ class PayrollPreAuditService:
 
     def __init__(self, session: Session) -> None:
         self.repository = PayrollRepository(session)
+        self.audit_service = AuditLogService(session)
 
     def list_records(self) -> PayrollReviewListRead:
         records = [
@@ -40,7 +42,13 @@ class PayrollPreAuditService:
         record, employee, period = row
         return self._to_record_read(record, employee, period, include_items=True)
 
-    def review_pre_audit(self, payload: PayrollPreAuditReviewRequest) -> PayrollPreAuditReviewResponse:
+    def review_pre_audit(
+        self,
+        payload: PayrollPreAuditReviewRequest,
+        actor_user_id: int,
+        actor_role: str,
+        actor_employee_id: int | None,
+    ) -> PayrollPreAuditReviewResponse:
         records = [
             self._to_record_read(record, employee, period, include_items=payload.include_line_items)
             for record, employee, period in self.repository.list_review_records()
@@ -65,7 +73,7 @@ class PayrollPreAuditService:
                 requires_human_only=True,
             )
 
-        return PayrollPreAuditReviewResponse(
+        response = PayrollPreAuditReviewResponse(
             status=result.get("status", "reviewed"),
             message=result.get("message", "薪资预审结果已生成。"),
             pending_batches=result.get("pending_batches", len(records)),
@@ -76,6 +84,17 @@ class PayrollPreAuditService:
             risk_level=result.get("risk_level"),
             requires_human_only=False,
         )
+        self.audit_service.log_action(
+            actor_user_id=actor_user_id,
+            actor_role=actor_role,
+            target_employee_id=actor_employee_id,
+            action="PRE_AUDIT_PAYROLL",
+            resource_type="PAYROLL_REVIEW",
+            requested_fields=[],
+            result="SUCCESS",
+            reason=response.message,
+        )
+        return response
 
     def _to_record_read(self, record, employee, period, include_items: bool) -> PayrollReviewRecordRead:
         line_items = []

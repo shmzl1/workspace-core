@@ -24,6 +24,7 @@ from app.modules import model_registry  # noqa: F401
 from app.modules.attendance.models import AttendanceRecord, WorkCalendar
 from app.modules.audit.models import AuditLog
 from app.modules.auth.models import User
+from app.modules.auth.permissions import ROLE_DEFAULT_PERMISSIONS
 from app.modules.employee.models import Employee, LeaveBalance
 from app.modules.interview.models import Interview, Interviewer, InterviewSlot, MeetingRoom
 from app.modules.payroll.models import PayrollLineItem, PayrollPeriod, PayrollReviewRecord, SalaryRecord
@@ -59,10 +60,10 @@ def clear_existing_data(db: Session) -> None:
 
 def add_users(db: Session, password_hash: str) -> None:
     db.add_all([
-        User(id=1, username="zhangwei", password_hash=password_hash, role="EMPLOYEE"),
-        User(id=2, username="liming", password_hash=password_hash, role="DEPARTMENT_MANAGER"),
-        User(id=3, username="linyuqing", password_hash=password_hash, role="HR_SPECIALIST"),
-        User(id=4, username="wangqiang", password_hash=password_hash, role="PAYROLL_ADMIN"),
+        User(id=1, username="zhangwei", password_hash=password_hash, role="EMPLOYEE", permissions=ROLE_DEFAULT_PERMISSIONS["EMPLOYEE"]),
+        User(id=2, username="liming", password_hash=password_hash, role="DEPARTMENT_MANAGER", permissions=ROLE_DEFAULT_PERMISSIONS["DEPARTMENT_MANAGER"]),
+        User(id=3, username="linyuqing", password_hash=password_hash, role="HR_SPECIALIST", permissions=ROLE_DEFAULT_PERMISSIONS["HR_SPECIALIST"]),
+        User(id=4, username="wangqiang", password_hash=password_hash, role="PAYROLL_ADMIN", permissions=ROLE_DEFAULT_PERMISSIONS["PAYROLL_ADMIN"]),
     ])
     db.commit()
 

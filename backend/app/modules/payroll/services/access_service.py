@@ -7,7 +7,6 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import TalentFlowError
-from app.core.security import DemoIdentity
 from app.modules.employee.models import Employee
 from app.modules.audit.service import AuditLogService
 from app.shared.human_only_bridge import HumanOnlyContract, load_human_only_function, algorithm_not_ready
@@ -52,39 +51,17 @@ class PayrollAccessService:
 
     def check_salary_access(
         self,
-        payload_or_identity: dict[str, Any] | DemoIdentity,
+        payload_or_identity: dict[str, Any],
         target_employee_id: int | None = None,
         requested_fields: list[str] | None = None,
     ) -> dict[str, Any] | SalaryAccessDecision:
-        if isinstance(payload_or_identity, dict):
-            # Dict-based check_salary_access for pre_audit_service and test_human_only_algorithm_not_ready
-            check_salary_access = load_human_only_function(SALARY_ACCESS_CONTRACT)
-            if check_salary_access is None:
-                return algorithm_not_ready(SALARY_ACCESS_CONTRACT, self._fallback(payload_or_identity))
-            try:
-                return check_salary_access(payload_or_identity)
-            except (NotImplementedError, TypeError):
-                return algorithm_not_ready(SALARY_ACCESS_CONTRACT, self._fallback(payload_or_identity))
-
-        identity = payload_or_identity
-        check_fn = _resolve_check_fn()
-        result = check_fn(
-            actor_user_id=identity.user_id,
-            actor_role=identity.role,
-            actor_employee_id=identity.employee_id,
-            target_employee_id=target_employee_id,
-            requested_fields=requested_fields,
-            relation="self" if identity.employee_id == target_employee_id else "none",
-        )
-        return SalaryAccessDecision(
-            allowed=bool(self._read_result(result, "allowed", False)),
-            fields=list(
-                self._read_result(
-                    result, "fields", self._read_result(result, "accessible_fields", [])
-                )
-            ),
-            reason=str(self._read_result(result, "reason", "")),
-        )
+        check_salary_access = load_human_only_function(SALARY_ACCESS_CONTRACT)
+        if check_salary_access is None:
+            return algorithm_not_ready(SALARY_ACCESS_CONTRACT, self._fallback(payload_or_identity))
+        try:
+            return check_salary_access(payload_or_identity)
+        except (NotImplementedError, TypeError):
+            return algorithm_not_ready(SALARY_ACCESS_CONTRACT, self._fallback(payload_or_identity))
 
     @staticmethod
     def _fallback(payload: dict[str, Any]) -> dict[str, Any]:
@@ -97,6 +74,7 @@ class PayrollAccessService:
         self,
         actor_user_id: int,
         actor_role: str,
+        actor_permissions: list[str],
         actor_employee_id: int | None,
         target_employee_id: int,
         ip_address: str | None = None,
@@ -135,6 +113,7 @@ class PayrollAccessService:
             actor_role=actor_role,
             actor_employee_id=actor_employee_id,
             target_employee_id=target_employee_id,
+            permissions=actor_permissions,
             target_department=target_emp.department,
             relation=relation,
         )

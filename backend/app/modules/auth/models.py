@@ -1,6 +1,7 @@
 """Authentication ORM models."""
 
 from sqlalchemy import Boolean, CheckConstraint, Index, String, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, TimestampMixin
@@ -24,6 +25,12 @@ class User(TimestampMixin, Base):
     username: Mapped[str] = mapped_column(String(64), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
+    permissions: Mapped[list[str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

@@ -169,17 +169,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { fetchMyProfile } from '../shared/api/modules/employee';
+import { fetchTodayAttendance } from '../shared/api/modules/attendance';
+import { fetchMySalary } from '../shared/api/modules/payroll';
 
 const emit = defineEmits(['navigate']);
 
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-const mockHeaders = {
-  'X-Mock-User-Id': '1',
-  'X-Mock-Role': 'EMPLOYEE',
-  'Content-Type': 'application/json'
-};
-
-const employeeName = ref('张伟');
+const employeeName = ref('');
 const isSalaryVisible = ref(false);
 
 const baseSalary = ref<number | null>(null);
@@ -224,23 +220,15 @@ const formatTime = (isoString: string | null) => {
 
 const fetchDashboardData = async () => {
   try {
-    // 1. Fetch Employee and Leave Balance
-    const empRes = await fetch(`${apiBase}/employees/me`, { headers: mockHeaders });
-    const empJson = await empRes.json();
-    if (empJson.success && empJson.data) {
-      const data = empJson.data;
-      employeeName.value = data.employee.full_name;
-      if (data.leave_balance) {
-        leaveTotal.value = Number(data.leave_balance.total_days);
-        leaveUsed.value = Number(data.leave_balance.used_days);
-      }
+    const profile = await fetchMyProfile();
+    employeeName.value = profile.employee.full_name;
+    if (profile.leave_balance) {
+      leaveTotal.value = Number(profile.leave_balance.total_days);
+      leaveUsed.value = Number(profile.leave_balance.used_days);
     }
 
-    // 2. Fetch today's attendance status
-    const attRes = await fetch(`${apiBase}/attendance/today`, { headers: mockHeaders });
-    const attJson = await attRes.json();
-    if (attJson.success && attJson.data) {
-      const record = attJson.data;
+    const record = await fetchTodayAttendance();
+    if (record) {
       if (record.check_in_at) {
         checkInDisplayTime.value = formatTime(record.check_in_at);
         attendanceStatus.value = record.status;
@@ -249,14 +237,10 @@ const fetchDashboardData = async () => {
       }
     }
 
-    // 3. Fetch salary summary
-    const salRes = await fetch(`${apiBase}/payroll/me`, { headers: mockHeaders });
-    const salJson = await salRes.json();
-    if (salJson.success && salJson.data) {
-      baseSalary.value = salJson.data.base_salary;
-      currency.value = salJson.data.currency || 'CNY';
-      salaryEffectiveFrom.value = salJson.data.effective_from || '';
-    }
+    const salary = await fetchMySalary();
+    baseSalary.value = salary.base_salary;
+    currency.value = salary.currency || 'CNY';
+    salaryEffectiveFrom.value = salary.effective_from || '';
   } catch (err) {
     console.error('Failed to fetch dashboard widgets data:', err);
   }

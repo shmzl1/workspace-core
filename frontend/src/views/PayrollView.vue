@@ -29,15 +29,11 @@
             {{ currentRoleLabel }}
           </p>
         </div>
-        <div>
+        <div v-if="canSelectTarget">
           <label class="block text-xs font-medium text-on-surface-variant mb-1">查询目标员工 ID</label>
-          <input 
-            type="number" 
-            v-model.number="targetEmployeeId"
-            class="w-full bg-white border border-outline-variant rounded-lg p-2.5 text-sm outline-none focus:border-primary"
-            min="1" 
-            max="10"
-          />
+          <select v-model.number="targetEmployeeId" class="w-full bg-white border border-outline-variant rounded-lg p-2.5 text-sm outline-none focus:border-primary">
+            <option v-for="employee in employees" :key="employee.id" :value="employee.id">{{ employee.full_name }} · {{ employee.department }}</option>
+          </select>
         </div>
         <div>
           <button 
@@ -195,24 +191,30 @@
         </div>
       </div>
     </div>
+
+    <section v-if="canReviewPayroll" class="rounded-xl border border-outline-variant/50 bg-surface-container-lowest p-6 shadow-sm">
+      <div class="mb-4 flex items-center justify-between gap-4"><div><h3 class="font-title-lg font-semibold text-on-surface">薪资预审</h3><p class="mt-1 text-sm text-on-surface-variant">查看待复核记录并由具备权限的人员生成预审建议。</p></div><button class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white" @click="runPreAudit">生成预审建议</button></div>
+      <p v-if="reviewNotice" class="mb-3 text-sm text-on-surface-variant">{{ reviewNotice }}</p>
+      <div v-if="payrollReviews.length" class="grid gap-2"><div v-for="record in payrollReviews" :key="record.id" class="flex items-center justify-between rounded-lg bg-surface-container-low px-4 py-3 text-sm"><span>{{ record.employee_name || `员工 #${record.employee_id}` }} · {{ record.period_code || '当前周期' }}</span><span>{{ record.status }}</span></div></div>
+      <p v-else class="text-sm text-on-surface-variant">暂无薪资预审记录。</p>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue';
-import { setDevIdentity, type DevIdentity } from '../shared/api/apiClient';
+import { computed, ref, onMounted } from 'vue';
+import { useAuthStore } from '../features/auth/authStore';
 import { fetchEmployeeSalary, fetchMySalary } from '../shared/api/modules/payroll';
-
-const props = defineProps({
-  role: {
-    type: String,
-    default: 'employee'
-  }
-});
+import { fetchPayrollReviewRecords, reviewPayrollPreAudit, type PayrollReviewSummary } from '../shared/api/modules/payrollReview';
+import { fetchEmployees } from '../shared/api/modules/employee';
+import type { Employee } from '../shared/api/types';
 
 const emit = defineEmits(['show-toast']);
-
-const targetEmployeeId = ref(1);
+const { currentUser, hasAnyPermission, hasPermission } = useAuthStore();
+const targetEmployeeId = ref<number>(currentUser.value?.employee_id || 0);
+const employees = ref<Employee[]>([]);
+const payrollReviews = ref<PayrollReviewSummary[]>([]);
+const reviewNotice = ref('');
 
 const salaryAmount = ref<number | null>(null);
 const salaryCurrency = ref<string | null>(null);
@@ -220,33 +222,20 @@ const effectiveFrom = ref<string | null>(null);
 const effectiveTo = ref<string | null>(null);
 const accessError = ref<string | null>(null);
 
-const roleIdentity = computed(() => {
-  const identities: Record<string, DevIdentity> = {
-    employee: { userId: 1, role: 'EMPLOYEE' },
-    manager: { userId: 2, role: 'DEPARTMENT_MANAGER' },
-    hr: { userId: 3, role: 'HR_SPECIALIST' },
-    payroll: { userId: 4, role: 'PAYROLL_ADMIN' },
-  };
-  return identities[props.role] ?? identities.employee;
-});
-
 const currentRoleLabel = computed(() => ({
   EMPLOYEE: '普通员工',
   DEPARTMENT_MANAGER: '部门主管',
   HR_SPECIALIST: 'HR 专员',
   PAYROLL_ADMIN: '薪酬管理员',
-}[roleIdentity.value.role] ?? '普通员工'));
-
-const applyRoleIdentity = () => {
-  setDevIdentity(roleIdentity.value);
-};
+}[currentUser.value?.role || 'EMPLOYEE'] ?? '普通员工'));
+const canSelectTarget = computed(() => hasAnyPermission(['payroll.department.read', 'payroll.masked.read', 'payroll.all.read']));
+const canReviewPayroll = computed(() => hasAnyPermission(['payroll.review.read', 'payroll.review.manage']));
 
 const fetchSalaryDetails = async () => {
   accessError.value = null;
   
   try {
-    applyRoleIdentity();
-    const data = roleIdentity.value.userId === targetEmployeeId.value
+    const data = currentUser.value?.employee_id === targetEmployeeId.value && hasPermission('payroll.self.read')
       ? await fetchMySalary()
       : await fetchEmployeeSalary(targetEmployeeId.value);
     salaryAmount.value = data.base_salary;
@@ -267,18 +256,29 @@ const exportReport = () => {
   emit('show-toast', '薪资导出功能尚未配置。');
 };
 
-// Monitor the parent shell's role change
-watch(() => props.role, (newRole) => {
-  if (newRole === 'employee') {
-    targetEmployeeId.value = 1;
-  }
-  fetchSalaryDetails();
-});
+async function loadPayrollReviews() {
+  if (!hasPermission('payroll.review.read')) return;
+  try { payrollReviews.value = (await fetchPayrollReviewRecords()).records; } catch { payrollReviews.value = []; }
+}
 
-onMounted(() => {
-  if (props.role === 'employee') {
-    targetEmployeeId.value = 1;
+async function runPreAudit() {
+  if (!hasPermission('payroll.review.manage')) return;
+  try {
+    const result = await reviewPayrollPreAudit({ requester_role: '', include_line_items: true });
+    reviewNotice.value = result.message || '薪资预审建议已生成。';
+    await loadPayrollReviews();
+  } catch (error) {
+    reviewNotice.value = error instanceof Error ? error.message : '薪资预审暂时无法执行。';
   }
-  fetchSalaryDetails();
+}
+
+onMounted(async () => {
+  if (!currentUser.value?.employee_id) return;
+  targetEmployeeId.value = currentUser.value.employee_id;
+  if (canSelectTarget.value) {
+    try { employees.value = await fetchEmployees(); } catch { employees.value = []; }
+  }
+  await loadPayrollReviews();
+  await fetchSalaryDetails();
 });
 </script>

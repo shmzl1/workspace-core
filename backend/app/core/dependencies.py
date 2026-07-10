@@ -1,18 +1,17 @@
-"""Shared FastAPI dependencies."""
+"""Shared FastAPI authentication and permission dependencies."""
 
-# pyrefly: ignore [missing-import]
-from fastapi import Depends, Header, HTTPException, status
-# pyrefly: ignore [missing-import]
+from collections.abc import Callable
+
+from fastapi import Depends, Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
-# pyrefly: ignore [missing-import]
+from jose import ExpiredSignatureError, JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db_session
 from app.core.exceptions import TalentFlowError
-from app.core.security import DemoIdentity, parse_demo_identity
 from app.modules.auth.models import User
+from app.modules.auth.permissions import normalize_permissions
 from app.modules.employee.models import Employee
 from app.shared.trace import set_trace_id
 
@@ -25,38 +24,26 @@ def trace_context(x_trace_id: str | None = Header(default=None, alias="X-Trace-I
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
-    x_mock_user_id: int | None = Header(default=None, alias="X-Mock-User-Id"),
-    x_mock_role: str | None = Header(default=None, alias="X-Mock-Role"),
     db: Session = Depends(get_db_session),
 ) -> User:
-    """Retrieve the current user from JWT or mock headers for dev/test."""
-    if x_mock_user_id is not None:
-        user = db.query(User).filter(User.id == x_mock_user_id).first()
-        if user and user.is_active:
-            if x_mock_role and x_mock_role != user.role:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Mock identity role mismatch")
-            return user
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Mock identity is invalid")
-
-    if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-
-    token = credentials.credentials
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise TalentFlowError("TOKEN_INVALID", "未提供有效登录凭证。", 401)
     settings = get_settings()
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
-        username: str | None = payload.get("sub")
-        if username is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
-
-    user = db.query(User).filter(User.username == username).first()
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        payload = jwt.decode(credentials.credentials, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    except ExpiredSignatureError as exc:
+        raise TalentFlowError("TOKEN_EXPIRED", "登录状态已过期，请重新登录。", 401) from exc
+    except JWTError as exc:
+        raise TalentFlowError("TOKEN_INVALID", "登录凭证无效。", 401) from exc
+    user_id = payload.get("user_id")
+    username = payload.get("sub")
+    if not isinstance(user_id, int) or not isinstance(username, str):
+        raise TalentFlowError("TOKEN_INVALID", "登录凭证无效。", 401)
+    user = db.get(User, user_id)
+    if user is None or user.username != username:
+        raise TalentFlowError("TOKEN_INVALID", "登录账号不存在。", 401)
+    if not user.is_active:
+        raise TalentFlowError("USER_INACTIVE", "账号已停用。", 401)
     return user
 
 
@@ -64,12 +51,27 @@ def get_current_employee(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ) -> Employee:
-    """Retrieve the Employee linked to the current logged-in user."""
     employee = db.query(Employee).filter(Employee.user_id == current_user.id).first()
     if not employee:
-        raise TalentFlowError("EMPLOYEE_NOT_FOUND", "当前用户没有关联的员工档案")
+        raise TalentFlowError("EMPLOYEE_NOT_FOUND", "当前用户没有关联的员工档案。")
     return employee
 
 
-def current_identity(x_demo_identity: str | None = Header(default=None, alias="X-Demo-Identity")) -> DemoIdentity:
-    return parse_demo_identity(x_demo_identity)
+def user_permissions(user: User) -> set[str]:
+    return set(normalize_permissions(user.permissions))
+
+
+def require_permission(permission: str) -> Callable:
+    def dependency(current_user: User = Depends(get_current_user)) -> User:
+        if permission not in user_permissions(current_user):
+            raise TalentFlowError("PERMISSION_DENIED", "当前账号没有执行此操作的权限。", 403)
+        return current_user
+    return dependency
+
+
+def require_any_permission(*permissions: str) -> Callable:
+    def dependency(current_user: User = Depends(get_current_user)) -> User:
+        if not user_permissions(current_user).intersection(permissions):
+            raise TalentFlowError("PERMISSION_DENIED", "当前账号没有执行此操作的权限。", 403)
+        return current_user
+    return dependency

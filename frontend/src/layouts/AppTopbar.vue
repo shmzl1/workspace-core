@@ -24,11 +24,21 @@
       <button class="icon-button" aria-label="主题切换">
         <span class="icon icon--theme"></span>
       </button>
+      <div class="topbar__user">
+        <span class="topbar__avatar">{{ user.full_name?.slice(0, 1) || user.username.slice(0, 1) }}</span>
+        <div><strong>{{ user.full_name || user.username }}</strong><small>{{ roleLabel }} · {{ user.department || '未分配部门' }}</small></div>
+      </div>
+      <button class="logout-button" @click="$emit('logout')">退出登录</button>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import type { AuthUser } from '../features/auth/authTypes';
+const props = defineProps<{ user: AuthUser }>();
+defineEmits<{ logout: [] }>();
+const roleLabel = computed(() => ({ EMPLOYEE: '普通员工', DEPARTMENT_MANAGER: '部门主管', HR_SPECIALIST: 'HR 专员', PAYROLL_ADMIN: '薪酬管理员' }[props.user.role] || props.user.role));
 </script>
 
 <style scoped lang="scss">
@@ -217,6 +227,7 @@
   background: #e9efff;
   color: var(--color-primary);
 }
+.logout-button { border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-muted); padding: 8px 10px; font-weight: 700; }
 
 @media (max-width: 1180px) {
   .topbar__nav {
