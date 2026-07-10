@@ -37,3 +37,8 @@ export async function fetchPayrollSummary(year?: number, month?: number): Promis
   const response = await apiClient.get<PayrollSummary[]>('/payroll/me', { params: { year, month } });
   return response.data;
 }
+
+export async function fetchEmployees(): Promise<Employee[]> {
+  const response = await apiClient.get<Employee[]>('/employees');
+  return response.data;
+}

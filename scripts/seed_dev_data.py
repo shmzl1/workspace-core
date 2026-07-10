@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import traceback
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
@@ -24,10 +24,11 @@ from app.modules import model_registry  # noqa: F401
 from app.modules.attendance.models import AttendanceRecord, WorkCalendar
 from app.modules.audit.models import AuditLog
 from app.modules.auth.models import User
+from app.modules.auth.permissions import ROLE_DEFAULT_PERMISSIONS
 from app.modules.employee.models import Employee, LeaveBalance
 from app.modules.interview.models import Interview, Interviewer, InterviewSlot, MeetingRoom
 from app.modules.payroll.models import PayrollLineItem, PayrollPeriod, PayrollReviewRecord, SalaryRecord
-from app.modules.recruitment.models import Candidate, CandidateApplication, Job
+from app.modules.recruitment.models import Candidate, CandidateApplication, CandidatePipelineRecord, Job
 
 CLEAR_ORDER = [
     "payroll_line_items", "audit_logs", "notifications", "interviews", "interview_slots",
@@ -59,10 +60,10 @@ def clear_existing_data(db: Session) -> None:
 
 def add_users(db: Session, password_hash: str) -> None:
     db.add_all([
-        User(id=1, username="zhangwei", password_hash=password_hash, role="EMPLOYEE"),
-        User(id=2, username="liming", password_hash=password_hash, role="DEPARTMENT_MANAGER"),
-        User(id=3, username="linyuqing", password_hash=password_hash, role="HR_SPECIALIST"),
-        User(id=4, username="wangqiang", password_hash=password_hash, role="PAYROLL_ADMIN"),
+        User(id=1, username="zhangwei", password_hash=password_hash, role="EMPLOYEE", permissions=ROLE_DEFAULT_PERMISSIONS["EMPLOYEE"]),
+        User(id=2, username="liming", password_hash=password_hash, role="DEPARTMENT_MANAGER", permissions=ROLE_DEFAULT_PERMISSIONS["DEPARTMENT_MANAGER"]),
+        User(id=3, username="linyuqing", password_hash=password_hash, role="HR_SPECIALIST", permissions=ROLE_DEFAULT_PERMISSIONS["HR_SPECIALIST"]),
+        User(id=4, username="wangqiang", password_hash=password_hash, role="PAYROLL_ADMIN", permissions=ROLE_DEFAULT_PERMISSIONS["PAYROLL_ADMIN"]),
     ])
     db.commit()
 
@@ -95,7 +96,7 @@ def add_recruitment(db: Session, today: date) -> None:
             description="负责 FastAPI 业务模块开发。", required_skills=["Python", "FastAPI", "PostgreSQL"],
             preferred_skills=["Vue", "Docker"], min_experience_months=24, location="上海",
             employment_type="FULL_TIME", status="OPEN", owner_user_id=3),
-        Job(id=2, job_code="JOB-FE-001", title="前端开发工程师", department="研发部",
+        Job(id=2, job_code="JOB-FE-001", title="前端开发工程师", department="产品技术部",
             description="负责 Vue 管理端开发。", required_skills=["Vue", "TypeScript"],
             preferred_skills=["Vite", "Tailwind CSS"], min_experience_months=18, location="杭州",
             employment_type="FULL_TIME", status="OPEN", owner_user_id=3),
@@ -117,16 +118,37 @@ def add_recruitment(db: Session, today: date) -> None:
     db.flush()
     log("写入候选人申请")
     db.add_all([
-        CandidateApplication(id=1, candidate_id=1, job_id=1, current_stage="INTERVIEW_PENDING"),
-        CandidateApplication(id=2, candidate_id=2, job_id=2, current_stage="AI_SCREENED"),
-        CandidateApplication(id=3, candidate_id=3, job_id=1, current_stage="APPLIED"),
-        CandidateApplication(id=4, candidate_id=4, job_id=2, current_stage="APPLIED"),
+        CandidateApplication(
+            id=1, candidate_id=1, job_id=1, current_stage="INTERVIEW_PENDING",
+            score_total=Decimal("91"), score_breakdown={
+                "skill": 96, "experience": 90, "project": 88, "education": 82,
+                "risk": 92, "match_score": 94, "overall_score": 91,
+            }, weights_snapshot={"skill": 0.3, "experience": 0.2, "project": 0.25, "education": 0.1, "risk": 0.15},
+            scored_at=datetime.now().astimezone(),
+        ),
+        CandidateApplication(
+            id=2, candidate_id=2, job_id=2, current_stage="AI_SCREENED",
+            score_total=Decimal("84"), score_breakdown={
+                "skill": 90, "experience": 82, "project": 80, "education": 78,
+                "risk": 85, "match_score": 88, "overall_score": 84,
+            }, weights_snapshot={"skill": 0.3, "experience": 0.2, "project": 0.25, "education": 0.1, "risk": 0.15},
+            scored_at=datetime.now().astimezone(),
+        ),
+        CandidateApplication(id=3, candidate_id=3, job_id=1, current_stage="OFFERED"),
+        CandidateApplication(id=4, candidate_id=4, job_id=2, current_stage="HIRED"),
+    ])
+    db.flush()
+    db.add_all([
+        CandidatePipelineRecord(application_id=1, from_stage=None, to_stage="INTERVIEW_PENDING", note="初始化招聘阶段"),
+        CandidatePipelineRecord(application_id=2, from_stage=None, to_stage="AI_SCREENED", note="初始化招聘阶段"),
+        CandidatePipelineRecord(application_id=3, from_stage=None, to_stage="OFFERED", note="初始化招聘阶段"),
+        CandidatePipelineRecord(application_id=4, from_stage=None, to_stage="HIRED", note="初始化招聘阶段"),
     ])
     db.commit()
 
 
 def add_interviews(db: Session, now: datetime) -> None:
-    start = (now + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
+    start = now.replace(hour=14, minute=0, second=0, microsecond=0)
     end = start + timedelta(hours=1)
     log("写入面试官")
     db.add_all([
@@ -134,15 +156,16 @@ def add_interviews(db: Session, now: datetime) -> None:
         Interviewer(id=2, employee_id=3, specialties=["沟通能力", "文化匹配"], max_interviews_per_day=5),
     ])
     log("写入会议室")
-    db.add(
+    db.add_all([
         MeetingRoom(id=1, room_code="R-A101", name="A101 会议室", location="上海办公室", capacity=6),
-    )
+        MeetingRoom(id=2, room_code="R-B201", name="B201 会议室", location="上海办公室", capacity=8),
+    ])
     db.flush()
     log("写入面试数据")
     db.add_all([
         InterviewSlot(resource_type="CANDIDATE", candidate_id=1, start_at=start, end_at=end),
         InterviewSlot(resource_type="INTERVIEWER", interviewer_id=1, start_at=start, end_at=end),
-        InterviewSlot(resource_type="ROOM", meeting_room_id=1, start_at=start, end_at=end),
+        InterviewSlot(resource_type="ROOM", meeting_room_id=2, start_at=start, end_at=end),
         Interview(application_id=2, interviewer_id=2, meeting_room_id=1, start_at=start, end_at=end,
                   status="SCHEDULED", conflict_explanation={"note": "用于验证会议室冲突检测"},
                   created_by_user_id=3),
@@ -234,7 +257,7 @@ def seed_data() -> None:
     db = SessionLocal()
     try:
         today = date.today()
-        now = datetime.now(timezone.utc)
+        now = datetime.now().astimezone()
         current_stage = "清理旧数据"
         log(current_stage)
         clear_existing_data(db)

@@ -1,5 +1,10 @@
 import apiClient from '../apiClient';
-import type { SchedulePreviewRequest, SchedulePreviewResponse } from '../types';
+import type {
+  ConfirmInterviewScheduleRequest,
+  InterviewRecord,
+  SchedulePreviewRequest,
+  SchedulePreviewResponse,
+} from '../types';
 
 export interface InterviewerResource {
   id: number;
@@ -11,6 +16,7 @@ export interface InterviewerResource {
 export interface MeetingRoomResource {
   id: number;
   name: string;
+  location?: string | null;
 }
 
 export interface InterviewResource {
@@ -21,6 +27,8 @@ export interface InterviewResource {
   start_at: string;
   end_at: string;
   status: string;
+  conflict_explanation?: Record<string, unknown>;
+  created_by_user_id?: number | null;
 }
 
 export async function fetchInterviewers(): Promise<InterviewerResource[]> {
@@ -42,6 +50,13 @@ export async function generateInterviewSchedule(
   payload: SchedulePreviewRequest
 ): Promise<SchedulePreviewResponse> {
   const response = await apiClient.post<SchedulePreviewResponse>('/interviews/schedule/preview', payload);
+  return response.data;
+}
+
+export async function confirmInterviewSchedule(
+  payload: ConfirmInterviewScheduleRequest,
+): Promise<InterviewRecord> {
+  const response = await apiClient.post<InterviewRecord>('/interviews/schedule/confirm', payload);
   return response.data;
 }
 

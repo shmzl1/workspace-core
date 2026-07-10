@@ -109,8 +109,8 @@ export interface CandidateApplication {
   job_id: number;
   current_stage: PipelineStage;
   score_total: number | null;
-  score_breakdown: Record<string, number>;
-  weights_snapshot: Record<string, number>;
+  score_breakdown: Record<string, unknown>;
+  weights_snapshot: Record<string, unknown>;
   scored_at: string | null;
   applied_at: string;
   updated_at: string;
@@ -124,7 +124,9 @@ export interface CandidateScoreRequest {
 export interface CandidateScoreResponse extends AlgorithmAwareResponse {
   application_id: number;
   score_total?: number | null;
+  overall_score?: number | null;
   match_score?: number | null;
+  match_rate?: number | null;
   skill_match?: string | null;
   experience_match?: string | null;
   education_match?: string | null;
@@ -132,29 +134,44 @@ export interface CandidateScoreResponse extends AlgorithmAwareResponse {
   risk_prompt?: string | null;
   recommended_action?: string | null;
   scoring_basis?: string[];
-  score_breakdown?: Record<string, number>;
+  reasons?: string[];
+  score_breakdown?: Record<string, unknown>;
   explanation?: Record<string, unknown>;
+}
+
+export interface RecruitmentFunnelItem { label: string; count: number; rate: number; }
+export interface RecruitmentDepartmentItem {
+  department: string; jobs_count: number; applications_count: number; hired_count: number; completion_rate: number;
+}
+export interface RecruitmentSourceItem { source: string; count: number; rate: number; }
+export interface RecruitmentTrendItem {
+  period: string; applications_count: number; hired_count: number; average_score: number;
+}
+export interface RecruitmentReportResponse {
+  time_range: '30d' | '90d' | 'all';
+  jobs_count: number;
+  open_jobs_count: number;
+  candidates_count: number;
+  applications_count: number;
+  scored_applications_count: number;
+  pending_score_count: number;
+  high_match_count: number;
+  interview_pending_count: number;
+  interviewing_count: number;
+  offered_count: number;
+  hired_count: number;
+  rejected_count: number;
+  average_score: number;
+  average_match_rate: number;
+  funnel: RecruitmentFunnelItem[];
+  departments: RecruitmentDepartmentItem[];
+  sources: RecruitmentSourceItem[];
+  trends: RecruitmentTrendItem[];
 }
 
 export interface SchedulePreviewRequest {
   application_id: number;
-  candidate: {
-    candidate_id: number;
-    name?: string;
-    available_slots: Array<Record<string, string>>;
-  };
-  interviewers: Array<{
-    interviewer_id: number;
-    employee_name?: string;
-    specialties?: string[];
-    available_slots: Array<Record<string, string>>;
-  }>;
-  meeting_rooms: Array<{
-    meeting_room_id: number;
-    room_name?: string;
-    available_slots: Array<Record<string, string>>;
-  }>;
-  duration_minutes: number;
+  duration_minutes?: number;
 }
 
 export interface SchedulePreviewResponse extends AlgorithmAwareResponse {
@@ -192,6 +209,39 @@ export interface CandidatePipelineRecord {
   note: string | null;
   changed_by_user_id: number | null;
   created_at: string;
+}
+
+export interface CandidateApplicationDetail {
+  application: CandidateApplication & { candidate_name?: string | null; job_title?: string | null };
+  candidate: Candidate;
+  job: Job;
+  pipeline_records: CandidatePipelineRecord[];
+}
+
+export interface AdvanceStageResponse {
+  application: CandidateApplication & { candidate_name?: string | null; job_title?: string | null };
+  pipeline_record: CandidatePipelineRecord;
+}
+
+export interface InterviewRecord {
+  id: number;
+  application_id: number;
+  interviewer_id: number;
+  meeting_room_id: number;
+  start_at: string;
+  end_at: string;
+  status: string;
+  conflict_explanation: Record<string, unknown>;
+  created_by_user_id: number | null;
+}
+
+export interface ConfirmInterviewScheduleRequest {
+  application_id: number;
+  interviewer_id: number;
+  meeting_room_id: number;
+  start_at: string;
+  end_at: string;
+  conflict_explanation?: Record<string, unknown>;
 }
 
 // ── Employee ────────────────────────────────

@@ -9,7 +9,7 @@ def schedule_interview(payload: dict[str, Any] | None) -> dict[str, Any]:
     candidate_slots = read_slots(data.get("candidate_available_slots") or candidate.get("available_slots"))
     interviewers = data.get("interviewers") if isinstance(data.get("interviewers"), list) else []
     rooms = data.get("meeting_rooms") or data.get("rooms") or []
-    conflicts = read_slots(data.get("existing_events") or data.get("conflicts"))
+    conflicts = data.get("existing_interviews") if isinstance(data.get("existing_interviews"), list) else []
     if not candidate_slots or not interviewers:
         return {
             "status": "invalid_input",
@@ -39,7 +39,14 @@ def schedule_interview(payload: dict[str, Any] | None) -> dict[str, Any]:
                         if not matches:
                             continue
                         usable_slot = matches[0]
-                    option = make_option(usable_slot, duration, interviewer, room, conflicts)
+                    option = make_option(
+                        usable_slot,
+                        duration,
+                        candidate.get("candidate_id"),
+                        interviewer,
+                        room,
+                        conflicts,
+                    )
                     if option["has_conflict"]:
                         conflict_notes.append(
                             {
@@ -70,7 +77,9 @@ def schedule_interview(payload: dict[str, Any] | None) -> dict[str, Any]:
         "message": "已生成智能排期建议。",
         "recommended_time": {"start": best_slot["start"], "end": best_slot["end"]},
         "recommended_interviewer_id": best_slot["interviewer_id"],
+        "recommended_interviewer": best_slot["interviewer"],
         "recommended_room_id": best_slot["room_id"],
+        "recommended_room": best_slot["room"],
         "interviewer_availability": f"{best_slot['interviewer']} 在该时间段可用。",
         "candidate_availability": f"{candidate_name} 在该时间段可用。",
         "conflict_detection": "未发现冲突。",
@@ -111,8 +120,29 @@ def overlap(first: dict[str, datetime], second: dict[str, datetime]) -> dict[str
     return {"start": start, "end": end}
 def enough_time(slot: dict[str, datetime], duration_minutes: int) -> bool:
     return slot["end"] - slot["start"] >= timedelta(minutes=duration_minutes)
-def has_conflict(slot: dict[str, datetime], conflicts: list[dict[str, datetime]]) -> bool:
-    return any(overlap(slot, item) for item in conflicts)
+def has_conflict(
+    slot: dict[str, datetime],
+    conflicts: list[dict[str, Any]],
+    candidate_id: Any,
+    interviewer_id: Any,
+    room_id: Any,
+) -> bool:
+    for event in conflicts:
+        if not isinstance(event, dict):
+            continue
+        event_slot = {
+            "start": parse_time(event.get("start")),
+            "end": parse_time(event.get("end")),
+        }
+        if not event_slot["start"] or not event_slot["end"] or not overlap(slot, event_slot):
+            continue
+        if (
+            event.get("candidate_id") == candidate_id
+            or event.get("interviewer_id") == interviewer_id
+            or event.get("meeting_room_id") == room_id
+        ):
+            return True
+    return False
 def score_slot(start: datetime, end: datetime, interviewer_load: int) -> tuple[int, list[str]]:
     score = 40
     reasons = ["候选人、面试官和会议资源时间重合"]
@@ -133,9 +163,10 @@ def score_slot(start: datetime, end: datetime, interviewer_load: int) -> tuple[i
 def make_option(
     slot: dict[str, datetime],
     duration: int,
+    candidate_id: Any,
     interviewer: dict[str, Any],
     room: dict[str, Any],
-    conflicts: list[dict[str, datetime]],
+    conflicts: list[dict[str, Any]],
 ) -> dict[str, Any]:
     start = slot["start"]
     end = start + timedelta(minutes=duration)
@@ -149,7 +180,13 @@ def make_option(
         "interviewer": interviewer.get("employee_name") or interviewer.get("name") or "面试官",
         "room_id": room.get("meeting_room_id") or room.get("id"),
         "room": room.get("room_name") or room.get("name") or "线上会议",
-        "has_conflict": has_conflict(fixed_slot, conflicts),
+        "has_conflict": has_conflict(
+            fixed_slot,
+            conflicts,
+            candidate_id,
+            interviewer.get("interviewer_id") or interviewer.get("id"),
+            room.get("meeting_room_id") or room.get("id"),
+        ),
         "score": score,
         "reasons": reasons,
     }

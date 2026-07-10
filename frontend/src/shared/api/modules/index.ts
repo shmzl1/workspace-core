@@ -9,3 +9,4 @@ export * from './attendance';
 export * from './employee';
 export * from './payroll';
 export * from './audit';
+export * from './health';

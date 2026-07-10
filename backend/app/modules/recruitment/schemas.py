@@ -17,7 +17,11 @@ class JobRead(BaseModel):
     required_skills: list[Any] = Field(default_factory=list)
     preferred_skills: list[Any] = Field(default_factory=list)
     min_experience_months: int
+    description: str | None = None
+    location: str | None = None
+    employment_type: str
     status: str
+    owner_user_id: int | None = None
 
 
 class CandidateRead(BaseModel):
@@ -44,6 +48,37 @@ class CandidateApplicationRead(BaseModel):
     score_breakdown: dict[str, Any] = Field(default_factory=dict)
     weights_snapshot: dict[str, Any] = Field(default_factory=dict)
     scored_at: datetime | None = None
+    applied_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class CandidatePipelineRecordRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    application_id: int
+    from_stage: str | None = None
+    to_stage: str
+    note: str | None = None
+    changed_by_user_id: int | None = None
+    created_at: datetime
+
+
+class CandidateApplicationDetailRead(BaseModel):
+    application: CandidateApplicationRead
+    candidate: CandidateRead
+    job: JobRead
+    pipeline_records: list[CandidatePipelineRecordRead] = Field(default_factory=list)
+
+
+class AdvanceStageRequest(BaseModel):
+    to_stage: str = Field(min_length=1, max_length=32)
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class AdvanceStageResponse(BaseModel):
+    application: CandidateApplicationRead
+    pipeline_record: CandidatePipelineRecordRead
 
 
 class RecruitmentDashboardRead(BaseModel):
@@ -52,6 +87,55 @@ class RecruitmentDashboardRead(BaseModel):
     applications_count: int
     pending_score_count: int
     ready_message: str
+
+
+class RecruitmentFunnelItem(BaseModel):
+    label: str
+    count: int
+    rate: float
+
+
+class RecruitmentDepartmentItem(BaseModel):
+    department: str
+    jobs_count: int
+    applications_count: int
+    hired_count: int
+    completion_rate: float
+
+
+class RecruitmentSourceItem(BaseModel):
+    source: str
+    count: int
+    rate: float
+
+
+class RecruitmentTrendItem(BaseModel):
+    period: str
+    applications_count: int
+    hired_count: int
+    average_score: float
+
+
+class RecruitmentReportRead(BaseModel):
+    time_range: str
+    jobs_count: int
+    open_jobs_count: int
+    candidates_count: int
+    applications_count: int
+    scored_applications_count: int
+    pending_score_count: int
+    high_match_count: int
+    interview_pending_count: int
+    interviewing_count: int
+    offered_count: int
+    hired_count: int
+    rejected_count: int
+    average_score: float
+    average_match_rate: float
+    funnel: list[RecruitmentFunnelItem] = Field(default_factory=list)
+    departments: list[RecruitmentDepartmentItem] = Field(default_factory=list)
+    sources: list[RecruitmentSourceItem] = Field(default_factory=list)
+    trends: list[RecruitmentTrendItem] = Field(default_factory=list)
 
 
 class ScoreApplicationRequest(BaseModel):
@@ -64,7 +148,9 @@ class ScoreApplicationResponse(BaseModel):
     status: str
     message: str
     score_total: Decimal | None = None
+    overall_score: Decimal | None = None
     match_score: Decimal | None = None
+    match_rate: Decimal | None = None
     skill_match: str | None = None
     experience_match: str | None = None
     education_match: str | None = None
@@ -72,6 +158,7 @@ class ScoreApplicationResponse(BaseModel):
     risk_prompt: str | None = None
     recommended_action: str | None = None
     scoring_basis: list[str] = Field(default_factory=list)
+    reasons: list[str] = Field(default_factory=list)
     score_breakdown: dict[str, Any] = Field(default_factory=dict)
     explanation: dict[str, Any] = Field(default_factory=dict)
     expected_module: str | None = None

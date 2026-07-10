@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.modules.recruitment.models import Candidate, CandidateApplication, Job
+from app.modules.recruitment.models import Candidate, CandidateApplication, CandidatePipelineRecord, Job
 
 
 class RecruitmentRepository:
@@ -15,6 +15,9 @@ class RecruitmentRepository:
 
     def list_jobs(self) -> list[Job]:
         return list(self.session.scalars(select(Job).order_by(Job.id)).all())
+
+    def get_job(self, job_id: int) -> Job | None:
+        return self.session.get(Job, job_id)
 
     def list_candidates(self) -> list[Candidate]:
         return list(self.session.scalars(select(Candidate).order_by(Candidate.id)).all())
@@ -52,6 +55,15 @@ class RecruitmentRepository:
         application, candidate, job = row
         return application, candidate, job
 
+    def list_pipeline_records(self, application_id: int) -> list[CandidatePipelineRecord]:
+        return list(
+            self.session.scalars(
+                select(CandidatePipelineRecord)
+                .where(CandidatePipelineRecord.application_id == application_id)
+                .order_by(CandidatePipelineRecord.created_at, CandidatePipelineRecord.id)
+            ).all()
+        )
+
     def save_application_score(
         self,
         application: CandidateApplication,
@@ -67,3 +79,25 @@ class RecruitmentRepository:
         self.session.commit()
         self.session.refresh(application)
         return application
+
+    def advance_application_stage(
+        self,
+        application: CandidateApplication,
+        to_stage: str,
+        note: str | None = None,
+        changed_by_user_id: int | None = None,
+    ) -> tuple[CandidateApplication, CandidatePipelineRecord]:
+        from_stage = application.current_stage
+        application.current_stage = to_stage
+        record = CandidatePipelineRecord(
+            application_id=application.id,
+            from_stage=from_stage,
+            to_stage=to_stage,
+            note=note,
+            changed_by_user_id=changed_by_user_id,
+        )
+        self.session.add_all([application, record])
+        self.session.commit()
+        self.session.refresh(application)
+        self.session.refresh(record)
+        return application, record

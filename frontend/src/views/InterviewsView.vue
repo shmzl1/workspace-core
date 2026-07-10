@@ -12,7 +12,7 @@
         <div class="flex items-end justify-between gap-4">
           <div>
             <p class="font-label-md text-label-md text-primary uppercase tracking-wider mb-1">招聘流程</p>
-            <h2 class="font-headline-lg md:font-display text-headline-lg-mobile md:text-display text-on-surface tracking-tight">面试日历</h2>
+            <h2 class="font-headline-lg text-headline-lg-mobile text-on-surface tracking-tight">面试日历</h2>
             <p class="font-body-md text-body-md text-on-surface-variant mt-1">统一管理候选人、面试官、会议室和时间槽。</p>
           </div>
           <button
@@ -25,7 +25,17 @@
           </button>
         </div>
 
-        <p v-if="scheduleNotice" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+        <div v-if="serviceError" class="flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div>
+            <strong class="block">服务暂不可用，请确认后端已启动。</strong>
+            <span>{{ serviceError }}</span>
+          </div>
+          <button class="rounded-lg bg-primary px-4 py-2 font-semibold text-white" @click="loadInterviewData">
+            重新加载
+          </button>
+        </div>
+
+        <p v-else-if="scheduleNotice" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
           {{ scheduleNotice }}
         </p>
 
@@ -42,9 +52,9 @@
             </div>
             <div class="flex items-center gap-2">
               <span class="font-body-md text-body-md text-secondary flex items-center gap-1">
-                <span class="material-symbols-outlined text-[16px]">trending_up</span> 20%
+                <span class="material-symbols-outlined text-[16px]">database</span> 数据库
               </span>
-              <span class="font-label-md text-label-md text-on-surface-variant">较昨日</span>
+              <span class="font-label-md text-label-md text-on-surface-variant">今日实时日程</span>
             </div>
           </div>
 
@@ -52,14 +62,14 @@
             <div class="flex justify-between items-start mb-4">
               <div>
                 <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">待评价面试</p>
-                <h2 class="font-display text-display text-on-surface mt-1">4</h2>
+                <h2 class="font-display text-display text-on-surface mt-1">{{ pendingEvaluationCount }}</h2>
               </div>
               <div class="w-10 h-10 rounded-lg bg-[#FFF7ED] flex items-center justify-center text-[#EA580C]">
                 <span class="material-symbols-outlined">rate_review</span>
               </div>
             </div>
             <div class="w-full bg-surface-container h-2 rounded-full mt-4 overflow-hidden">
-              <div class="bg-[#EA580C] h-full rounded-full" :style="{ width: '33%' }"></div>
+              <div class="bg-[#EA580C] h-full rounded-full" :style="{ width: `${pendingEvaluationRate}%` }"></div>
             </div>
           </div>
 
@@ -67,7 +77,7 @@
             <div class="flex justify-between items-start mb-4">
               <div>
                 <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">平均面试时长</p>
-                <h2 class="font-display text-display text-on-surface mt-1">45<span class="font-headline-md text-headline-md ml-1 text-on-surface-variant">min</span></h2>
+                <h2 class="font-display text-display text-on-surface mt-1">{{ averageDuration }}<span class="font-headline-md text-headline-md ml-1 text-on-surface-variant">min</span></h2>
               </div>
               <div class="w-10 h-10 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary">
                 <span class="material-symbols-outlined">timer</span>
@@ -80,7 +90,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter min-h-[600px]">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter min-h-[520px]">
           <div class="lg:col-span-4 glass-card rounded-xl p-6 flex flex-col h-full">
             <div class="flex justify-between items-center mb-6">
               <h3 class="font-title-lg text-title-lg text-on-surface">2026 年 7 月</h3>
@@ -238,6 +248,14 @@
                     <span class="text-xs text-on-surface-variant">推荐评分</span>
                     <p class="font-semibold text-primary">{{ currentSuggestion.score }}</p>
                   </div>
+                  <button
+                    v-if="scheduleGenerated && selectedPreview"
+                    class="w-full rounded-lg bg-primary px-4 py-2.5 font-semibold text-white transition-colors hover:bg-primary-fixed-dim disabled:cursor-wait disabled:opacity-50"
+                    :disabled="confirming || currentSuggestion.hasConflict"
+                    @click="confirmSchedule"
+                  >
+                    {{ confirming ? '保存中...' : '确认面试安排' }}
+                  </button>
                 </div>
               </aside>
             </div>
@@ -258,6 +276,7 @@ import {
   fetchInterviews,
   fetchInterviewers,
   fetchMeetingRooms,
+  confirmInterviewSchedule,
   generateInterviewSchedule,
   type InterviewerResource,
   type MeetingRoomResource,
@@ -270,6 +289,8 @@ import type {
   SchedulePreviewRequest,
   SchedulePreviewResponse,
 } from '../shared/api/types';
+import { checkBackendHealth } from '../shared/api/modules/health';
+import { ApiClientError } from '../shared/api/apiClient';
 
 const route = useRoute();
 const applications = ref<CandidateApplicationListItem[]>([]);
@@ -309,9 +330,12 @@ const loading = ref(true);
 const permissionDenied = ref(false);
 const scheduleGenerated = ref(false);
 const generating = ref(false);
+const confirming = ref(false);
 const calendarView = ref<'month' | 'week'>('month');
 const apiSuggestion = ref<Suggestion | null>(null);
+const selectedPreview = ref<SchedulePreviewResponse | null>(null);
 const scheduleNotice = ref('');
+const serviceError = ref('');
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
@@ -326,31 +350,27 @@ const currentSuggestion = computed<Suggestion>(() => apiSuggestion.value ?? {
   score: '--',
   hasConflict: false,
 });
+const pendingEvaluationCount = computed(() => scheduleItems.value.filter((item) => item.status === '待评价').length);
+const pendingEvaluationRate = computed(() => (
+  scheduleItems.value.length ? Math.round(pendingEvaluationCount.value / scheduleItems.value.length * 100) : 0
+));
+const averageDuration = computed(() => {
+  if (!scheduleItems.value.length) return 0;
+  const total = scheduleItems.value.reduce((sum, item) => sum + (Number.parseInt(item.duration) || 0), 0);
+  return Math.round(total / scheduleItems.value.length);
+});
 
-const calendarDays = ref([
-  { date: 29, muted: true, today: false, events: 0, recommended: false, conflict: false },
-  { date: 30, muted: true, today: false, events: 0, recommended: false, conflict: false },
-  { date: 1, muted: false, today: false, events: 1, recommended: false, conflict: false },
-  { date: 2, muted: false, today: false, events: 0, recommended: false, conflict: false },
-  { date: 3, muted: false, today: false, events: 2, recommended: false, conflict: false },
-  { date: 4, muted: false, today: false, events: 0, recommended: false, conflict: false },
-  { date: 5, muted: false, today: false, events: 0, recommended: false, conflict: false },
-  { date: 6, muted: false, today: false, events: 1, recommended: false, conflict: false },
-  { date: 7, muted: false, today: false, events: 0, recommended: false, conflict: false },
-  { date: 8, muted: false, today: true, events: 2, recommended: false, conflict: false },
-  { date: 9, muted: false, today: false, events: 0, recommended: false, conflict: false },
-  { date: 10, muted: false, today: false, events: 0, recommended: false, conflict: false },
-  { date: 11, muted: false, today: false, events: 0, recommended: false, conflict: false },
-  { date: 12, muted: false, today: false, events: 0, recommended: false, conflict: false },
-  { date: 13, muted: false, today: false, events: 1, recommended: false, conflict: false },
-  { date: 14, muted: false, today: false, events: 0, recommended: false, conflict: false },
-  { date: 15, muted: false, today: false, events: 0, recommended: false, conflict: false },
-  { date: 16, muted: false, today: false, events: 1, recommended: false, conflict: false },
-  { date: 17, muted: false, today: false, events: 0, recommended: false, conflict: false },
-]);
+const calendarDays = ref<Array<{ date: number; muted: boolean; today: boolean; events: number; recommended: boolean; conflict: boolean }>>([]);
 
-onMounted(async () => {
+onMounted(loadInterviewData);
+
+async function loadInterviewData() {
+  loading.value = true;
+  serviceError.value = '';
+  scheduleNotice.value = '';
+  permissionDenied.value = false;
   try {
+    await checkBackendHealth();
     const [appRows, candidateRows, jobRows, interviewerRows, roomRows, interviewRows] = await Promise.all([
       fetchApplications(),
       fetchCandidates(),
@@ -364,20 +384,24 @@ onMounted(async () => {
     jobs.value = jobRows;
     interviewerResources.value = interviewerRows;
     roomResources.value = roomRows;
-    scheduleItems.value = interviewRows.map((interview) => {
-      const application = appRows.find((item) => item.id === interview.application_id);
-      return {
-        time: formatClock(new Date(interview.start_at)),
-        duration: `${Math.round((new Date(interview.end_at).getTime() - new Date(interview.start_at).getTime()) / 60000)} 分钟`,
-        candidate: candidateName(application),
-        role: jobName(application),
-        interviewer: interviewerName(interview.interviewer_id),
-        room: roomName(interview.meeting_room_id),
-        status: interview.status === 'SCHEDULED' ? '已安排' : interview.status,
-        recommended: false,
-        hasConflict: false,
-      };
-    });
+    calendarDays.value = buildCalendarDays(interviewRows);
+    const today = new Date().toDateString();
+    scheduleItems.value = interviewRows
+      .filter((interview) => new Date(interview.start_at).toDateString() === today)
+      .map((interview) => {
+        const application = appRows.find((item) => item.id === interview.application_id);
+        return {
+          time: formatClock(new Date(interview.start_at)),
+          duration: `${Math.round((new Date(interview.end_at).getTime() - new Date(interview.start_at).getTime()) / 60000)} 分钟`,
+          candidate: candidateName(application),
+          role: jobName(application),
+          interviewer: interviewerName(interview.interviewer_id),
+          room: roomName(interview.meeting_room_id),
+          status: interview.status === 'COMPLETED' ? '待评价' : interview.status === 'SCHEDULED' ? '已安排' : interview.status,
+          recommended: false,
+          hasConflict: false,
+        };
+      });
     
     // Parse query parameter applicationId
     const queryAppId = Number(route.query.applicationId);
@@ -387,13 +411,21 @@ onMounted(async () => {
       selectedApplicationId.value = appRows[0].id;
     }
   } catch (err: any) {
-    scheduleNotice.value = err.message || '面试资源加载失败，请检查后端服务和开发数据。';
-    permissionDenied.value = err.status === 403;
-    console.error('Failed to load candidate applications:', err);
+    applications.value = [];
+    candidates.value = [];
+    jobs.value = [];
+    interviewerResources.value = [];
+    roomResources.value = [];
+    scheduleItems.value = [];
+    if (err instanceof ApiClientError && err.status === 403) {
+      permissionDenied.value = true;
+    } else {
+      serviceError.value = err.message || '网络连接失败，服务端未响应。';
+    }
   } finally {
     loading.value = false;
   }
-});
+}
 
 async function generateSchedule() {
   if (generating.value) return;
@@ -402,7 +434,7 @@ async function generateSchedule() {
     return;
   }
   if (!interviewerResources.value.length || !roomResources.value.length) {
-    scheduleNotice.value = '缺少面试官或会议室数据，请先执行开发数据初始化。';
+    scheduleNotice.value = '缺少面试官或会议室数据，当前无法生成排期建议。';
     return;
   }
   generating.value = true;
@@ -412,6 +444,7 @@ async function generateSchedule() {
       throw new Error(result.message || '暂时没有可用排期建议。');
     }
     applyScheduleResult(result);
+    selectedPreview.value = result;
     scheduleNotice.value = '';
     emit('show-toast', '已生成智能排期建议。');
   } catch (error: any) {
@@ -427,28 +460,8 @@ function buildSchedulePayload(): SchedulePreviewRequest {
   const currentAppId = selectedApplicationId.value;
   const currentApp = applications.value.find(a => a.id === currentAppId);
   if (!currentApp) throw new Error('选中的候选人申请不存在，请刷新页面后重试。');
-  const candidate = candidates.value.find((item) => item.id === currentApp.candidate_id);
-  const start = candidateStart(candidate?.available_from);
-  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
-  
   return {
     application_id: currentApp.id,
-    candidate: {
-      candidate_id: currentApp.candidate_id,
-      name: candidateName(currentApp),
-      available_slots: [{ start: start.toISOString(), end: end.toISOString() }],
-    },
-    interviewers: interviewerResources.value.map((item) => ({
-      interviewer_id: item.id,
-      employee_name: item.employee_name || `员工 #${item.employee_id}`,
-      specialties: item.specialties,
-      available_slots: [{ start: start.toISOString(), end: end.toISOString() }],
-    })),
-    meeting_rooms: roomResources.value.map((item) => ({
-      meeting_room_id: item.id,
-      room_name: item.name || `会议室 #${item.id}`,
-      available_slots: [{ start: start.toISOString(), end: end.toISOString() }],
-    })),
     duration_minutes: 60,
   };
 }
@@ -482,23 +495,10 @@ function roomName(roomId?: number | null): string {
   return String(room?.name || '').trim() || (room ? `会议室 #${room.id}` : '待分配会议室');
 }
 
-function candidateStart(availableFrom?: string | null): Date {
-  const now = new Date();
-  const value = availableFrom ? new Date(`${availableFrom}T10:00:00`) : new Date(now);
-  if (Number.isNaN(value.getTime()) || value <= now) {
-    value.setTime(now.getTime());
-    value.setDate(value.getDate() + 1);
-    value.setHours(10, 0, 0, 0);
-  }
-  while (value.getDay() === 0 || value.getDay() === 6) {
-    value.setDate(value.getDate() + 1);
-  }
-  return value;
-}
-
 function applyScheduleResult(result: SchedulePreviewResponse) {
-  const start = String(result.recommended_time?.start || '2026-07-10T10:00:00');
-  const end = String(result.recommended_time?.end || '2026-07-10T11:00:00');
+  const start = String(result.recommended_time?.start || '');
+  const end = String(result.recommended_time?.end || '');
+  if (!start || !end) throw new Error('排期建议缺少完整的开始或结束时间。');
   const startDate = new Date(start);
   const endDate = new Date(end);
   const timeLabel = `${formatClock(startDate)} - ${formatClock(endDate)}`;
@@ -514,7 +514,7 @@ function applyScheduleResult(result: SchedulePreviewResponse) {
     interviewerAvailability: result.interviewer_availability || '面试官在该时间段可用。',
     candidateAvailability: result.candidate_availability || '候选人在该时间段可用。',
     conflict: result.conflict_detection || '未发现冲突。',
-    reason: result.recommendation_reason || '该时间段满足候选人、面试官 and 会议室可用条件。',
+    reason: result.recommendation_reason || '该时间段满足候选人、面试官和会议室可用条件。',
     score,
     hasConflict: Boolean(result.conflict_explanation?.conflicts && Array.isArray(result.conflict_explanation.conflicts) && result.conflict_explanation.conflicts.length),
   };
@@ -537,12 +537,78 @@ function applyScheduleResult(result: SchedulePreviewResponse) {
   ];
 }
 
+async function confirmSchedule() {
+  const preview = selectedPreview.value;
+  if (!preview?.recommended_time || confirming.value) return;
+  const applicationId = selectedApplicationId.value;
+  const interviewerId = preview.recommended_interviewer_id;
+  const roomId = preview.recommended_room_id;
+  const startAt = String(preview.recommended_time.start || '');
+  const endAt = String(preview.recommended_time.end || '');
+  if (!applicationId || !interviewerId || !roomId || !startAt || !endAt) {
+    scheduleNotice.value = '排期建议信息不完整，请重新生成。';
+    return;
+  }
+  confirming.value = true;
+  try {
+    await confirmInterviewSchedule({
+      application_id: applicationId,
+      interviewer_id: interviewerId,
+      meeting_room_id: roomId,
+      start_at: startAt,
+      end_at: endAt,
+      conflict_explanation: preview.conflict_explanation || {},
+    });
+    selectedPreview.value = null;
+    apiSuggestion.value = null;
+    scheduleGenerated.value = false;
+    await loadInterviewData();
+    emit('show-toast', '面试安排已保存，日历已刷新。');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '面试安排保存失败。';
+    scheduleNotice.value = message;
+    emit('show-toast', message);
+  } finally {
+    confirming.value = false;
+  }
+}
+
 function markCalendarDay(date: number, hasConflict: boolean) {
   calendarDays.value = calendarDays.value.map((day) => ({
     ...day,
     recommended: day.date === date ? true : day.recommended,
     conflict: day.date === date ? hasConflict : day.conflict,
   }));
+}
+
+function buildCalendarDays(interviews: Array<{ start_at: string }>) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const first = new Date(year, month, 1);
+  const startOffset = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const previousMonthDays = new Date(year, month, 0).getDate();
+  const counts = new Map<number, number>();
+  for (const interview of interviews) {
+    const value = new Date(interview.start_at);
+    if (value.getFullYear() === year && value.getMonth() === month) {
+      counts.set(value.getDate(), (counts.get(value.getDate()) || 0) + 1);
+    }
+  }
+  return Array.from({ length: 35 }, (_, index) => {
+    const offsetDay = index - startOffset + 1;
+    const muted = offsetDay < 1 || offsetDay > daysInMonth;
+    const date = offsetDay < 1 ? previousMonthDays + offsetDay : offsetDay > daysInMonth ? offsetDay - daysInMonth : offsetDay;
+    return {
+      date,
+      muted,
+      today: !muted && date === now.getDate(),
+      events: muted ? 0 : counts.get(date) || 0,
+      recommended: false,
+      conflict: false,
+    };
+  });
 }
 
 function formatClock(value: Date) {

@@ -15,11 +15,7 @@
 
 - `backend/tests/human_only/test_resume_scoring.py`
 - `backend/tests/human_only/test_interview_scheduler.py`
-- `backend/tests/human_only/test_salary_access_control.py`
-
-
-## AI 允许生成范围
-
+- `backend/tests/human_only/test_salary_acc`AI 允许生成范围
 - Vue Web 前端。
 - 微信小程序页面。
 - FastAPI 路由。
@@ -28,9 +24,7 @@
 - Repository、Service。
 - LangGraph Agent、Tool、RAG、Gradio 调试台。
 - 普通测试。
-- Docker Compose、Nginx、环境配置、项目文档、部署脚本。
-
-## Agent 调用链
+- Docker Compose、Nginx、环Agent 调用链
 
 ```text
 Agent -> Tool -> Service -> human_only

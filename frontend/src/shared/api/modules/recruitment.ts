@@ -2,10 +2,13 @@
 import type {
   Candidate,
   CandidateApplication,
+  CandidateApplicationDetail,
   CandidateScoreRequest,
   CandidateScoreResponse,
+  AdvanceStageResponse,
   Job,
   PipelineStage,
+  RecruitmentReportResponse,
 } from '../types';
 
 export interface CandidateApplicationListItem extends CandidateApplication {
@@ -38,8 +41,15 @@ export async function fetchApplications(): Promise<CandidateApplicationListItem[
   return response.data;
 }
 
-export async function fetchApplication(applicationId: number): Promise<CandidateApplication> {
-  const response = await apiClient.get<CandidateApplication>(`/recruitment/applications/${applicationId}`);
+export async function fetchRecruitmentReport(
+  params?: { time_range?: '30d' | '90d' | 'all' },
+): Promise<RecruitmentReportResponse> {
+  const response = await apiClient.get<RecruitmentReportResponse>('/recruitment/report', { params });
+  return response.data;
+}
+
+export async function fetchApplication(applicationId: number): Promise<CandidateApplicationDetail> {
+  const response = await apiClient.get<CandidateApplicationDetail>(`/recruitment/applications/${applicationId}`);
   return response.data;
 }
 
@@ -47,8 +57,8 @@ export async function advanceStage(
   applicationId: number,
   toStage: PipelineStage,
   note?: string
-): Promise<CandidateApplication> {
-  const response = await apiClient.post<CandidateApplication>(
+): Promise<AdvanceStageResponse> {
+  const response = await apiClient.post<AdvanceStageResponse>(
     `/recruitment/applications/${applicationId}/advance`,
     { to_stage: toStage, note }
   );
