@@ -1,6 +1,6 @@
 <template>
   <section class="event-feed">
-    <header><div><span>真实 SSE</span><h2>实时事件</h2></div><strong>{{ streaming ? '已连接' : '未连接' }}</strong></header>
+    <header><div><span>真实 SSE</span><h2>实时事件</h2></div><strong>{{ connectionLabel }}</strong></header>
     <div class="event-feed__notes"><p>无 Tool 事件时明确显示“未调用”</p><p>无来源事件时明确显示“未检索”</p></div>
     <div v-if="events.length" class="event-feed__list">
       <article v-for="event in events" :key="event.event_id">
@@ -20,8 +20,16 @@
 </template>
 
 <script setup lang="ts">
-import type { AgentEvent } from '../../../../shared/agent/contracts';
-defineProps<{ events:AgentEvent[]; streaming:boolean }>();
+import { computed } from 'vue';
+import { AgentRunStatus, type AgentEvent } from '../../../../shared/agent/contracts';
+const props=defineProps<{ events:AgentEvent[]; streaming:boolean; status?:AgentRunStatus }>();
+const connectionLabel=computed(()=>{
+  if(props.streaming) return '已连接';
+  if(props.status===AgentRunStatus.COMPLETED) return '已结束';
+  if(props.status===AgentRunStatus.FAILED) return '运行失败';
+  if(props.events.length) return '历史事件';
+  return '未连接';
+});
 const formatTime=(value:string)=>new Date(value).toLocaleTimeString('zh-CN',{hour12:false});
 const formatSummary=(summary:Record<string,unknown>)=>JSON.stringify(summary,null,2);
 function formatError(event:AgentEvent):string {

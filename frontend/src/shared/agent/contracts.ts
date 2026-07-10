@@ -120,6 +120,12 @@ export interface RecruitmentJobContext {
   job_title: string;
   department: string;
   status: string;
+  description: string | null;
+  required_skills: string[];
+  preferred_skills: string[];
+  min_experience_months: number;
+  source_version: string;
+  effective_date: string;
 }
 
 export interface RecruitmentExecutionPlan {
@@ -129,9 +135,12 @@ export interface RecruitmentExecutionPlan {
   required_nodes: string[];
   executed_nodes: string[];
   skipped_nodes: string[];
+  resume_parse_required: boolean;
+  interview_candidate_ids: number[];
+  next_actions: string[];
   interview_evaluation_requires_real_data: boolean;
-  current_phase: 'SPRINT_2_1_STRATEGY_ONLY';
-  next_phase: 'SPRINT_2_2';
+  current_phase: 'SPRINT_2_2_STRATEGY_RESUME_KNOWLEDGE';
+  next_phase: 'SPRINT_2_3';
   plan_notes: string[];
 }
 
@@ -140,6 +149,9 @@ export interface RecruitmentRunSnapshot extends AgentRunSnapshot {
   job: RecruitmentJobContext;
   candidate_ids: number[];
   execution_plan: RecruitmentExecutionPlan | null;
+  candidate_profiles: Record<string, CandidateProfile>;
+  job_rubric: JobRubric | null;
+  knowledge_summary: EnterpriseKnowledgeSummary | null;
 }
 
 export interface ResumeEvidenceItem {
@@ -165,6 +177,8 @@ export interface CandidateProfile {
   availability: string | null;
   missing_fields: string[];
   evidence_items: ResumeEvidenceItem[];
+  extraction_mode: string;
+  fallback_used: boolean;
 }
 
 export interface JobRequirementItem {
@@ -180,6 +194,20 @@ export interface JobRubric {
   job_id: number;
   version: string | null;
   requirements: JobRequirementItem[];
+}
+
+export interface EnterpriseKnowledgeSummary {
+  job_id: number;
+  job_code: string;
+  standard_version: string;
+  effective_date: string;
+  required_skills: string[];
+  preferred_skills: string[];
+  min_experience_months: number;
+  interview_criteria: string[];
+  risk_rules: string[];
+  retrieval_mode: string;
+  sources: KnowledgeSourceReference[];
 }
 
 export interface JobMatchSummary {

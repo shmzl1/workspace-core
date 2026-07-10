@@ -1,4 +1,4 @@
-"""Event publication interface implemented by the Sprint 2.1 runtime store."""
+"""Event publication interface implemented by the in-process runtime store."""
 
 from collections.abc import AsyncIterator, Sequence
 from typing import Protocol

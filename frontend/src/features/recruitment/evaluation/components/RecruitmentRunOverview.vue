@@ -12,7 +12,7 @@
       <article><span>当前 Agent</span><strong>{{ currentAgent }}</strong></article>
       <article><span>阶段进度</span><strong>{{ phaseProgress }}</strong></article>
       <article><span>真实运行耗时</span><strong>{{ elapsed }}</strong></article>
-      <article><span>当前范围</span><strong>SPRINT_2_1_STRATEGY_ONLY</strong></article>
+      <article><span>当前范围</span><strong>SPRINT_2_2_STRATEGY_RESUME_KNOWLEDGE</strong></article>
     </div>
   </section>
 </template>
@@ -53,7 +53,11 @@ const candidateProgress = computed(() => {
 });
 const currentCandidate = computed(() => {
   const candidateId = props.snapshot?.current_candidate_id;
-  return candidateId ? `候选人 #${candidateId}` : '当前阶段未处理候选人';
+  if (candidateId) return `候选人 #${candidateId}`;
+  if (props.snapshot?.completed_candidates === props.snapshot?.total_candidates && props.snapshot?.total_candidates) {
+    return '当前阶段候选人解析已结束';
+  }
+  return '等待候选人解析';
 });
 const currentAgent = computed(() => {
   const agent = props.snapshot?.current_agent;
@@ -61,11 +65,12 @@ const currentAgent = computed(() => {
   return props.snapshot?.status === AgentRunStatus.COMPLETED ? '当前阶段已结束' : '等待运行';
 });
 const phaseProgress = computed(() => {
-  const status = props.snapshot?.nodes.recruitment_strategy;
-  if (status === AgentNodeStatus.COMPLETED) return '1 / 1（100%）';
-  if (status === AgentNodeStatus.RUNNING) return '0 / 1（执行中）';
-  if (status === AgentNodeStatus.FAILED) return '0 / 1（失败）';
-  return '0 / 1（等待）';
+  const nodes = props.snapshot?.nodes;
+  const statuses = [nodes?.recruitment_strategy, nodes?.resume_parser];
+  const completed = statuses.filter((status) => status === AgentNodeStatus.COMPLETED).length;
+  if (statuses.some((status) => status === AgentNodeStatus.FAILED)) return `${completed} / 2（失败）`;
+  if (statuses.some((status) => status === AgentNodeStatus.RUNNING)) return `${completed} / 2（执行中）`;
+  return `${completed} / 2（${completed === 2 ? '100%' : '等待'}）`;
 });
 const elapsed = computed(() => {
   const snapshot = props.snapshot;

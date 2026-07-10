@@ -23,7 +23,7 @@
       <ul><li v-for="note in strategyPlan.plan_notes" :key="note">{{ note }}</li></ul>
     </div>
     <div v-else-if="nodeStatus === AgentNodeStatus.SKIPPED" class="node-detail__empty">
-      当前节点因 CURRENT_PHASE_NOT_IMPLEMENTED 未执行，不展示策略节点结果作为本节点结果。
+      当前节点在 Sprint 2.2 尚未执行，不展示其他节点结果作为本节点结果。
     </div>
   </section>
 </template>
@@ -40,11 +40,11 @@ import {
 const props=defineProps<{ snapshot:RecruitmentRunSnapshot|null; nodeName:string }>();
 const definitions:Record<string,{label:string;task:string}>={
   recruitment_strategy:{label:'招聘策略 Agent',task:'读取已校验招聘目标与工作流元数据，生成当前阶段结构化执行计划。'},
-  resume_parser:{label:'简历解析 Agent',task:'计划从真实候选人材料提取事实与证据；Sprint 2.1 不执行。'},
-  job_match:{label:'岗位匹配 Agent',task:'计划经 Tool 调用 Service 汇总确定性评分；Sprint 2.1 不执行。'},
-  interview_evaluation:{label:'面试评估 Agent',task:'仅使用真实结构化面试数据；Sprint 2.1 不执行。'},
-  decision_review:{label:'决策审查 Agent',task:'计划检查证据、来源和节点分歧；Sprint 2.1 不执行。'},
-  hr_report:{label:'HR 最终报告',task:'计划汇总可审计建议并交由 HR 决策；Sprint 2.1 不执行。'},
+  resume_parser:{label:'简历解析 Agent',task:'从白名单结构化字段和安全简历片段提取事实、缺失项与可定位证据。'},
+  job_match:{label:'岗位匹配 Agent',task:'计划经 Tool 调用 Service 汇总确定性评分；Sprint 2.2 不执行。'},
+  interview_evaluation:{label:'面试评估 Agent',task:'仅使用真实结构化面试数据；Sprint 2.2 不执行。'},
+  decision_review:{label:'决策审查 Agent',task:'计划检查证据、来源和节点分歧；Sprint 2.2 不执行。'},
+  hr_report:{label:'HR 最终报告',task:'计划汇总可审计建议并交由 HR 决策；Sprint 2.2 不执行。'},
 };
 const metadata=computed(()=>definitions[props.nodeName]||{label:'节点详情',task:'未知节点'});
 const nodeStatus=computed(()=>props.snapshot?.nodes[props.nodeName]||AgentNodeStatus.WAITING);

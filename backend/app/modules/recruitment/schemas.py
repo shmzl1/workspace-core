@@ -22,6 +22,8 @@ class JobRead(BaseModel):
     employment_type: str
     status: str
     owner_user_id: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class CandidateRead(BaseModel):

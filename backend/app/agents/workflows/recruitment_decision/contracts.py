@@ -1,4 +1,6 @@
-"""Contracts for the Sprint 2.1 recruitment strategy run."""
+"""Contracts for the Sprint 2 recruitment decision workflow."""
+
+from __future__ import annotations
 
 from datetime import date
 from enum import Enum
@@ -47,6 +49,27 @@ class RecruitmentJobContext(BaseModel):
     job_title: str
     department: str
     status: str
+    description: str | None = None
+    required_skills: list[str] = Field(default_factory=list)
+    preferred_skills: list[str] = Field(default_factory=list)
+    min_experience_months: int = Field(default=0, ge=0)
+    source_version: str
+    effective_date: date
+
+
+class RecruitmentCandidateContext(BaseModel):
+    candidate_id: int
+    application_id: int
+    skills: list[str] = Field(default_factory=list)
+    experience_months: int | None = Field(default=None, ge=0)
+    availability: str | None = None
+    education: list[str] = Field(default_factory=list)
+    projects: list[str] = Field(default_factory=list)
+    project_roles: list[str] = Field(default_factory=list)
+    project_technologies: list[str] = Field(default_factory=list)
+    measurable_achievements: list[str] = Field(default_factory=list)
+    certificates: list[str] = Field(default_factory=list)
+    resume_excerpt: str | None = Field(default=None, max_length=1500)
 
 
 class RecruitmentRunContext(BaseModel):
@@ -54,6 +77,8 @@ class RecruitmentRunContext(BaseModel):
     job: RecruitmentJobContext
     candidate_ids: list[int] = Field(default_factory=list)
     application_ids: list[int] = Field(default_factory=list)
+    candidates: list[RecruitmentCandidateContext] = Field(default_factory=list)
+    interview_candidate_ids: list[int] = Field(default_factory=list)
 
 
 class RecruitmentExecutionPlan(BaseModel):
@@ -63,9 +88,12 @@ class RecruitmentExecutionPlan(BaseModel):
     required_nodes: list[str] = Field(default_factory=list)
     executed_nodes: list[str] = Field(default_factory=list)
     skipped_nodes: list[str] = Field(default_factory=list)
+    resume_parse_required: bool = True
+    interview_candidate_ids: list[int] = Field(default_factory=list)
+    next_actions: list[str] = Field(default_factory=list)
     interview_evaluation_requires_real_data: bool = True
-    current_phase: str = "SPRINT_2_1_STRATEGY_ONLY"
-    next_phase: str = "SPRINT_2_2"
+    current_phase: str = "SPRINT_2_2_STRATEGY_RESUME_KNOWLEDGE"
+    next_phase: str = "SPRINT_2_3"
     plan_notes: list[str] = Field(default_factory=list)
 
 
@@ -74,6 +102,9 @@ class RecruitmentRunSnapshot(AgentRunSnapshot):
     job: RecruitmentJobContext
     candidate_ids: list[int] = Field(default_factory=list)
     execution_plan: RecruitmentExecutionPlan | None = None
+    candidate_profiles: dict[int, "CandidateProfile"] = Field(default_factory=dict)
+    job_rubric: JobRubric | None = None
+    knowledge_summary: EnterpriseKnowledgeSummary | None = None
 
 
 class ResumeEvidenceItem(BaseModel):
@@ -99,6 +130,8 @@ class CandidateProfile(BaseModel):
     availability: str | None = None
     missing_fields: list[str] = Field(default_factory=list)
     evidence_items: list[ResumeEvidenceItem] = Field(default_factory=list)
+    extraction_mode: str = "STRUCTURED_FALLBACK"
+    fallback_used: bool = True
 
 
 class JobRequirementItem(BaseModel):
@@ -114,6 +147,20 @@ class JobRubric(BaseModel):
     job_id: int
     version: str | None = None
     requirements: list[JobRequirementItem] = Field(default_factory=list)
+
+
+class EnterpriseKnowledgeSummary(BaseModel):
+    job_id: int
+    job_code: str
+    standard_version: str
+    effective_date: date
+    required_skills: list[str] = Field(default_factory=list)
+    preferred_skills: list[str] = Field(default_factory=list)
+    min_experience_months: int = Field(default=0, ge=0)
+    interview_criteria: list[str] = Field(default_factory=list)
+    risk_rules: list[str] = Field(default_factory=list)
+    retrieval_mode: str = "LOCAL_HYBRID_FALLBACK"
+    sources: list[KnowledgeSourceReference] = Field(default_factory=list)
 
 
 class JobMatchSummary(BaseModel):
@@ -183,6 +230,7 @@ class RecruitmentDecisionState(AgentState):
     execution_plan: RecruitmentExecutionPlan | None = None
     candidate_profiles: dict[int, CandidateProfile] = Field(default_factory=dict)
     job_rubric: JobRubric | None = None
+    knowledge_summary: EnterpriseKnowledgeSummary | None = None
     job_matches: dict[int, JobMatchSummary] = Field(default_factory=dict)
     interview_evaluations: dict[int, InterviewEvaluationSummary] = Field(default_factory=dict)
     decision_reviews: dict[int, DecisionReviewSummary] = Field(default_factory=dict)

@@ -166,6 +166,14 @@ class InterviewService:
             ["id", "application_id", "interviewer_id", "meeting_room_id", "start_at", "end_at", "status", "conflict_explanation", "created_by_user_id"],
         ) for interview in self.repository.list_interviews()]
 
+    def application_ids_with_interviews(self, application_ids: list[int]) -> set[int]:
+        selected = set(application_ids)
+        return {
+            int(interview.application_id)
+            for interview in self.repository.list_interviews()
+            if interview.application_id in selected
+        }
+
     def _advance_for_scheduled_interview(self, application_id: int, stage: str) -> None:
         paths = {
             "APPLIED": ("AI_SCREENED", "INTERVIEW_PENDING", "INTERVIEWING"),

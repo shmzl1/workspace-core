@@ -1,7 +1,7 @@
 <template>
   <section class="evaluation-page">
     <header class="evaluation-page__hero">
-      <div><span>Sprint 2.1 · SPRINT_2_1_STRATEGY_ONLY</span><h1>多 Agent 招聘策略规划</h1><p>当前只真实执行招聘策略 Agent；其余节点完成后明确标记为 SKIPPED。</p></div>
+      <div><span>Sprint 2.2 · STRATEGY_RESUME_KNOWLEDGE</span><h1>多 Agent 招聘策略与简历解析</h1><p>真实执行策略规划、企业知识回退检索和确定性简历解析；岗位匹配及后续节点明确标记为 SKIPPED。</p></div>
       <div class="phase-badge">进程内 Run · 真实 SSE</div>
     </header>
 
@@ -14,9 +14,10 @@
       <RecruitmentRunOverview :snapshot="snapshot" />
       <div class="evaluation-page__workspace">
         <MultiAgentWorkflowBoard :snapshot="snapshot" :selected-node="selectedNode" @select="selectedNode = $event" />
-        <AgentEventFeed :events="events" :streaming="streaming" />
+        <AgentEventFeed :events="events" :streaming="streaming" :status="snapshot?.status" />
       </div>
       <AgentNodeDetail :snapshot="snapshot" :node-name="selectedNode" />
+      <Sprint22ResultsPanel :snapshot="snapshot" />
     </template>
   </section>
 </template>
@@ -35,6 +36,7 @@ import AgentNodeDetail from './components/AgentNodeDetail.vue';
 import MultiAgentWorkflowBoard from './components/MultiAgentWorkflowBoard.vue';
 import RecruitmentGoalForm from './components/RecruitmentGoalForm.vue';
 import RecruitmentRunOverview from './components/RecruitmentRunOverview.vue';
+import Sprint22ResultsPanel from './components/Sprint22ResultsPanel.vue';
 import { useRecruitmentAgentRun } from './composables/useRecruitmentAgentRun';
 
 const route = useRoute();

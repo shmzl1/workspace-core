@@ -118,14 +118,40 @@ export function useRecruitmentAgentRun() {
       current.current_agent = event.agent_name;
       current.current_node = event.node_name;
     }
+    if (event.candidate_id !== null && [
+      AgentEventType.TOOL_STARTED,
+      AgentEventType.TOOL_COMPLETED,
+      AgentEventType.INTERMEDIATE_RESULT,
+    ].includes(event.event_type)) current.current_candidate_id = event.candidate_id;
     if (event.event_type === AgentEventType.PLAN_CREATED) {
       const plan = event.summary.execution_plan;
       if (isExecutionPlan(plan)) current.execution_plan = plan;
+    }
+    if (event.event_type === AgentEventType.KNOWLEDGE_RETRIEVED) {
+      const knowledge = event.summary.knowledge_summary;
+      const rubric = event.summary.job_rubric;
+      if (knowledge && typeof knowledge === 'object') {
+        current.knowledge_summary = knowledge as RecruitmentRunSnapshot['knowledge_summary'];
+        current.sources = current.knowledge_summary?.sources || [];
+      }
+      if (rubric && typeof rubric === 'object') current.job_rubric = rubric as RecruitmentRunSnapshot['job_rubric'];
+    }
+    if (event.event_type === AgentEventType.INTERMEDIATE_RESULT) {
+      const profile = event.summary.candidate_profile;
+      if (profile && typeof profile === 'object' && event.candidate_id !== null) {
+        current.candidate_profiles[String(event.candidate_id)] = profile as RecruitmentRunSnapshot['candidate_profiles'][string];
+      }
+    }
+    if (event.event_type === AgentEventType.CANDIDATE_COMPLETED) {
+      const completed = event.summary.completed_candidates;
+      if (typeof completed === 'number') current.completed_candidates = completed;
+      current.current_candidate_id = null;
     }
     if (event.event_type === AgentEventType.WORKFLOW_COMPLETED) {
       current.status = AgentRunStatus.COMPLETED;
       current.current_agent = null;
       current.current_node = null;
+      current.current_candidate_id = null;
       const skipped = event.summary.skipped_nodes;
       if (Array.isArray(skipped)) {
         for (const node of skipped) if (typeof node === 'string') current.nodes[node] = AgentNodeStatus.SKIPPED;

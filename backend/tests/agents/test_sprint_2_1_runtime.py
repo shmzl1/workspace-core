@@ -1,7 +1,7 @@
-"""Sprint 2.1 runtime, compatibility, permission and SSE acceptance tests."""
+"""Sprint 2.2 runtime, compatibility, permission and SSE acceptance tests."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -12,6 +12,7 @@ from app.agents.runtime.run_store import InMemoryAgentRunStore
 from app.agents.shared import AgentEventType, AgentNodeStatus, AgentRunStatus
 from app.agents.workflows.recruitment_decision.contracts import (
     RecruitmentDecisionState,
+    RecruitmentCandidateContext,
     RecruitmentGoal,
     RecruitmentJobContext,
     RecruitmentRunContext,
@@ -39,9 +40,34 @@ def build_context() -> RecruitmentRunContext:
             job_title=goal.job_title,
             department=goal.department,
             status="OPEN",
+            description="负责 Agent 后端开发",
+            required_skills=["Python"],
+            preferred_skills=["FastAPI"],
+            min_experience_months=24,
+            source_version="job-test-v1",
+            effective_date=date(2026, 7, 10),
         ),
         candidate_ids=[101, 102],
         application_ids=[201, 202],
+        candidates=[
+            RecruitmentCandidateContext(
+                candidate_id=101,
+                application_id=201,
+                skills=["Python", "FastAPI"],
+                experience_months=36,
+                education=["本科"],
+                projects=["Agent 平台"],
+                resume_excerpt="三年 Python 与 FastAPI 项目经验。",
+            ),
+            RecruitmentCandidateContext(
+                candidate_id=102,
+                application_id=202,
+                skills=["Python"],
+                experience_months=18,
+                resume_excerpt="熟悉 Python 开发。",
+            ),
+        ],
+        interview_candidate_ids=[101],
     )
 
 
@@ -92,7 +118,7 @@ def test_compatibility_and_intelligence_packages_import() -> None:
     assert intelligence.ResumeExtractionResult
 
 
-def test_strategy_runner_emits_six_real_events_and_skips_future_nodes() -> None:
+def test_sprint_2_2_runner_executes_strategy_knowledge_and_resume_parser() -> None:
     async def scenario() -> None:
         store = InMemoryAgentRunStore()
         state, snapshot = build_models()
@@ -102,25 +128,32 @@ def test_strategy_runner_emits_six_real_events_and_skips_future_nodes() -> None:
         await run_recruitment_strategy(snapshot.run_id, state.context, store)
         record = await store.get_owned(snapshot.run_id, 7)
 
-        assert [event.event_type for event in record.events] == [
-            AgentEventType.WORKFLOW_STARTED,
-            AgentEventType.AGENT_STARTED,
-            AgentEventType.AGENT_THINKING,
-            AgentEventType.PLAN_CREATED,
-            AgentEventType.AGENT_COMPLETED,
-            AgentEventType.WORKFLOW_COMPLETED,
-        ]
+        event_types = [event.event_type for event in record.events]
+        assert event_types[0] is AgentEventType.WORKFLOW_STARTED
+        assert AgentEventType.PLAN_CREATED in event_types
+        assert AgentEventType.KNOWLEDGE_RETRIEVED in event_types
+        assert event_types.count(AgentEventType.CANDIDATE_COMPLETED) == 2
+        assert event_types[-1] is AgentEventType.WORKFLOW_COMPLETED
         assert record.snapshot.status is AgentRunStatus.COMPLETED
         assert record.snapshot.nodes["recruitment_strategy"] is AgentNodeStatus.COMPLETED
+        assert record.snapshot.nodes["resume_parser"] is AgentNodeStatus.COMPLETED
         assert all(
             record.snapshot.nodes[node.name] is AgentNodeStatus.SKIPPED
             for node in RECRUITMENT_WORKFLOW_NODES
-            if node.name != "recruitment_strategy"
+            if node.name not in {"recruitment_strategy", "resume_parser"}
         )
         thinking = next(event for event in record.events if event.event_type is AgentEventType.AGENT_THINKING)
         assert "optional_salary_budget" not in thinking.summary["current_goal"]
-        assert not any(event.tool_name for event in record.events)
-        assert not any(event.source_count for event in record.events)
+        assert {event.tool_name for event in record.events if event.tool_name} == {
+            "retrieve_enterprise_knowledge",
+            "extract_candidate_profile",
+        }
+        assert record.snapshot.completed_candidates == 2
+        assert len(record.snapshot.candidate_profiles) == 2
+        assert record.snapshot.knowledge_summary is not None
+        assert record.snapshot.knowledge_summary.retrieval_mode == "LOCAL_HYBRID_FALLBACK"
+        assert record.snapshot.sources
+        assert "三年 Python 与 FastAPI 项目经验。" not in record.snapshot.model_dump_json()
 
     asyncio.run(scenario())
 
@@ -163,8 +196,10 @@ def test_sse_replays_history_and_closes_after_terminal_event() -> None:
         return [chunk async for chunk in response.body_iterator]
 
     chunks = asyncio.run(asyncio.wait_for(scenario(), timeout=2))
-    assert len(chunks) == 6
+    assert len(chunks) > 6
     assert all("event: agent_event" in chunk for chunk in chunks)
+    assert any("KNOWLEDGE_RETRIEVED" in chunk for chunk in chunks)
+    assert sum("CANDIDATE_COMPLETED" in chunk for chunk in chunks) == 2
     assert "WORKFLOW_COMPLETED" in chunks[-1]
 
 

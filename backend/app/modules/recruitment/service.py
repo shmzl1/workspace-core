@@ -123,6 +123,39 @@ class RecruitmentService:
             )
         return results
 
+    def list_agent_candidate_inputs_for_job(
+        self,
+        job_id: int,
+        candidate_ids: list[int],
+    ) -> list[dict[str, Any]]:
+        """Return minimal, detached resume inputs for an authorized Agent run."""
+
+        if self.repository.get_job(job_id) is None:
+            raise TalentFlowError("JOB_NOT_FOUND", "岗位不存在。")
+        selected = set(candidate_ids)
+        results: list[dict[str, Any]] = []
+        for application, candidate in self.repository.list_applications_for_job(job_id):
+            if candidate.id not in selected:
+                continue
+            profile = candidate.profile_json if isinstance(candidate.profile_json, dict) else {}
+            results.append(
+                {
+                    "candidate_id": candidate.id,
+                    "application_id": application.id,
+                    "skills": self._string_list(candidate.skills),
+                    "experience_months": candidate.experience_months,
+                    "availability": candidate.available_from.isoformat() if candidate.available_from else None,
+                    "education": self._string_list(profile.get("education")),
+                    "projects": self._string_list(profile.get("projects")),
+                    "project_roles": self._string_list(profile.get("project_roles")),
+                    "project_technologies": self._string_list(profile.get("project_technologies")),
+                    "measurable_achievements": self._string_list(profile.get("measurable_achievements")),
+                    "certificates": self._string_list(profile.get("certificates")),
+                    "resume_excerpt": self._resume_excerpt(candidate.resume_text),
+                }
+            )
+        return results
+
     def get_application(self, application_id: int) -> CandidateApplicationDetailRead:
         detail = self.repository.get_application_detail(application_id)
         if detail is None:
@@ -426,6 +459,24 @@ class RecruitmentService:
     @staticmethod
     def _load_score_resume() -> Any | None:
         return load_human_only_function(RESUME_SCORING_CONTRACT)
+
+    @staticmethod
+    def _string_list(value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            cleaned = value.strip()
+            return [cleaned] if cleaned else []
+        if isinstance(value, (list, tuple, set)):
+            return [str(item).strip() for item in value if str(item).strip()]
+        return []
+
+    @staticmethod
+    def _resume_excerpt(value: str | None) -> str | None:
+        if not value:
+            return None
+        normalized = " ".join(value.split())
+        return normalized[:1500] or None
 
     @classmethod
     def _json_ready(cls, value: Any) -> Any:

@@ -1,4 +1,4 @@
-"""Authenticated Sprint 2.1 recruitment Agent Run endpoints."""
+"""Authenticated Sprint 2.2 recruitment Agent Run endpoints."""
 
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -20,6 +20,7 @@ from app.agents.workflows.recruitment_decision.graph import RECRUITMENT_WORKFLOW
 from app.core.database import get_db_session
 from app.core.dependencies import require_permission
 from app.modules.auth.models import User
+from app.modules.interview.service import InterviewService
 from app.modules.recruitment.service import RecruitmentService
 from app.modules.recruitment.services import RecruitmentRunContextService
 from app.shared.response import ApiResponse, ok
@@ -34,7 +35,10 @@ async def create_recruitment_run(
     current_user: User = Depends(require_permission("agent.hr.use")),
     session: Session = Depends(get_db_session),
 ) -> ApiResponse[RecruitmentRunSnapshot]:
-    context_service = RecruitmentRunContextService(RecruitmentService.from_session(session))
+    context_service = RecruitmentRunContextService(
+        RecruitmentService.from_session(session),
+        InterviewService.from_session(session),
+    )
     context = context_service.validate(payload)
     now = datetime.now(timezone.utc)
     run_id = uuid4().hex

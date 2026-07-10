@@ -5,16 +5,14 @@ database Session into the runner.  These functions remain available for the
 existing public import path while delegating all business work to Services.
 """
 
-from typing import Any
+from __future__ import annotations
 
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 from app.agents.shared import ToolContract
-from app.modules.attendance.service import AttendanceService
-from app.modules.employee.service import EmployeeService
-from app.modules.payroll.services.employee_salary_service import EmployeeSalaryService
-
-
 EMPLOYEE_TOOL_CONTRACTS: tuple[ToolContract, ...] = (
     ToolContract(
         name="get_self_attendance",
@@ -47,6 +45,8 @@ def get_my_monthly_attendance_summary(
 ) -> dict[str, Any]:
     """Return the current employee's monthly attendance through its Service."""
 
+    from app.modules.attendance.service import AttendanceService
+
     return AttendanceService(db).get_monthly_summary(current_employee_id, year, month)
 
 
@@ -56,6 +56,8 @@ def get_my_annual_leave_balance(
     current_employee_id: int,
 ) -> dict[str, Any]:
     """Return the current employee's leave balance through its Service."""
+
+    from app.modules.employee.service import EmployeeService
 
     return EmployeeService(db).get_annual_leave(current_employee_id, year)
 
@@ -68,6 +70,8 @@ def get_my_salary_details(
     actor_permissions: list[str],
 ) -> dict[str, Any]:
     """Return authorized self salary data through the salary Service."""
+
+    from app.modules.payroll.services.employee_salary_service import EmployeeSalaryService
 
     return EmployeeSalaryService(db).get_employee_salary(
         actor_user_id=actor_user_id,

@@ -1,4 +1,4 @@
-"""Bounded in-process storage for Sprint 2.1 Agent runs."""
+"""Bounded in-process storage for Agent runs."""
 
 import asyncio
 from collections import OrderedDict
