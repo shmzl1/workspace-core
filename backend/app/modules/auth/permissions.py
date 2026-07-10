@@ -12,7 +12,7 @@ MANAGER_PERMISSIONS = (
 HR_PERMISSIONS = (
     "employee.self.read", "recruitment.read", "recruitment.manage", "candidate.read",
     "candidate.score", "candidate.stage.manage", "interview.read", "interview.manage",
-    "reporting.recruitment.read", "payroll.masked.read", "policy.read", "audit.read",
+    "reporting.recruitment.read", "payroll.all.read", "payroll.self.read", "policy.read", "audit.read",
     "agent.hr.use",
 )
 PAYROLL_ADMIN_PERMISSIONS = (

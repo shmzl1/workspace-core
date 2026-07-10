@@ -20,7 +20,7 @@ def test_high_match_candidate_gets_high_score() -> None:
         }
     )
 
-    assert result["status"] == "success"
+    assert result["status"] == "scored"
     assert result["overall_score"] >= 85
     assert result["recommendation"] == "建议优先面试"
 
@@ -52,6 +52,6 @@ def test_insufficient_experience_reduces_score() -> None:
 def test_missing_fields_do_not_crash() -> None:
     result = score_resume({})
 
-    assert result["status"] == "success"
+    assert result["status"] == "scored"
     assert 0 <= result["overall_score"] <= 100
     assert isinstance(result["reasons"], list)

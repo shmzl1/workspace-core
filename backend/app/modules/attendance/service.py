@@ -143,3 +143,67 @@ class AttendanceService:
 
     def list_recent(self, employee_id: int, limit: int = 31) -> list[dict]:
         return [model_to_dict(record, ATTENDANCE_FIELDS) for record in self.repository.list_records(employee_id, limit)]
+
+    def get_monthly_summary(self, employee_id: int, year: int, month: int) -> dict:
+        import calendar
+        from decimal import Decimal
+        from app.modules.employee.models import LeaveBalance
+
+        last_day = calendar.monthrange(year, month)[1]
+        start_date = date(year, month, 1)
+        end_date = date(year, month, last_day)
+
+        records = self.repo.get_records_by_range(employee_id, start_date, end_date)
+
+        late_count = 0
+        total_late_minutes = 0
+        early_leave_count = 0
+        total_early_leave_minutes = 0
+        absent_count = 0
+        unpaid_leave_count = 0
+        approved_annual_leave_count = 0
+        normal_count = 0
+
+        for r in records:
+            if r.status == "NORMAL":
+                normal_count += 1
+            elif r.status == "LATE":
+                late_count += 1
+                total_late_minutes += r.late_minutes
+            elif r.status == "EARLY_LEAVE":
+                early_leave_count += 1
+                total_early_leave_minutes += r.early_leave_minutes
+            elif r.status == "ABSENT":
+                absent_count += 1
+            elif r.status == "UNPAID_LEAVE":
+                unpaid_leave_count += 1
+            elif r.status == "APPROVED_ANNUAL_LEAVE":
+                approved_annual_leave_count += 1
+
+        balance = self.db.query(LeaveBalance).filter(
+            LeaveBalance.employee_id == employee_id,
+            LeaveBalance.year == year,
+            LeaveBalance.leave_type == "ANNUAL"
+        ).first()
+
+        total_days = balance.total_days if balance else Decimal("0")
+        used_days = balance.used_days if balance else Decimal("0")
+        remaining_days = total_days - used_days
+
+        return {
+            "employee_id": employee_id,
+            "year": year,
+            "month": month,
+            "late_count": late_count,
+            "total_late_minutes": total_late_minutes,
+            "early_leave_count": early_leave_count,
+            "total_early_leave_minutes": total_early_leave_minutes,
+            "absent_count": absent_count,
+            "unpaid_leave_count": unpaid_leave_count,
+            "approved_annual_leave_count": approved_annual_leave_count,
+            "normal_count": normal_count,
+            "total_days": total_days,
+            "used_days": used_days,
+            "remaining_days": remaining_days,
+        }
+

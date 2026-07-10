@@ -37,13 +37,19 @@ function showToast(message: string) {
 }
 
 function handleNavigate(view: string) {
+  let targetView = view;
+  if (view === 'emp_assistant' && agentRole.value === 'hr') {
+    targetView = 'assistant';
+  } else if (view === 'assistant' && agentRole.value === 'employee') {
+    targetView = 'emp_assistant';
+  }
   const routeMap: Record<string, string> = {
     dashboard: '/hr/dashboard', pipeline: '/hr/pipeline', candidates: '/hr/candidates', interviews: '/hr/interviews',
     reporting: '/hr/reporting', assistant: '/hr/assistant', policy: '/hr/policy', audit: '/hr/audit', settings: '/hr/settings',
     emp_dashboard: '/employee/dashboard', attendance: '/employee/attendance', leave: '/employee/leave', payroll: '/employee/payroll',
     emp_policy: '/employee/policy', emp_assistant: '/employee/assistant',
   };
-  router.push(routeMap[view] || getDefaultRoute());
+  router.push(routeMap[targetView] || getDefaultRoute());
 }
 
 function handleLogout() {

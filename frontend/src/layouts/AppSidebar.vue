@@ -1,6 +1,6 @@
 <template>
   <aside class="sidebar">
-    <div class="sidebar__groups"><section v-for="group in currentGroups" :key="group.title" class="sidebar__group"><h2>{{ group.title }}</h2><button v-for="item in group.items" :key="item.path" class="sidebar__item" :class="{ 'sidebar__item--active': item.path === activeRoute }" @click="$emit('navigate', item.id)"><span class="sidebar__item-mark"></span>{{ item.label }}</button></section></div>
+    <div class="sidebar__groups"><section v-for="group in currentGroups" :key="group.title" class="sidebar__group"><h2>{{ group.title }}</h2><button v-for="item in group.items" :key="item.path" class="sidebar__item" :class="{ 'sidebar__item--active': isActive(item) }" @click="$emit('navigate', item.id)"><span class="sidebar__item-mark"></span>{{ item.label }}</button></section></div>
     <div class="sidebar__profile"><span class="sidebar__avatar">{{ user.full_name?.slice(0, 1) || user.username.slice(0, 1) }}</span><div><strong>{{ user.full_name || user.username }}</strong><small>{{ user.job_title || roleLabel }}</small></div></div>
   </aside>
 </template>
@@ -12,6 +12,12 @@ interface SidebarItem { id: string; label: string; path: string; permissions: st
 const props = defineProps<{ activeRoute: string; user: AuthUser }>();
 defineEmits<{ navigate: [id: string] }>();
 const hasAny = (permissions: string[]) => permissions.some((item) => props.user.permissions.includes(item));
+const isActive = (item: SidebarItem) => {
+  if (item.id === 'emp_assistant') {
+    return props.activeRoute === '/employee/assistant' || props.activeRoute === '/hr/assistant';
+  }
+  return item.path === props.activeRoute;
+};
 const groups: { title: string; items: SidebarItem[] }[] = [
   { title: '工作台', items: [
     { id: 'dashboard', label: '智能招聘看板', path: '/hr/dashboard', permissions: ['recruitment.read'] },

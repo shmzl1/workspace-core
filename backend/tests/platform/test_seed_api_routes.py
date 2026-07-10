@@ -4,6 +4,8 @@ from fastapi.testclient import TestClient
 
 from app.api.v1.endpoints.recruitment import get_recruitment_service
 from app.main import app
+from app.core.dependencies import get_current_user
+from app.modules.auth.models import User
 
 
 class FakeRecruitmentService:
@@ -19,6 +21,8 @@ class FakeRecruitmentService:
 
 
 def test_frontend_can_read_seed_like_jobs_through_unified_api() -> None:
+    mock_user = User(id=3, username="linyuqing", role="HR_SPECIALIST", permissions=["recruitment.read"])
+    app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_recruitment_service] = lambda: FakeRecruitmentService()
     try:
         response = TestClient(app).get(

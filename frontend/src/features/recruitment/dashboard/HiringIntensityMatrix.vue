@@ -1,4 +1,4 @@
-<template>
+  <template>
   <article class="matrix-card tf-card">
     <div class="matrix-card__header">
       <div>

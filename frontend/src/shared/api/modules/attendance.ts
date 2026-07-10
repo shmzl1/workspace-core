@@ -30,3 +30,11 @@ export async function fetchWeeklyAttendance(): Promise<WeeklyAttendanceSummary[]
   const response = await apiClient.get<WeeklyAttendanceSummary[]>('/attendance/weekly');
   return response.data;
 }
+
+export async function fetchMonthlyAttendanceSummary(year: number, month: number, employeeId?: number): Promise<any> {
+  const params: any = { year, month };
+  if (employeeId) params.employee_id = employeeId;
+  const response = await apiClient.get('/attendance/monthly', { params });
+  return response.data;
+}
+

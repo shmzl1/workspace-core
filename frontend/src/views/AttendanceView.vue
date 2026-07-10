@@ -107,13 +107,151 @@
         </div>
       </div>
     </div>
-    </template>
+
+    <!-- Monthly Summary Section (New) -->
+    <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm p-6 mt-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-outline-variant/20 pb-4">
+        <div>
+          <h3 class="font-title-lg text-title-lg text-on-surface font-semibold flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary">calendar_month</span>
+            月度考勤与休假汇总
+          </h3>
+          <p class="text-xs text-on-surface-variant mt-1">查看选定月份的考勤状态统计、扣款/请假天数及年假剩余余额。</p>
+        </div>
+        <!-- Year/Month selectors and target employee selector -->
+        <div class="flex flex-wrap items-center gap-3">
+          <div v-if="canSelectTarget" class="flex items-center gap-2">
+            <span class="text-xs font-medium text-on-surface-variant">目标员工</span>
+            <select v-model="targetEmployeeId" @change="loadMonthlySummary" class="bg-white border border-outline-variant rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary">
+              <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{ emp.full_name }} · {{ emp.department }}</option>
+            </select>
+          </div>
+          <select v-model="selectedYear" class="bg-white border border-outline-variant rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary">
+            <option v-for="y in [2025, 2026, 2027]" :key="y" :value="y">{{ y }}年</option>
+          </select>
+          <select v-model="selectedMonth" class="bg-white border border-outline-variant rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary">
+            <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
+          </select>
+          <button @click="loadMonthlySummary" class="bg-primary text-on-primary font-semibold px-4 py-1.5 rounded-lg text-sm hover:bg-primary-container transition-all flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm">refresh</span>
+            查询
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading and Summary Grid -->
+      <div v-if="summaryLoading" class="flex items-center justify-center py-12">
+        <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+      <div v-else-if="monthlySummary" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Left: Late, Early, Normal Stat Card -->
+        <div class="bg-surface-container-low rounded-xl p-5 border border-outline-variant/20 flex flex-col justify-between">
+          <div>
+            <h4 class="text-xs font-semibold text-outline-variant uppercase tracking-wider mb-4 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px] text-amber-500">warning</span>
+              考勤异常与打卡统计
+            </h4>
+            <div class="space-y-3.5">
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-on-surface-variant">正常打卡次数</span>
+                <span class="font-semibold text-secondary bg-secondary-container/20 px-2.5 py-0.5 rounded-full text-xs">{{ monthlySummary.normal_count }} 次</span>
+              </div>
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-on-surface-variant">迟到次数 (分钟)</span>
+                <span class="font-semibold" :class="monthlySummary.late_count > 0 ? 'text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full text-xs' : 'text-on-surface-variant'">
+                  {{ monthlySummary.late_count }} 次 ({{ monthlySummary.total_late_minutes }} 分钟)
+                </span>
+              </div>
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-on-surface-variant">早退次数 (分钟)</span>
+                <span class="font-semibold" :class="monthlySummary.early_leave_count > 0 ? 'text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full text-xs' : 'text-on-surface-variant'">
+                  {{ monthlySummary.early_leave_count }} 次 ({{ monthlySummary.total_early_leave_minutes }} 分钟)
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="mt-6 text-[11px] text-outline flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px]">info</span>
+            正常打卡包含无异常和已获准假记录。
+          </div>
+        </div>
+
+        <!-- Center: Absent, Leave Days Stat Card -->
+        <div class="bg-surface-container-low rounded-xl p-5 border border-outline-variant/20 flex flex-col justify-between">
+          <div>
+            <h4 class="text-xs font-semibold text-outline-variant uppercase tracking-wider mb-4 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px] text-red-500">cancel</span>
+              缺勤与请假天数
+            </h4>
+            <div class="space-y-3.5">
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-on-surface-variant">旷工/缺勤天数</span>
+                <span class="font-semibold" :class="monthlySummary.absent_count > 0 ? 'text-error bg-error-container/20 px-2.5 py-0.5 rounded-full text-xs' : 'text-on-surface-variant'">
+                  {{ monthlySummary.absent_count }} 天
+                </span>
+              </div>
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-on-surface-variant">无薪事假天数</span>
+                <span class="font-semibold" :class="monthlySummary.unpaid_leave_count > 0 ? 'text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full text-xs' : 'text-on-surface-variant'">
+                  {{ monthlySummary.unpaid_leave_count }} 天
+                </span>
+              </div>
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-on-surface-variant">已休年假天数</span>
+                <span class="font-semibold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full text-xs">
+                  {{ monthlySummary.approved_annual_leave_count }} 天
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="mt-6 text-[11px] text-outline flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px]">gavel</span>
+            缺勤与无薪假天数将直接影响本月薪资预审。
+          </div>
+        </div>
+
+        <!-- Right: Leave Balance Card -->
+        <div class="bg-primary/5 rounded-xl p-5 border border-primary/10 flex flex-col justify-between relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl -translate-y-1/3 translate-x-1/3"></div>
+          <div>
+            <h4 class="text-xs font-semibold text-primary uppercase tracking-wider mb-4 flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">flight_takeoff</span>
+              带薪年假查询与余额
+            </h4>
+            <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+              <div class="bg-white rounded-lg p-2.5 border border-outline-variant/20 shadow-sm">
+                <span class="block text-[10px] text-outline font-medium">总天数</span>
+                <span class="font-display text-lg font-bold text-on-surface mt-1 block">{{ monthlySummary.total_days }}</span>
+              </div>
+              <div class="bg-white rounded-lg p-2.5 border border-outline-variant/20 shadow-sm">
+                <span class="block text-[10px] text-outline font-medium">已用</span>
+                <span class="font-display text-lg font-bold text-secondary mt-1 block">{{ monthlySummary.used_days }}</span>
+              </div>
+              <div class="bg-white rounded-lg p-2.5 border border-primary/20 bg-primary/5 shadow-sm">
+                <span class="block text-[10px] text-primary font-medium">剩余</span>
+                <span class="font-display text-lg font-bold text-primary mt-1 block">{{ monthlySummary.remaining_days }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="mt-6 text-[11px] text-outline flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px]">shield</span>
+            数据受年假调休规则 and 休假申请流程保护。
+          </div>
+        </div>
+
+      </div>
+      <div v-else class="text-center py-12 text-on-surface-variant text-sm">
+        无法获取月度汇总数据。
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { checkIn, checkOut, fetchTodayAttendance, fetchWeeklyAttendance } from '../shared/api/modules/attendance';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useAuthStore } from '../features/auth/authStore';
+import { checkIn, checkOut, fetchTodayAttendance, fetchWeeklyAttendance, fetchMonthlyAttendanceSummary } from '../shared/api/modules/attendance';
 import { fetchMyProfile } from '../shared/api/modules/employee';
 import LoadingState from '../shared/components/feedback/LoadingState.vue';
 import ErrorState from '../shared/components/feedback/ErrorState.vue';
@@ -121,6 +259,7 @@ import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue
 import { ApiClientError } from '../shared/api/apiClient';
 
 const emit = defineEmits(['show-toast']);
+const { currentUser, hasAnyPermission } = useAuthStore();
 
 const employeeName = ref('当前员工');
 const loading = ref(true);
@@ -143,6 +282,46 @@ const weeklySummary = ref([
   { name: '周六', status: 'NONE', isToday: false },
   { name: '周日', status: 'NONE', isToday: false },
 ]);
+
+// --- Monthly Summary & Annual Leave States ---
+const selectedYear = ref(new Date().getFullYear());
+const selectedMonth = ref(new Date().getMonth() + 1);
+const summaryLoading = ref(false);
+const monthlySummary = ref<any>(null);
+const targetEmployeeId = ref<number | undefined>(undefined);
+const employees = ref<any[]>([]);
+
+const canSelectTarget = computed(() => {
+  return hasAnyPermission(['payroll.all.read', 'payroll.review.read', 'audit.read', 'employee.department.read']);
+});
+
+const loadMonthlySummary = async () => {
+  summaryLoading.value = true;
+  try {
+    const data = await fetchMonthlyAttendanceSummary(
+      selectedYear.value,
+      selectedMonth.value,
+      targetEmployeeId.value
+    );
+    monthlySummary.value = data;
+  } catch (err: any) {
+    console.error('Failed to load monthly summary:', err);
+    emit('show-toast', err.message || '加载月度汇总失败');
+    monthlySummary.value = null;
+  } finally {
+    summaryLoading.value = false;
+  }
+};
+
+const loadEmployees = async () => {
+  if (!canSelectTarget.value) return;
+  try {
+    const { fetchEmployees } = await import('../shared/api/modules/employee');
+    employees.value = await fetchEmployees();
+  } catch (err) {
+    console.error('Failed to load employees:', err);
+  }
+};
 
 const updateClock = () => {
   const now = new Date();
@@ -214,7 +393,7 @@ const handleCheckIn = async () => {
   try {
     const result = await checkIn();
     emit('show-toast', result.message || '签到成功！');
-    await Promise.all([fetchTodayStatus(), fetchWeeklySummary()]);
+    await Promise.all([fetchTodayStatus(), fetchWeeklySummary(), loadMonthlySummary()]);
   } catch (err: any) {
     emit('show-toast', err.message || '签到失败');
   } finally {
@@ -228,7 +407,7 @@ const handleCheckOut = async () => {
   try {
     const result = await checkOut();
     emit('show-toast', result.message || '签退成功！');
-    await Promise.all([fetchTodayStatus(), fetchWeeklySummary()]);
+    await Promise.all([fetchTodayStatus(), fetchWeeklySummary(), loadMonthlySummary()]);
   } catch (err: any) {
     emit('show-toast', err.message || '签退失败');
   } finally {
@@ -240,6 +419,11 @@ onMounted(async () => {
   updateClock();
   clockTimer = setInterval(updateClock, 1000);
   await loadAttendancePage();
+  await loadEmployees();
+  if (canSelectTarget.value && currentUser.value?.employee_id) {
+    targetEmployeeId.value = currentUser.value.employee_id;
+  }
+  await loadMonthlySummary();
 });
 
 onUnmounted(() => {

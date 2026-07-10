@@ -77,19 +77,30 @@
       <!-- Left Column: Data & Table -->
       <div class="lg:col-span-8 flex flex-col gap-6">
         
-        <!-- Hero Card: Net Pay -->
+        <!-- Hero Card: Net Pay & Month Selector -->
         <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/50 p-6 shadow-sm relative overflow-hidden">
           <div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
           <div class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
-              <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-2">基本应发薪资 ({{ salaryCurrency || 'CNY' }})</p>
-              <div class="font-display text-[48px] leading-[56px] font-bold text-on-surface tracking-tight mb-2">
-                {{ salaryAmount !== null ? '¥ ' + Number(salaryAmount).toLocaleString([], { minimumFractionDigits: 2 }) : '已隐藏 / 无权限' }}
+              <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-2">
+                {{ selectedYear }}年{{ selectedMonth }}月 预计实发薪资 ({{ salaryCurrency || 'CNY' }})
+              </p>
+              <div class="font-display text-[42px] leading-[50px] font-bold text-on-surface tracking-tight mb-2">
+                {{ salaryAmount !== null ? '¥ ' + Number(estimatedDeductions.netSalary).toLocaleString([], { minimumFractionDigits: 2 }) : '已隐藏 / 无权限' }}
               </div>
               <div class="flex items-center gap-2 text-secondary">
                 <span class="material-symbols-outlined text-[16px]">verified_user</span>
-                <span class="font-label-md text-label-md">已通过安全规则验证</span>
+                <span class="font-label-md text-label-md">已结合 {{ selectedMonth }} 月考勤月度统计进行预计算</span>
               </div>
+            </div>
+            <!-- Year/Month selectors -->
+            <div class="flex items-center gap-2 bg-surface-container-low p-2 rounded-xl border border-outline-variant/30">
+              <select v-model="selectedYear" @change="loadMonthlyAttendance" class="bg-white border border-outline-variant rounded-lg px-2.5 py-1 text-xs outline-none focus:border-primary">
+                <option v-for="y in [2025, 2026, 2027]" :key="y" :value="y">{{ y }}年</option>
+              </select>
+              <select v-model="selectedMonth" @change="loadMonthlyAttendance" class="bg-white border border-outline-variant rounded-lg px-2.5 py-1 text-xs outline-none focus:border-primary">
+                <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
+              </select>
             </div>
           </div>
         </div>
@@ -173,6 +184,114 @@
             </table>
           </div>
         </div>
+
+        <!-- Attendance Deductions Table -->
+        <div v-if="salaryAmount !== null" class="bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm overflow-hidden mt-2">
+          <div class="px-6 py-4 border-b border-outline-variant/30 bg-surface-container-low/50 flex justify-between items-center">
+            <h3 class="font-title-lg text-title-lg text-on-surface font-semibold flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[20px] text-amber-500">warning</span>
+              考勤关联扣款明细 ({{ selectedYear }}年{{ selectedMonth }}月)
+            </h3>
+            <span class="text-xs text-outline leading-tight">数据隔离：考勤汇总直接作为预审输入</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-surface-container-low/50 border-b border-outline-variant/30">
+                  <th class="py-3 px-6 font-label-md text-label-md uppercase text-on-surface-variant/70 font-medium w-1/3">扣款项目</th>
+                  <th class="py-3 px-6 font-label-md text-label-md uppercase text-on-surface-variant/70 font-medium">考勤汇总</th>
+                  <th class="py-3 px-6 font-label-md text-label-md uppercase text-on-surface-variant/70 font-medium">扣款规则与计算</th>
+                  <th class="py-3 px-6 font-label-md text-label-md uppercase text-on-surface-variant/70 font-medium text-right">金额 (RMB)</th>
+                </tr>
+              </thead>
+              <tbody class="font-body-md text-body-md text-on-surface divide-y divide-outline-variant/20">
+                <!-- Base Salary Earning -->
+                <tr class="hover:bg-surface-container-lowest transition-colors">
+                  <td class="py-3.5 px-6 font-semibold flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                    协议基本月薪
+                  </td>
+                  <td class="py-3.5 px-6 text-on-surface-variant">-</td>
+                  <td class="py-3.5 px-6 text-on-surface-variant">协议标准工资额度</td>
+                  <td class="py-3.5 px-6 text-right font-mono font-bold text-primary">
+                    + ¥ {{ Number(salaryAmount).toLocaleString([], { minimumFractionDigits: 2 }) }}
+                  </td>
+                </tr>
+                <!-- Late -->
+                <tr class="hover:bg-surface-container-lowest transition-colors">
+                  <td class="py-3.5 px-6 flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+                    迟到扣款
+                  </td>
+                  <td class="py-3.5 px-6 text-on-surface-variant">
+                    {{ estimatedDeductions.lateCount }} 次
+                  </td>
+                  <td class="py-3.5 px-6 text-on-surface-variant">
+                    50 元 / 次
+                  </td>
+                  <td class="py-3.5 px-6 text-right font-mono" :class="estimatedDeductions.lateDeduct > 0 ? 'text-error font-semibold' : 'text-outline'">
+                    - ¥ {{ estimatedDeductions.lateDeduct.toFixed(2) }}
+                  </td>
+                </tr>
+                <!-- Early Leave -->
+                <tr class="hover:bg-surface-container-lowest transition-colors">
+                  <td class="py-3.5 px-6 flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+                    早退扣款
+                  </td>
+                  <td class="py-3.5 px-6 text-on-surface-variant">
+                    {{ estimatedDeductions.earlyCount }} 次
+                  </td>
+                  <td class="py-3.5 px-6 text-on-surface-variant">
+                    50 元 / 次
+                  </td>
+                  <td class="py-3.5 px-6 text-right font-mono" :class="estimatedDeductions.earlyDeduct > 0 ? 'text-error font-semibold' : 'text-outline'">
+                    - ¥ {{ estimatedDeductions.earlyDeduct.toFixed(2) }}
+                  </td>
+                </tr>
+                <!-- Absent -->
+                <tr class="hover:bg-surface-container-lowest transition-colors">
+                  <td class="py-3.5 px-6 flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                    缺勤扣款
+                  </td>
+                  <td class="py-3.5 px-6 text-on-surface-variant">
+                    {{ estimatedDeductions.absentCount }} 天
+                  </td>
+                  <td class="py-3.5 px-6 text-on-surface-variant">
+                    天数 * 日薪 (日薪 = 基本月薪 / 22)
+                  </td>
+                  <td class="py-3.5 px-6 text-right font-mono" :class="estimatedDeductions.absentDeduct > 0 ? 'text-error font-semibold' : 'text-outline'">
+                    - ¥ {{ estimatedDeductions.absentDeduct.toFixed(2) }}
+                  </td>
+                </tr>
+                <!-- Unpaid Leave -->
+                <tr class="hover:bg-surface-container-lowest transition-colors">
+                  <td class="py-3.5 px-6 flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                    无薪事假扣款
+                  </td>
+                  <td class="py-3.5 px-6 text-on-surface-variant">
+                    {{ estimatedDeductions.unpaidCount }} 天
+                  </td>
+                  <td class="py-3.5 px-6 text-on-surface-variant">
+                    天数 * 日薪
+                  </td>
+                  <td class="py-3.5 px-6 text-right font-mono" :class="estimatedDeductions.unpaidDeduct > 0 ? 'text-error font-semibold' : 'text-outline'">
+                    - ¥ {{ estimatedDeductions.unpaidDeduct.toFixed(2) }}
+                  </td>
+                </tr>
+                <!-- Total deductions -->
+                <tr class="bg-surface-container-low/50 font-semibold">
+                  <td class="py-3 px-6" colspan="3">合计扣减金额</td>
+                  <td class="py-3 px-6 text-right font-mono font-bold text-error">
+                    - ¥ {{ estimatedDeductions.total.toLocaleString([], { minimumFractionDigits: 2 }) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- Right Column: AI Assistant Contextual -->
@@ -216,6 +335,7 @@
 import { computed, ref, onMounted } from 'vue';
 import { useAuthStore } from '../features/auth/authStore';
 import { fetchEmployeeSalary, fetchMySalary } from '../shared/api/modules/payroll';
+import { fetchMonthlyAttendanceSummary } from '../shared/api/modules/attendance';
 import { fetchPayrollReviewRecords, reviewPayrollPreAudit, type PayrollReviewSummary } from '../shared/api/modules/payrollReview';
 import { fetchEmployees } from '../shared/api/modules/employee';
 import type { Employee } from '../shared/api/types';
@@ -239,6 +359,12 @@ const serviceError = ref('');
 const salaryLoading = ref(false);
 const initialLoading = ref(true);
 
+// --- Attendance-linked Payroll States ---
+const selectedYear = ref(new Date().getFullYear());
+const selectedMonth = ref(new Date().getMonth() + 1);
+const monthlyAttendance = ref<any>(null);
+const attendanceLoading = ref(false);
+
 const currentRoleLabel = computed(() => ({
   EMPLOYEE: '普通员工',
   DEPARTMENT_MANAGER: '部门主管',
@@ -247,6 +373,71 @@ const currentRoleLabel = computed(() => ({
 }[currentUser.value?.role || 'EMPLOYEE'] ?? '普通员工'));
 const canSelectTarget = computed(() => hasAnyPermission(['payroll.department.read', 'payroll.masked.read', 'payroll.all.read']));
 const canReviewPayroll = computed(() => hasAnyPermission(['payroll.review.read', 'payroll.review.manage']));
+
+const loadMonthlyAttendance = async () => {
+  if (!targetEmployeeId.value) return;
+  attendanceLoading.value = true;
+  try {
+    const data = await fetchMonthlyAttendanceSummary(
+      selectedYear.value,
+      selectedMonth.value,
+      targetEmployeeId.value
+    );
+    monthlyAttendance.value = data;
+  } catch (err) {
+    console.error('Failed to load monthly attendance for payroll:', err);
+    monthlyAttendance.value = null;
+  } finally {
+    attendanceLoading.value = false;
+  }
+};
+
+const estimatedDeductions = computed(() => {
+  if (!monthlyAttendance.value || salaryAmount.value === null) {
+    return {
+      lateCount: 0,
+      earlyCount: 0,
+      absentCount: 0,
+      unpaidCount: 0,
+      lateDeduct: 0,
+      earlyDeduct: 0,
+      absentDeduct: 0,
+      unpaidDeduct: 0,
+      total: 0,
+      netSalary: salaryAmount.value || 0
+    };
+  }
+
+  const baseSalary = salaryAmount.value;
+  const standardDays = 22; // default standard work days per month
+  const dailyRate = baseSalary / standardDays;
+
+  const lateCount = monthlyAttendance.value.late_count || 0;
+  const earlyCount = monthlyAttendance.value.early_leave_count || 0;
+  const absentCount = monthlyAttendance.value.absent_count || 0;
+  const unpaidCount = monthlyAttendance.value.unpaid_leave_count || 0;
+
+  const lateDeduct = lateCount * 50;
+  const earlyDeduct = earlyCount * 50;
+  const absentDeduct = Math.round(absentCount * dailyRate * 100) / 100;
+  const unpaidDeduct = Math.round(unpaidCount * dailyRate * 100) / 100;
+
+  const total = lateDeduct + earlyDeduct + absentDeduct + unpaidDeduct;
+  const netSalary = Math.max(0, baseSalary - total);
+
+  return {
+    lateCount,
+    earlyCount,
+    absentCount,
+    unpaidCount,
+    lateDeduct,
+    earlyDeduct,
+    absentDeduct,
+    unpaidDeduct,
+    total,
+    netSalary
+  };
+});
 
 const fetchSalaryDetails = async () => {
   if (salaryLoading.value) return;
@@ -262,6 +453,7 @@ const fetchSalaryDetails = async () => {
     salaryCurrency.value = data.currency;
     effectiveFrom.value = data.effective_from;
     effectiveTo.value = data.effective_to;
+    await loadMonthlyAttendance();
   } catch (err: any) {
     salaryAmount.value = null;
     salaryCurrency.value = null;
@@ -290,6 +482,7 @@ async function runPreAudit() {
     const result = await reviewPayrollPreAudit({ requester_role: '', include_line_items: true });
     reviewNotice.value = result.message || '薪资预审建议已生成。';
     await loadPayrollReviews();
+    await fetchSalaryDetails();
   } catch (error) {
     reviewNotice.value = error instanceof Error ? error.message : '薪资预审暂时无法执行。';
   }

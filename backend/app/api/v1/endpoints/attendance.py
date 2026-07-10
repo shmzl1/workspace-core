@@ -5,12 +5,15 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
-from app.core.dependencies import get_current_employee, require_permission
+from app.core.dependencies import get_current_employee, get_current_user, require_permission, user_permissions
+from app.core.exceptions import TalentFlowError
+from app.modules.auth.models import User
 from app.modules.attendance.schemas import (
     AttendanceRecordRead,
     CheckInResponse,
     CheckOutResponse,
     WeeklyAttendanceSummary,
+    MonthlyAttendanceSummaryRead,
 )
 from app.modules.attendance.service import AttendanceService
 from app.modules.employee.models import Employee
@@ -21,6 +24,7 @@ router = APIRouter()
 
 def get_attendance_service(session: Session = Depends(get_db_session)) -> AttendanceService:
     return AttendanceService.from_session(session)
+
 
 
 @router.get("/today", response_model=ApiResponse[AttendanceRecordRead | None])
@@ -90,6 +94,36 @@ def get_weekly(
         for r in records
     ]
     return ok(data)
+
+
+@router.get("/monthly", response_model=ApiResponse[MonthlyAttendanceSummaryRead])
+def get_monthly(
+    year: int = Query(..., ge=2000, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    employee_id: int | None = Query(None),
+    current_user: User = Depends(get_current_user),
+    current_employee: Employee = Depends(get_current_employee),
+    db: Session = Depends(get_db_session),
+) -> ApiResponse[MonthlyAttendanceSummaryRead]:
+    """Retrieve monthly attendance summary with permission boundary checks."""
+    target_id = employee_id or current_employee.id
+
+    if target_id != current_employee.id:
+        permissions = user_permissions(current_user)
+        has_admin_read = "payroll.all.read" in permissions or "payroll.review.read" in permissions or "audit.read" in permissions
+        
+        has_dept_read = False
+        if "employee.department.read" in permissions:
+            target_emp = db.get(Employee, target_id)
+            if target_emp and target_emp.department == current_employee.department:
+                has_dept_read = True
+
+        if not (has_admin_read or has_dept_read):
+            raise TalentFlowError("PERMISSION_DENIED", "您没有权限查看该员工的月度考勤汇总。", 403)
+
+    service = AttendanceService(db)
+    summary = service.get_monthly_summary(target_id, year, month)
+    return ok(MonthlyAttendanceSummaryRead.model_validate(summary))
 
 
 @router.get("/records")

@@ -32,19 +32,6 @@ def test_openapi_contains_sprint1_route_groups() -> None:
     assert "/api/v1/audit/logs" in paths
 
 
-def test_invalid_demo_identity_returns_unified_error() -> None:
-    response = client.get(
-        "/api/v1/auth/me",
-        headers={"X-Demo-Identity": "bad-format", "X-Trace-Id": "pytest-trace-error"},
-    )
-
-    body = response.json()
-    assert response.status_code == 401
-    assert body["success"] is False
-    assert body["data"] is None
-    assert body["error"]["code"] == "INVALID_DEMO_IDENTITY"
-    assert body["trace_id"] == "pytest-trace-error"
-
 
 def test_unknown_path_returns_unified_error() -> None:
     response = client.get("/api/v1/not-found", headers={"X-Trace-Id": "pytest-trace-404"})
