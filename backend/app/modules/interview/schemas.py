@@ -6,31 +6,9 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-class CandidateAvailability(BaseModel):
-    candidate_id: int
-    name: str | None = None
-    available_slots: list[dict[str, datetime]] = Field(default_factory=list)
-
-
-class InterviewerOption(BaseModel):
-    interviewer_id: int
-    employee_name: str | None = None
-    specialties: list[str] = Field(default_factory=list)
-    available_slots: list[dict[str, datetime]] = Field(default_factory=list)
-
-
-class MeetingRoomOption(BaseModel):
-    meeting_room_id: int
-    room_name: str | None = None
-    available_slots: list[dict[str, datetime]] = Field(default_factory=list)
-
-
 class SchedulePreviewRequest(BaseModel):
     application_id: int
-    candidate: CandidateAvailability
-    interviewers: list[InterviewerOption] = Field(default_factory=list)
-    meeting_rooms: list[MeetingRoomOption] = Field(default_factory=list)
-    duration_minutes: int = 60
+    duration_minutes: int = Field(default=60, ge=30, le=240)
 
 
 class SchedulePreviewResponse(BaseModel):
@@ -38,7 +16,9 @@ class SchedulePreviewResponse(BaseModel):
     message: str
     recommended_time: dict[str, Any] | None = None
     recommended_interviewer_id: int | None = None
+    recommended_interviewer: str | None = None
     recommended_room_id: int | None = None
+    recommended_room: str | None = None
     interviewer_availability: str | None = None
     candidate_availability: str | None = None
     conflict_detection: str | None = None
@@ -48,3 +28,24 @@ class SchedulePreviewResponse(BaseModel):
     expected_function: str | None = None
     fallback_data: dict[str, Any] = Field(default_factory=dict)
     requires_human_only: bool = False
+
+
+class ConfirmScheduleRequest(BaseModel):
+    application_id: int
+    interviewer_id: int
+    meeting_room_id: int
+    start_at: datetime
+    end_at: datetime
+    conflict_explanation: dict[str, Any] = Field(default_factory=dict)
+
+
+class InterviewRead(BaseModel):
+    id: int
+    application_id: int
+    interviewer_id: int
+    meeting_room_id: int
+    start_at: datetime
+    end_at: datetime
+    status: str
+    conflict_explanation: dict[str, Any] = Field(default_factory=dict)
+    created_by_user_id: int | None = None

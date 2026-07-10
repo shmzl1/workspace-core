@@ -11,7 +11,11 @@ from app.core.exceptions import TalentFlowError
 from app.modules._serialization import model_to_dict
 from app.modules.recruitment.repository import RecruitmentRepository
 from app.modules.recruitment.schemas import (
+    AdvanceStageRequest,
+    AdvanceStageResponse,
+    CandidateApplicationDetailRead,
     CandidateApplicationRead,
+    CandidatePipelineRecordRead,
     CandidateRead,
     JobRead,
     RecruitmentDashboardRead,
@@ -23,6 +27,7 @@ from app.modules.recruitment.schemas import (
     ScoreApplicationRequest,
     ScoreApplicationResponse,
 )
+from app.modules.recruitment.models import PIPELINE_STAGE_VALUES
 from app.shared.human_only_bridge import HumanOnlyContract, algorithm_not_ready, load_human_only_function
 
 
@@ -63,6 +68,12 @@ class RecruitmentService:
     def list_jobs(self) -> list[JobRead]:
         return [JobRead.model_validate(job) for job in self.repository.list_jobs()]
 
+    def get_job(self, job_id: int) -> JobRead:
+        job = self.repository.get_job(job_id)
+        if job is None:
+            raise TalentFlowError("JOB_NOT_FOUND", "岗位不存在。")
+        return JobRead.model_validate(job)
+
     def list_candidates(self) -> list[CandidateRead]:
         return [CandidateRead.model_validate(candidate) for candidate in self.repository.list_candidates()]
 
@@ -84,6 +95,8 @@ class RecruitmentService:
         ]
 
     def list_applications_for_job(self, job_id: int) -> list[dict]:
+        if self.repository.get_job(job_id) is None:
+            raise TalentFlowError("JOB_NOT_FOUND", "岗位不存在。")
         results = []
         for application, candidate in self.repository.list_applications_for_job(job_id):
             results.append(
@@ -109,6 +122,52 @@ class RecruitmentService:
                 }
             )
         return results
+
+    def get_application(self, application_id: int) -> CandidateApplicationDetailRead:
+        detail = self.repository.get_application_detail(application_id)
+        if detail is None:
+            raise TalentFlowError("APPLICATION_NOT_FOUND", "候选人申请不存在。")
+        application, candidate, job = detail
+        return CandidateApplicationDetailRead(
+            application=self._application_read(application, candidate.full_name, job.title),
+            candidate=CandidateRead.model_validate(candidate),
+            job=JobRead.model_validate(job),
+            pipeline_records=[
+                CandidatePipelineRecordRead.model_validate(record)
+                for record in self.repository.list_pipeline_records(application.id)
+            ],
+        )
+
+    def advance_stage(
+        self,
+        application_id: int,
+        payload: AdvanceStageRequest,
+        changed_by_user_id: int | None = None,
+    ) -> AdvanceStageResponse:
+        target_stage = payload.to_stage.strip().upper()
+        if target_stage not in PIPELINE_STAGE_VALUES:
+            raise TalentFlowError("INVALID_PIPELINE_STAGE", "目标招聘阶段不受支持。")
+        detail = self.repository.get_application_detail(application_id)
+        if detail is None:
+            raise TalentFlowError("APPLICATION_NOT_FOUND", "候选人申请不存在。")
+        application, candidate, job = detail
+        if application.current_stage == target_stage:
+            raise TalentFlowError("PIPELINE_STAGE_UNCHANGED", "候选人已处于该阶段，无需重复推进。")
+        if not self._is_allowed_transition(application.current_stage, target_stage):
+            raise TalentFlowError(
+                "INVALID_PIPELINE_TRANSITION",
+                f"不能从“{application.current_stage}”直接推进到“{target_stage}”。",
+            )
+        updated, record = self.repository.advance_application_stage(
+            application,
+            target_stage,
+            payload.note,
+            changed_by_user_id,
+        )
+        return AdvanceStageResponse(
+            application=self._application_read(updated, candidate.full_name, job.title),
+            pipeline_record=CandidatePipelineRecordRead.model_validate(record),
+        )
 
     def get_report(self, time_range: str = "30d") -> RecruitmentReportRead:
         if time_range not in {"30d", "90d", "all"}:
@@ -290,7 +349,7 @@ class RecruitmentService:
             application,
             score_total,
             self._json_ready(score_breakdown),
-            self._json_ready(dict(payload.weights)),
+            self._json_ready(result.get("actual_weights", score_breakdown.get("weights", {}))),
         )
         return ScoreApplicationResponse(
             application_id=application_id,
@@ -320,6 +379,39 @@ class RecruitmentService:
     @staticmethod
     def _aware(value: datetime) -> datetime:
         return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+    @staticmethod
+    def _application_read(application: Any, candidate_name: str | None, job_title: str | None) -> CandidateApplicationRead:
+        return CandidateApplicationRead(
+            id=application.id,
+            candidate_id=application.candidate_id,
+            candidate_name=candidate_name,
+            job_id=application.job_id,
+            job_title=job_title,
+            current_stage=application.current_stage,
+            score_total=application.score_total,
+            score_breakdown=application.score_breakdown or {},
+            weights_snapshot=application.weights_snapshot or {},
+            scored_at=application.scored_at,
+            applied_at=application.applied_at,
+            updated_at=application.updated_at,
+        )
+
+    @staticmethod
+    def _is_allowed_transition(from_stage: str, to_stage: str) -> bool:
+        if to_stage == "REJECTED":
+            return from_stage not in {"HIRED", "REJECTED"}
+        progression = {
+            "APPLIED": {"AI_SCREENED"},
+            "AI_SCREENED": {"INTERVIEW_PENDING"},
+            "INTERVIEW_PENDING": {"INTERVIEWING"},
+            "INTERVIEWING": {"DECISION_PENDING"},
+            "DECISION_PENDING": {"OFFERED"},
+            "OFFERED": {"HIRED"},
+            "HIRED": set(),
+            "REJECTED": set(),
+        }
+        return to_stage in progression.get(from_stage, set())
 
     @staticmethod
     def _match_score(application: Any) -> float | None:

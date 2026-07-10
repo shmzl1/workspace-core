@@ -7,6 +7,14 @@
       description="你当前的角色无权访问候选人池，如需协助请联系 HR 管理员。"
     />
 
+    <section v-else-if="serviceError" class="service-error">
+      <div>
+        <strong>候选人数据暂不可用。</strong>
+        <span>{{ serviceError }}</span>
+      </div>
+      <button class="btn" @click="loadCandidatePool">重新加载</button>
+    </section>
+
     <EmptyState
       v-else-if="isEmpty"
       title="暂无候选人"
@@ -14,14 +22,6 @@
     />
 
     <template v-else>
-      <section v-if="serviceError" class="service-error">
-        <div>
-          <strong>服务暂不可用，请确认后端已启动。</strong>
-          <span>{{ serviceError }}</span>
-        </div>
-        <button class="btn" @click="loadCandidatePool">重新加载</button>
-      </section>
-
       <section class="candidate-pool__hero">
         <div>
           <p class="candidate-pool__eyebrow">招聘决策</p>
@@ -175,6 +175,15 @@
           </div>
 
           <div class="candidate-detail-card__footer">
+            <select v-model="targetStage" class="stage-select" :disabled="advancing">
+              <option v-for="option in nextStageOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+            <button class="btn" :disabled="advancing || !targetStage" @click="advanceSelectedStage">
+              <span class="material-symbols-outlined">trending_flat</span>
+              {{ advancing ? '推进中...' : '推进阶段' }}
+            </button>
             <button class="btn btn--primary" @click="scheduleInterview(selectedCandidate)">
               <span class="material-symbols-outlined">event_available</span>
               安排面试
@@ -222,11 +231,11 @@ import { useRouter } from 'vue-router';
 import LoadingState from '../shared/components/feedback/LoadingState.vue';
 import EmptyState from '../shared/components/feedback/EmptyState.vue';
 import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
-import { fetchApplications, fetchCandidates, scoreCandidate, fetchJobs } from '../shared/api/modules/recruitment';
+import { advanceStage, fetchApplication, fetchApplications, fetchCandidates, fetchJobs, scoreCandidate } from '../shared/api/modules/recruitment';
 import { checkBackendHealth } from '../shared/api/modules/health';
 import { ApiClientError } from '../shared/api/apiClient';
 import type { CandidateApplicationListItem } from '../shared/api/modules/recruitment';
-import type { Candidate as ApiCandidate, CandidateScoreResponse, Job as ApiJob } from '../shared/api/types';
+import type { Candidate as ApiCandidate, CandidateScoreResponse, Job as ApiJob, PipelineStage } from '../shared/api/types';
 
 const router = useRouter();
 
@@ -237,6 +246,7 @@ type Candidate = {
   name: string;
   role: string;
   stage: string;
+  stageCode: PipelineStage;
   aiScore: number | null;
   match: number | null;
   riskLabel: string;
@@ -262,11 +272,13 @@ const emit = defineEmits<{
 
 const loading = ref(true);
 const scoring = ref(false);
+const advancing = ref(false);
 const permissionDenied = ref(false);
 const candidates = ref<Candidate[]>([]);
 const jobs = ref<ApiJob[]>([]);
 const selectedJobId = ref<number | null>(null);
 const selectedId = ref<number>(0);
+const targetStage = ref<PipelineStage | ''>('');
 const highMatchOnly = ref(false);
 const filterMode = ref<'all' | 'smart' | 'score'>('all');
 const evaluationNotice = ref('');
@@ -314,6 +326,18 @@ const summaryCards = computed(() => [
 ]);
 
 const selectedCandidate = computed(() => visibleCandidates.value.find((item) => item.id === selectedId.value) ?? visibleCandidates.value[0]);
+const nextStageOptions = computed(() => {
+  const stage = selectedCandidate.value?.stageCode;
+  const map: Partial<Record<PipelineStage, { value: PipelineStage; label: string }[]>> = {
+    APPLIED: [{ value: 'AI_SCREENED', label: '推进至初筛通过' }, { value: 'REJECTED', label: '标记为淘汰' }],
+    AI_SCREENED: [{ value: 'INTERVIEW_PENDING', label: '推进至待约面' }, { value: 'REJECTED', label: '标记为淘汰' }],
+    INTERVIEW_PENDING: [{ value: 'INTERVIEWING', label: '推进至面试中' }, { value: 'REJECTED', label: '标记为淘汰' }],
+    INTERVIEWING: [{ value: 'DECISION_PENDING', label: '推进至待决策' }, { value: 'REJECTED', label: '标记为淘汰' }],
+    DECISION_PENDING: [{ value: 'OFFERED', label: '推进至已发 Offer' }, { value: 'REJECTED', label: '标记为淘汰' }],
+    OFFERED: [{ value: 'HIRED', label: '推进至已入职' }, { value: 'REJECTED', label: '标记为淘汰' }],
+  };
+  return map[stage ?? 'APPLIED'] ?? [];
+});
 const emptyFilterMessage = computed(() => (
   highMatchOnly.value
     ? '当前筛选无候选人，可取消“只看高匹配候选人”后查看其他候选人。'
@@ -324,11 +348,15 @@ watch(selectedJobId, () => {
   selectedId.value = visibleCandidates.value[0]?.id ?? 0;
 });
 
+watch(selectedCandidate, () => {
+  targetStage.value = nextStageOptions.value[0]?.value ?? '';
+}, { immediate: true });
+
 const filterHint = computed(() => {
   if (highMatchOnly.value) return '当前仅展示岗位匹配度 90% 及以上候选人。';
   if (filterMode.value === 'score') return '当前按 AI 评分从高到低排列。';
   if (filterMode.value === 'smart') return '当前综合评分、匹配度和风险标签进行优先级排序。';
-  return '调整下方权重后，评分和排序将实时更新。';
+  return '调整下方权重后，选择候选人重新评估即可保存新的评分结果。';
 });
 
 onMounted(loadCandidatePool);
@@ -355,8 +383,7 @@ async function loadCandidatePool() {
       return;
     }
     serviceError.value = error instanceof Error ? error.message : '网络连接失败，服务端未响应。';
-    evaluationNotice.value = '智能评估暂时无法获取，已显示本地评估摘要。';
-    useLocalCandidates();
+    candidates.value = [];
   } finally {
     selectedId.value = visibleCandidates.value[0]?.id ?? 0;
     loading.value = false;
@@ -378,7 +405,8 @@ function mapBackendCandidates(apiCandidates: ApiCandidate[], applications: Candi
       stageLabel(String(application.current_stage || 'APPLIED')),
       score,
       application.score_breakdown || {},
-      Number(application.job_id || 0)
+      Number(application.job_id || 0),
+      application.current_stage
     );
   });
 }
@@ -389,8 +417,9 @@ function fromApiCandidate(
   role: string,
   stage: string,
   score: number | null,
-  scoreBreakdown: Record<string, number>,
-  jobId: number
+  scoreBreakdown: Record<string, unknown>,
+  jobId: number,
+  stageCode: PipelineStage = 'APPLIED',
 ): Candidate {
   const safeScore = score === null ? null : Math.round(score);
   const storedMatch = Number(scoreBreakdown.match_score);
@@ -402,6 +431,7 @@ function fromApiCandidate(
     name: candidate?.full_name ?? '未命名候选人',
     role,
     stage,
+    stageCode,
     aiScore: safeScore,
     match,
     riskLabel: safeScore === null ? '待评估' : safeScore >= 85 ? '低风险' : safeScore >= 70 ? '需复核' : '高风险',
@@ -425,63 +455,8 @@ function fromApiCandidate(
   };
 }
 
-function useLocalCandidates() {
-  candidates.value = [
-    createCandidate(1, 1, 'Eleanor Vance', '首席数据科学家', '待约面', 94, 94, '低风险', 'low', '优先安排技术面试'),
-    createCandidate(2, 2, 'Michael Chen', '高级前端工程师', '初筛通过', 91, 92, '到岗需确认', 'medium', '补充到岗时间确认'),
-    createCandidate(3, 3, 'Sarah Jenkins', '产品经理', '待复核', 87, 86, '薪资偏高', 'medium', '薪资范围预沟通'),
-    createCandidate(4, 4, '刘伟', '后端工程师', '简历筛选', 82, 79, '技能缺口', 'high', '补充项目材料'),
-  ];
-}
-
-function createCandidate(
-  id: number,
-  applicationId: number,
-  name: string,
-  role: string,
-  stage: string,
-  aiScore: number,
-  match: number,
-  riskLabel: string,
-  riskLevel: Candidate['riskLevel'],
-  action: string
-): Candidate {
-  return {
-    id,
-    applicationId,
-    jobId: 1,
-    name,
-    role,
-    stage,
-    aiScore,
-    match,
-    riskLabel,
-    riskLevel,
-    recommendedAction: action,
-    location: id === 1 ? '上海' : id === 2 ? '杭州' : id === 3 ? '北京' : '广州',
-    availableIn: id === 1 ? '4 周到岗' : id === 2 ? '6 周到岗' : id === 3 ? '3 周到岗' : '2 周到岗',
-    reason: '候选人核心经历与岗位画像具备较好重合，建议结合面试进一步确认业务场景经验。',
-    skillMatch: '技能覆盖岗位关键要求，少量专项能力需要在面试中继续验证。',
-    experienceMatch: '相关年限满足岗位基础要求，项目复杂度需要结合案例追问。',
-    educationMatch: '学历背景满足基础筛选要求，可作为补充参考。',
-    riskDetail: riskLevel === 'low' ? '未发现明显风险。' : '存在需要复核的风险项，建议在推进前确认。',
-    interviewAdvice: '建议围绕岗位关键能力、项目复盘和协作方式设计结构化问题。',
-    dimScores: {
-      project_experience: Math.max(55, aiScore - 3),
-      skill_match: match,
-      education: Math.max(60, aiScore - 6),
-      work_experience: Math.max(58, aiScore - 4),
-      overall_quality: Math.max(60, aiScore - 2),
-    },
-  };
-}
-
 function computedScore(candidate: Candidate): number | null {
-  if (candidate.aiScore === null) return null;
-  const totalWeight = weightDimensions.reduce((sum, dim) => sum + weights[dim.key], 0);
-  if (!totalWeight) return 0;
-  const total = weightDimensions.reduce((sum, dim) => sum + weights[dim.key] * (candidate.dimScores[dim.key] ?? 0), 0);
-  return Math.round(total / totalWeight);
+  return candidate.aiScore;
 }
 
 function getDimensionScore(candidateId: number, dimKey: WeightKey): number {
@@ -532,8 +507,15 @@ function formatJobLabel(job: ApiJob): string {
 
 async function selectCandidate(candidate: Candidate) {
   selectedId.value = candidate.id;
-  emit('show-toast', `已打开 ${candidate.name} 的综合评估。`);
-  await refreshEvaluation(candidate);
+  try {
+    const detail = await fetchApplication(candidate.applicationId);
+    applyApplicationDetail(candidate, detail.application);
+    evaluationNotice.value = '';
+    emit('show-toast', `已打开 ${candidate.name} 的综合评估。`);
+  } catch (error) {
+    evaluationNotice.value = error instanceof Error ? error.message : '候选人详情暂时无法获取。';
+    emit('show-toast', evaluationNotice.value);
+  }
 }
 
 async function refreshEvaluation(candidate: Candidate) {
@@ -545,13 +527,33 @@ async function refreshEvaluation(candidate: Candidate) {
       throw new Error('score unavailable');
     }
     applyScoreResult(candidate, result);
+    await loadCandidatePool();
+    selectedId.value = candidate.id;
     evaluationNotice.value = '';
     emit('show-toast', '已刷新候选人智能评估结果。');
-  } catch {
-    evaluationNotice.value = '智能评估暂时无法获取，已显示本地评估摘要。';
-    emit('show-toast', '智能评估暂时无法获取，已显示本地评估摘要。');
+  } catch (error) {
+    evaluationNotice.value = error instanceof Error ? error.message : '智能评估暂时无法获取。';
+    emit('show-toast', evaluationNotice.value);
   } finally {
     scoring.value = false;
+  }
+}
+
+async function advanceSelectedStage() {
+  const candidate = selectedCandidate.value;
+  if (!candidate || !targetStage.value || advancing.value) return;
+  advancing.value = true;
+  try {
+    await advanceStage(candidate.applicationId, targetStage.value, '由候选人池推进');
+    await loadCandidatePool();
+    selectedId.value = candidate.id;
+    emit('show-toast', '候选人阶段已保存。');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '候选人阶段保存失败。';
+    evaluationNotice.value = message;
+    emit('show-toast', message);
+  } finally {
+    advancing.value = false;
   }
 }
 
@@ -587,6 +589,24 @@ function applyScoreResult(candidate: Candidate, result: CandidateScoreResponse) 
     education: Math.round(Number(result.score_breakdown?.education ?? target.dimScores.education)),
     work_experience: Math.round(Number(result.score_breakdown?.experience ?? target.dimScores.work_experience)),
     overall_quality: Math.round(Number(result.score_breakdown?.risk ?? target.dimScores.overall_quality)),
+  };
+}
+
+function applyApplicationDetail(candidate: Candidate, application: CandidateApplicationListItem) {
+  const target = candidates.value.find((item) => item.id === candidate.id);
+  if (!target) return;
+  target.stageCode = application.current_stage;
+  target.stage = stageLabel(application.current_stage);
+  target.aiScore = application.score_total === null ? null : Math.round(Number(application.score_total));
+  const breakdown = application.score_breakdown || {};
+  const match = Number(breakdown.match_score);
+  target.match = Number.isFinite(match) ? Math.round(match) : target.aiScore;
+  target.dimScores = {
+    project_experience: Number(breakdown.project ?? 0),
+    skill_match: Number(breakdown.skill ?? 0),
+    education: Number(breakdown.education ?? 0),
+    work_experience: Number(breakdown.experience ?? 0),
+    overall_quality: Number(breakdown.risk ?? 0),
   };
 }
 
@@ -695,6 +715,7 @@ function riskClass(level: Candidate['riskLevel']) {
 .interview-advice > div { display: flex; align-items: center; gap: 8px; }
 .interview-advice strong { margin-top: 0; }
 .candidate-detail-card__footer { display: flex; flex-wrap: wrap; gap: 10px; }
+.stage-select { min-height: 40px; max-width: 180px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-text); padding: 0 10px; font-weight: 700; }
 .weight-sandbox { max-width: 1440px; margin: 0 auto 22px; padding: 20px 24px; border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: linear-gradient(135deg, rgba(36,85,245,0.03), rgba(36,85,245,0.01)); box-shadow: 0 2px 12px rgba(36,85,245,0.06); }
 .weight-sandbox--inline { grid-column: 1 / -1; max-width: none; margin: 0; }
 .weight-sandbox__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }

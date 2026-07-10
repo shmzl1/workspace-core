@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
-from app.modules.recruitment.schemas import ScoreApplicationRequest
+from app.modules.recruitment.schemas import AdvanceStageRequest, ScoreApplicationRequest
 from app.modules.recruitment.service import RecruitmentService
 from app.shared.response import ok
 
@@ -25,6 +25,11 @@ def list_jobs(service: RecruitmentService = Depends(get_recruitment_service)) ->
     return ok(service.list_jobs())
 
 
+@router.get("/jobs/{job_id}")
+def get_job(job_id: int, service: RecruitmentService = Depends(get_recruitment_service)) -> object:
+    return ok(service.get_job(job_id))
+
+
 @router.get("/candidates")
 def list_candidates(service: RecruitmentService = Depends(get_recruitment_service)) -> object:
     return ok(service.list_candidates())
@@ -33,6 +38,11 @@ def list_candidates(service: RecruitmentService = Depends(get_recruitment_servic
 @router.get("/applications")
 def list_applications(service: RecruitmentService = Depends(get_recruitment_service)) -> object:
     return ok(service.list_applications())
+
+
+@router.get("/applications/{application_id}")
+def get_application(application_id: int, service: RecruitmentService = Depends(get_recruitment_service)) -> object:
+    return ok(service.get_application(application_id))
 
 
 @router.get("/report")
@@ -55,3 +65,12 @@ def score_application(
     service: RecruitmentService = Depends(get_recruitment_service),
 ) -> object:
     return ok(service.score_application(application_id, payload))
+
+
+@router.post("/applications/{application_id}/advance")
+def advance_application_stage(
+    application_id: int,
+    payload: AdvanceStageRequest,
+    service: RecruitmentService = Depends(get_recruitment_service),
+) -> object:
+    return ok(service.advance_stage(application_id, payload))

@@ -17,7 +17,11 @@ class JobRead(BaseModel):
     required_skills: list[Any] = Field(default_factory=list)
     preferred_skills: list[Any] = Field(default_factory=list)
     min_experience_months: int
+    description: str | None = None
+    location: str | None = None
+    employment_type: str
     status: str
+    owner_user_id: int | None = None
 
 
 class CandidateRead(BaseModel):
@@ -44,6 +48,37 @@ class CandidateApplicationRead(BaseModel):
     score_breakdown: dict[str, Any] = Field(default_factory=dict)
     weights_snapshot: dict[str, Any] = Field(default_factory=dict)
     scored_at: datetime | None = None
+    applied_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class CandidatePipelineRecordRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    application_id: int
+    from_stage: str | None = None
+    to_stage: str
+    note: str | None = None
+    changed_by_user_id: int | None = None
+    created_at: datetime
+
+
+class CandidateApplicationDetailRead(BaseModel):
+    application: CandidateApplicationRead
+    candidate: CandidateRead
+    job: JobRead
+    pipeline_records: list[CandidatePipelineRecordRead] = Field(default_factory=list)
+
+
+class AdvanceStageRequest(BaseModel):
+    to_stage: str = Field(min_length=1, max_length=32)
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class AdvanceStageResponse(BaseModel):
+    application: CandidateApplicationRead
+    pipeline_record: CandidatePipelineRecordRead
 
 
 class RecruitmentDashboardRead(BaseModel):

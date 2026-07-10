@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
-from app.modules.interview.schemas import SchedulePreviewRequest
+from app.modules.interview.schemas import ConfirmScheduleRequest, SchedulePreviewRequest
 from app.modules.interview.service import InterviewService
 from app.shared.response import ok
 
@@ -21,6 +21,14 @@ def preview_schedule(
     service: InterviewService = Depends(get_interview_service),
 ) -> object:
     return ok(service.preview_schedule(payload))
+
+
+@router.post("/schedule/confirm")
+def confirm_schedule(
+    payload: ConfirmScheduleRequest,
+    service: InterviewService = Depends(get_interview_service),
+) -> object:
+    return ok(service.confirm_schedule(payload))
 
 
 @router.get("/interviewers")

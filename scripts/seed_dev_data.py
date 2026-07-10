@@ -27,7 +27,7 @@ from app.modules.auth.models import User
 from app.modules.employee.models import Employee, LeaveBalance
 from app.modules.interview.models import Interview, Interviewer, InterviewSlot, MeetingRoom
 from app.modules.payroll.models import PayrollLineItem, PayrollPeriod, PayrollReviewRecord, SalaryRecord
-from app.modules.recruitment.models import Candidate, CandidateApplication, Job
+from app.modules.recruitment.models import Candidate, CandidateApplication, CandidatePipelineRecord, Job
 
 CLEAR_ORDER = [
     "payroll_line_items", "audit_logs", "notifications", "interviews", "interview_slots",
@@ -136,6 +136,13 @@ def add_recruitment(db: Session, today: date) -> None:
         CandidateApplication(id=3, candidate_id=3, job_id=1, current_stage="OFFERED"),
         CandidateApplication(id=4, candidate_id=4, job_id=2, current_stage="HIRED"),
     ])
+    db.flush()
+    db.add_all([
+        CandidatePipelineRecord(application_id=1, from_stage=None, to_stage="INTERVIEW_PENDING", note="初始化招聘阶段"),
+        CandidatePipelineRecord(application_id=2, from_stage=None, to_stage="AI_SCREENED", note="初始化招聘阶段"),
+        CandidatePipelineRecord(application_id=3, from_stage=None, to_stage="OFFERED", note="初始化招聘阶段"),
+        CandidatePipelineRecord(application_id=4, from_stage=None, to_stage="HIRED", note="初始化招聘阶段"),
+    ])
     db.commit()
 
 
@@ -148,15 +155,16 @@ def add_interviews(db: Session, now: datetime) -> None:
         Interviewer(id=2, employee_id=3, specialties=["沟通能力", "文化匹配"], max_interviews_per_day=5),
     ])
     log("写入会议室")
-    db.add(
+    db.add_all([
         MeetingRoom(id=1, room_code="R-A101", name="A101 会议室", location="上海办公室", capacity=6),
-    )
+        MeetingRoom(id=2, room_code="R-B201", name="B201 会议室", location="上海办公室", capacity=8),
+    ])
     db.flush()
     log("写入面试数据")
     db.add_all([
         InterviewSlot(resource_type="CANDIDATE", candidate_id=1, start_at=start, end_at=end),
         InterviewSlot(resource_type="INTERVIEWER", interviewer_id=1, start_at=start, end_at=end),
-        InterviewSlot(resource_type="ROOM", meeting_room_id=1, start_at=start, end_at=end),
+        InterviewSlot(resource_type="ROOM", meeting_room_id=2, start_at=start, end_at=end),
         Interview(application_id=2, interviewer_id=2, meeting_room_id=1, start_at=start, end_at=end,
                   status="SCHEDULED", conflict_explanation={"note": "用于验证会议室冲突检测"},
                   created_by_user_id=3),

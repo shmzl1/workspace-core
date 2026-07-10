@@ -13,6 +13,17 @@ PIPELINE_STAGES = (
     "'DECISION_PENDING', 'OFFERED', 'HIRED', 'REJECTED'"
 )
 
+PIPELINE_STAGE_VALUES = (
+    "APPLIED",
+    "AI_SCREENED",
+    "INTERVIEW_PENDING",
+    "INTERVIEWING",
+    "DECISION_PENDING",
+    "OFFERED",
+    "HIRED",
+    "REJECTED",
+)
+
 
 class Job(TimestampMixin, Base):
     """Recruitment job opening."""

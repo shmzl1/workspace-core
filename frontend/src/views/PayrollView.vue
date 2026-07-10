@@ -5,7 +5,7 @@
       <div>
         <h2 class="font-headline-lg md:font-display text-headline-lg-mobile md:text-display text-on-surface tracking-tight">薪资明细</h2>
         <p class="font-body-lg text-body-lg text-on-surface-variant mt-1">
-          三 Sprint 开发计划：确定性业务核心闭环
+          按当前授权范围查看员工薪资信息与字段可见状态。
         </p>
       </div>
       <button 
@@ -17,25 +17,17 @@
       </button>
     </div>
 
-    <!-- Mock Role Debug Dashboard (Visible to all for evaluation/demonstration) -->
     <div class="bg-primary/5 rounded-xl border border-primary/20 p-5 mb-6">
       <h3 class="font-title-lg text-[16px] font-semibold text-primary mb-3 flex items-center gap-2">
         <span class="material-symbols-outlined text-[20px]">tune</span>
-        模拟权限与字段脱敏调试台
+        薪资访问范围
       </h3>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
         <div>
-          <label class="block text-xs font-medium text-on-surface-variant mb-1">选择访问者身份</label>
-          <select 
-            v-model="mockUser" 
-            @change="handleMockUserChange"
-            class="w-full bg-white border border-outline-variant rounded-lg p-2.5 text-sm outline-none focus:border-primary"
-          >
-            <option :value="1">普通员工 (张伟 - 研发部)</option>
-            <option :value="2">部门经理 (李明 - 研发部)</option>
-            <option :value="3">HR专员 (林雨晴 - 人资部)</option>
-            <option :value="4">薪酬管理员 (王强 - 财务部)</option>
-          </select>
+          <span class="block text-xs font-medium text-on-surface-variant mb-1">当前访问角色</span>
+          <p class="rounded-lg border border-outline-variant bg-white px-3 py-2.5 text-sm font-semibold text-on-surface">
+            {{ currentRoleLabel }}
+          </p>
         </div>
         <div>
           <label class="block text-xs font-medium text-on-surface-variant mb-1">查询目标员工 ID</label>
@@ -53,11 +45,11 @@
             class="w-full bg-primary text-on-primary font-semibold py-2.5 px-4 rounded-lg text-sm hover:bg-primary-container transition-all flex items-center justify-center gap-1"
           >
             <span class="material-symbols-outlined text-sm">search</span>
-            执行鉴权查询
+            查询薪资
           </button>
         </div>
         <div class="text-xs text-outline leading-tight py-1">
-          提示：不同角色对不同员工的薪资查询，将受到 <code class="bg-surface-container px-1 py-0.5 rounded text-[11px] font-mono">salary_access_control</code> 算法控制。
+          查询结果由薪资权限规则和审计记录共同约束。
         </div>
       </div>
     </div>
@@ -190,7 +182,7 @@
               </div>
             </div>
             <p class="text-sm text-on-surface-variant leading-relaxed">
-              您当前以访问者 ID 为 <strong>{{ mockUser }}</strong> 的身份，查询目标员工 ID 为 <strong>{{ targetEmployeeId }}</strong> 的薪资明细。<br/><br/>
+              当前以 <strong>{{ currentRoleLabel }}</strong> 的授权范围查询员工 ID 为 <strong>{{ targetEmployeeId }}</strong> 的薪资明细。<br/><br/>
               由于权限分层，HR、部门经理和薪酬管理员获得的结果互不相同。所有本次查阅（包括被拦截的请求）都已通过 API 管道实时写入系统审计底册。
             </p>
           </div>
@@ -207,7 +199,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { setDevIdentity, type DevIdentity } from '../shared/api/apiClient';
 import { fetchEmployeeSalary, fetchMySalary } from '../shared/api/modules/payroll';
 
@@ -220,8 +212,7 @@ const props = defineProps({
 
 const emit = defineEmits(['show-toast']);
 
-const mockUser = ref(1); // Default to Zhang Wei (EMPLOYEE)
-const targetEmployeeId = ref(1); // Default to querying Employee 1
+const targetEmployeeId = ref(1);
 
 const salaryAmount = ref<number | null>(null);
 const salaryCurrency = ref<string | null>(null);
@@ -229,29 +220,33 @@ const effectiveFrom = ref<string | null>(null);
 const effectiveTo = ref<string | null>(null);
 const accessError = ref<string | null>(null);
 
-const handleMockUserChange = () => {
-  if (mockUser.value === 1) {
-    targetEmployeeId.value = 1;
-  }
-  fetchSalaryDetails();
-};
-
-const applySelectedIdentity = () => {
-  const roles: Record<number, DevIdentity['role']> = {
-    1: 'EMPLOYEE',
-    2: 'DEPARTMENT_MANAGER',
-    3: 'HR_SPECIALIST',
-    4: 'PAYROLL_ADMIN',
+const roleIdentity = computed(() => {
+  const identities: Record<string, DevIdentity> = {
+    employee: { userId: 1, role: 'EMPLOYEE' },
+    manager: { userId: 2, role: 'DEPARTMENT_MANAGER' },
+    hr: { userId: 3, role: 'HR_SPECIALIST' },
+    payroll: { userId: 4, role: 'PAYROLL_ADMIN' },
   };
-  setDevIdentity({ userId: mockUser.value, role: roles[mockUser.value] || 'EMPLOYEE' });
+  return identities[props.role] ?? identities.employee;
+});
+
+const currentRoleLabel = computed(() => ({
+  EMPLOYEE: '普通员工',
+  DEPARTMENT_MANAGER: '部门主管',
+  HR_SPECIALIST: 'HR 专员',
+  PAYROLL_ADMIN: '薪酬管理员',
+}[roleIdentity.value.role] ?? '普通员工'));
+
+const applyRoleIdentity = () => {
+  setDevIdentity(roleIdentity.value);
 };
 
 const fetchSalaryDetails = async () => {
   accessError.value = null;
   
   try {
-    applySelectedIdentity();
-    const data = mockUser.value === targetEmployeeId.value
+    applyRoleIdentity();
+    const data = roleIdentity.value.userId === targetEmployeeId.value
       ? await fetchMySalary()
       : await fetchEmployeeSalary(targetEmployeeId.value);
     salaryAmount.value = data.base_salary;
@@ -269,16 +264,12 @@ const fetchSalaryDetails = async () => {
 };
 
 const exportReport = () => {
-  emit('show-toast', 'PDF 薪资证明已生成演示预览并保存。');
+  emit('show-toast', '薪资导出功能尚未配置。');
 };
 
 // Monitor the parent shell's role change
 watch(() => props.role, (newRole) => {
   if (newRole === 'employee') {
-    mockUser.value = 1;
-    targetEmployeeId.value = 1;
-  } else {
-    mockUser.value = 3;
     targetEmployeeId.value = 1;
   }
   fetchSalaryDetails();
@@ -286,10 +277,6 @@ watch(() => props.role, (newRole) => {
 
 onMounted(() => {
   if (props.role === 'employee') {
-    mockUser.value = 1;
-    targetEmployeeId.value = 1;
-  } else {
-    mockUser.value = 3;
     targetEmployeeId.value = 1;
   }
   fetchSalaryDetails();
