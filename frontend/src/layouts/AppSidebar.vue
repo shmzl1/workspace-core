@@ -21,6 +21,7 @@ const isActive = (item: SidebarItem) => {
 const groups: { title: string; items: SidebarItem[] }[] = [
   { title: '工作台', items: [
     { id: 'dashboard', label: '智能招聘看板', path: '/hr/dashboard', permissions: ['recruitment.read'] },
+    { id: 'evaluation', label: '多 Agent 评估', path: '/hr/evaluation', permissions: ['agent.hr.use'] },
     { id: 'candidates', label: '候选人池', path: '/hr/candidates', permissions: ['candidate.read'] },
     { id: 'interviews', label: '面试日历', path: '/hr/interviews', permissions: ['interview.read'] },
     { id: 'reporting', label: '招聘报告', path: '/hr/reporting', permissions: ['reporting.recruitment.read'] },

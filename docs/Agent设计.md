@@ -1,6 +1,30 @@
 # Agent 设计
 
-本文记录规划中的 Agent 边界，不表示 Agent 已完成。
+本文记录 Agent 边界与当前实现状态。Sprint 2.1 已真实运行招聘策略 Agent；不表示其他 Agent、LangGraph、LLM 或 RAG 已完成。
+
+## Sprint 2.1 招聘策略运行
+
+```text
+HR 提交真实岗位、候选人与企业招聘目标
+→ RecruitmentRunContextService 校验投递关系
+→ 创建进程内 Run 和真实 run_id
+→ 招聘策略 Agent 生成 RecruitmentExecutionPlan
+→ SSE 发布真实 AgentEvent
+→ 前端增量更新工作流与执行计划
+```
+
+策略计划完全由已校验请求、真实岗位摘要、候选人 ID 和静态 Graph 元数据生成，不访问数据库、不调用 Tool、LLM 或 RAG。真实事件顺序为：
+
+1. `WORKFLOW_STARTED`
+2. `AGENT_STARTED`
+3. `AGENT_THINKING`
+4. `PLAN_CREATED`
+5. `AGENT_COMPLETED`
+6. `WORKFLOW_COMPLETED`
+
+运行完成时招聘策略 Agent 为 `COMPLETED`，简历解析、岗位匹配、面试评估、决策审查和 HR 最终报告为 `SKIPPED`，原因统一为 `CURRENT_PHASE_NOT_IMPLEMENTED`。Run 仅保存在当前后端进程中，重启后不可恢复。
+
+`AGENT_THINKING` 只包含当前目标、候选人数、当前动作、缺失信息和下一步计划等可审计结构化摘要，不包含模型隐藏思维链。
 
 ## 员工服务 Agent
 
@@ -12,12 +36,14 @@
 - RAG 来源：制度问答必须返回命中的制度文档和片段。
 - 降级策略：无模型 Key 时返回普通业务查询结果或提示待 Agent 接入。
 
-## 招聘决策 Agent
+## 招聘多 Agent 工作流
 
-- 输入：岗位描述、候选人条件、筛选目标、HR 操作上下文。
+- 当前已实现：招聘策略 Agent 规则式执行计划。
+- 后续节点：简历解析 Agent、岗位匹配 Agent、面试评估 Agent、决策审查 Agent、HR 最终报告。
+- 输入：企业招聘目标、真实岗位、真实候选人投递和 HR 操作上下文。
 - 可调用 Tool：岗位 Service、候选人 Service、评分 Service、排期 Service、报告 Service。
 - 不可调用 Tool：薪资确认、薪资修改、无权限薪资查询、禁飞区内部函数。
-- 输出：候选人建议、评分解释、排期建议、风险提示。
+- 当前输出：`RecruitmentExecutionPlan`、真实 Run Snapshot 和 AgentEvent。
 - Trace：保留候选人筛选条件、评分调用、排期调用和解释摘要。
 - RAG 来源：涉及制度或招聘规则时返回来源。
 - 降级策略：核心算法未接入时不模拟算法结果，只提示待人工禁飞区接入。

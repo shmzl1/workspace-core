@@ -1,10 +1,5 @@
-"""Shared Agent state skeleton."""
+"""Compatibility import; new code uses :mod:`app.agents.shared`."""
 
-from pydantic import BaseModel, Field
+from app.agents.shared.state import AgentState
 
-
-class AgentState(BaseModel):
-    trace_id: str
-    actor_id: str | None = None
-    messages: list[str] = Field(default_factory=list)
-    sources: list[str] = Field(default_factory=list)
+__all__ = ["AgentState"]

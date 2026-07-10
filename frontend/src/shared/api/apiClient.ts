@@ -3,15 +3,19 @@
 import axios, { AxiosError, type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 
 const configuredBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
-const BASE_URL = configuredBaseUrl || '/api/v1';
+export const API_BASE_URL = configuredBaseUrl || '/api/v1';
 const TOKEN_KEY = 'talentflow.token';
 const USER_KEY = 'talentflow.currentUser';
+
+export function getCurrentToken(): string {
+  return localStorage.getItem(TOKEN_KEY) || '';
+}
 
 export class ApiClientError extends Error {
   constructor(message: string, public readonly status?: number, public readonly code?: string) { super(message); }
 }
 
-const apiClient: AxiosInstance = axios.create({ baseURL: BASE_URL, timeout: 8_000, headers: { 'Content-Type': 'application/json' } });
+const apiClient: AxiosInstance = axios.create({ baseURL: API_BASE_URL, timeout: 8_000, headers: { 'Content-Type': 'application/json' } });
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem(TOKEN_KEY);

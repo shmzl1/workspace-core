@@ -1,8 +1,5 @@
-"""Agent guardrail declarations."""
+"""Compatibility import; new code uses :mod:`app.agents.shared.guardrails`."""
 
-FORBIDDEN_DIRECT_IMPORTS = ("app.human_only", "app.core.database")
+from app.agents.shared.guardrails import FORBIDDEN_DIRECT_IMPORTS, assert_agent_boundary
 
-
-def assert_agent_boundary(import_path: str) -> None:
-    if import_path.startswith(FORBIDDEN_DIRECT_IMPORTS):
-        raise ValueError("Agent must call Tool -> Service instead of direct restricted imports.")
+__all__ = ["FORBIDDEN_DIRECT_IMPORTS", "assert_agent_boundary"]

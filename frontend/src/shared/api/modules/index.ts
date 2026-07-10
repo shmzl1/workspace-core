@@ -10,3 +10,4 @@ export * from './employee';
 export * from './payroll';
 export * from './audit';
 export * from './health';
+export * from './agent';

@@ -3,6 +3,7 @@ import LoginView from '../../features/auth/LoginView.vue';
 
 // HR views
 import RecruitmentDashboardPage from '../../features/recruitment/dashboard/RecruitmentDashboardPage.vue';
+import RecruitmentEvaluationPage from '../../features/recruitment/evaluation/RecruitmentEvaluationPage.vue';
 import DashboardView from '../../views/DashboardView.vue';
 import CandidateDetailView from '../../views/CandidateDetailView.vue';
 import InterviewsView from '../../views/InterviewsView.vue';
@@ -44,6 +45,12 @@ const routes: RouteRecordRaw[] = [
     name: 'hr-dashboard',
     component: RecruitmentDashboardPage,
     meta: { requiresAuth: true, anyPermissions: ['recruitment.read'], label: '智能招聘看板' },
+  },
+  {
+    path: '/hr/evaluation',
+    name: 'hr-evaluation',
+    component: RecruitmentEvaluationPage,
+    meta: { requiresAuth: true, anyPermissions: ['agent.hr.use'], label: '多 Agent 评估' },
   },
   {
     path: '/hr/pipeline',

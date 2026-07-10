@@ -4,7 +4,7 @@ TalentFlow 智聘中枢是面向招聘决策、员工服务、考勤薪资预审
 
 ## 当前状态
 
-当前状态：开发中。功能、部署、测试与接口说明将随 Sprint 推进持续更新。
+当前状态：Sprint 1 确定性业务闭环已存在，Sprint 2.1 已接入第一个可运行切片：进程内 Agent Run、招聘策略 Agent 规则式执行计划、真实 SSE 事件和前端实时流程看板。Run 在后端重启后会丢失。
 
 数据库层当前已建立 SQLAlchemy ORM 模型、Alembic 配置和首次迁移文件 `0001_initial_schema`。该迁移尚未执行，仓库当前不包含种子数据或已验证的部署结果。
 
@@ -19,7 +19,7 @@ TalentFlow 通过一套 FastAPI 后端支撑 Vue Web 管理端、微信小程序
 - 考勤：员工签到、签退、今日考勤状态和本月考勤摘要。
 - 薪资预审：HR 查看预审明细、扣款来源、异常解释和待 HR 确认状态。
 - 权限审计：薪资访问控制、字段脱敏、敏感访问日志和 `trace_id`。
-- Agent 能力：员工服务 Agent、招聘决策 Agent、薪资预审助手、RAG 来源展示。
+- Agent 能力：当前只运行招聘策略 Agent；简历解析、岗位匹配、面试评估、决策审查和 HR 最终报告明确标记为后续阶段。员工服务 Agent、薪资预审助手与 RAG 仍未接入真实执行。
 
 ## 端与边界
 
@@ -54,8 +54,9 @@ TalentFlow 通过一套 FastAPI 后端支撑 Vue Web 管理端、微信小程序
 | Vue 3 + TypeScript + Vite   | Web 管理端            |
 | FastAPI + Python 3.12       | 一套共享后端          |
 | PostgreSQL                  | 结构化业务数据        |
-| LangGraph + LangChain Tools | Agent 编排与工具调用  |
-| ChromaDB                    | 企业制度 RAG 检索     |
+| 规则式异步 Runtime + SSE    | Sprint 2.1 招聘策略运行与实时事件 |
+| LangGraph + LangChain Tools | 后续 Agent 编排规划   |
+| ChromaDB                    | 后续企业制度 RAG 规划 |
 | Gradio                      | 内部 Agent 调试台     |
 | Docker Compose + Nginx      | Sprint 3 计划部署目标 |
 
@@ -70,9 +71,9 @@ flowchart LR
     Service[Service]
     Repo[Repository]
     DB[(PostgreSQL)]
-    Agent[LangGraph Agent]
+    Agent[进程内 Agent Runtime]
     Tool[Tools]
-    RAG[(ChromaDB RAG)]
+    RAG[(后续 ChromaDB RAG)]
     Human[AI 禁飞区]
 
     Web --> API
@@ -82,6 +83,7 @@ flowchart LR
     Service --> Repo
     Repo --> DB
     API --> Agent
+    Agent --> SSE[真实 SSE AgentEvent]
     Agent --> Tool
     Tool --> Service
     Tool --> RAG
