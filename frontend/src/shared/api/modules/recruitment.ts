@@ -53,14 +53,13 @@ export async function fetchApplication(applicationId: number): Promise<Candidate
   return response.data;
 }
 
-export async function advanceStage(
+export async function advanceCandidateStage(
   applicationId: number,
-  toStage: PipelineStage,
-  note?: string
+  payload: { to_stage: PipelineStage; note?: string },
 ): Promise<AdvanceStageResponse> {
   const response = await apiClient.post<AdvanceStageResponse>(
     `/recruitment/applications/${applicationId}/advance`,
-    { to_stage: toStage, note }
+    payload,
   );
   return response.data;
 }

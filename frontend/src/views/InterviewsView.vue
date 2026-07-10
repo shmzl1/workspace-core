@@ -16,8 +16,9 @@
             <p class="font-body-md text-body-md text-on-surface-variant mt-1">统一管理候选人、面试官、会议室和时间槽。</p>
           </div>
           <button
+            v-if="canManageInterviews"
             class="flex items-center gap-2 px-5 py-3 bg-primary text-on-primary rounded-xl font-label-md font-semibold shadow-md hover:shadow-lg hover:bg-primary-fixed-dim hover:text-on-primary-fixed transition-all disabled:opacity-50 disabled:cursor-wait"
-            :disabled="generating || applications.length === 0"
+            :disabled="generating || applications.length === 0 || interviewerResources.length === 0 || roomResources.length === 0"
             @click="generateSchedule"
           >
             <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
@@ -27,7 +28,7 @@
 
         <div v-if="serviceError" class="flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <div>
-            <strong class="block">服务暂不可用，请确认后端已启动。</strong>
+            <strong class="block">{{ serviceErrorTitle }}</strong>
             <span>{{ serviceError }}</span>
           </div>
           <button class="rounded-lg bg-primary px-4 py-2 font-semibold text-white" @click="loadInterviewData">
@@ -44,7 +45,7 @@
             <div class="flex justify-between items-start mb-4">
               <div>
                 <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">今日面试总数</p>
-                <h2 class="font-display text-display text-on-surface mt-1">{{ scheduleItems.length }}</h2>
+                <h2 class="font-display text-display text-on-surface mt-1">{{ todayInterviewItems.length }}</h2>
               </div>
               <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                 <span class="material-symbols-outlined">event</span>
@@ -93,7 +94,14 @@
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter min-h-[520px]">
           <div class="lg:col-span-4 glass-card rounded-xl p-6 flex flex-col h-full">
             <div class="flex justify-between items-center mb-6">
-              <h3 class="font-title-lg text-title-lg text-on-surface">2026 年 7 月</h3>
+              <div>
+                <h3 class="font-title-lg text-title-lg text-on-surface">{{ calendarTitle }}</h3>
+                <div class="mt-2 flex gap-1">
+                  <button class="rounded bg-surface-container-low px-2 py-1 text-xs" @click="moveCalendar(-1)">{{ calendarView === 'month' ? '上月' : '上周' }}</button>
+                  <button class="rounded bg-surface-container-low px-2 py-1 text-xs" @click="goToday">今天</button>
+                  <button class="rounded bg-surface-container-low px-2 py-1 text-xs" @click="moveCalendar(1)">{{ calendarView === 'month' ? '下月' : '下周' }}</button>
+                </div>
+              </div>
               <div class="flex bg-surface-container-low rounded-lg p-1">
                 <button
                   class="px-3 py-1 rounded font-label-md text-label-md transition-colors"
@@ -115,7 +123,7 @@
             <div class="flex-1 grid grid-cols-7 gap-2 auto-rows-min content-start">
               <button
                 v-for="day in calendarDays"
-                :key="day.date"
+                :key="day.key"
                 class="text-center py-2 rounded-lg font-label-md text-label-md transition-colors relative"
                 :class="{
                   'text-outline': day.muted,
@@ -146,7 +154,7 @@
 
           <div class="lg:col-span-8 glass-card rounded-xl p-0 flex flex-col h-full overflow-hidden">
             <div class="p-6 border-b border-outline-variant flex justify-between items-center bg-surface/50">
-              <h3 class="font-title-lg text-title-lg text-on-surface">今日面试日程</h3>
+              <h3 class="font-title-lg text-title-lg text-on-surface">近期与推荐日程</h3>
               <span
                 class="px-3 py-1 rounded-lg font-label-md text-label-md"
                 :class="scheduleGenerated ? 'bg-emerald-50 text-emerald-700' : 'bg-surface-container text-on-surface-variant'"
@@ -157,8 +165,8 @@
               <div class="overflow-y-auto p-6 space-y-4">
                 <EmptyState
                   v-if="scheduleItems.length === 0"
-                  title="暂无今日日程"
-                  description="今天没有安排面试，可以点击上方智能排期按钮生成推荐日程。"
+                  title="暂无近期日程"
+                  description="未来 7 天没有已保存面试，可以点击上方智能排期按钮生成推荐日程。"
                 />
 
                 <div
@@ -213,7 +221,7 @@
                 <!-- Candidate Selection Dropdown -->
                 <div v-if="applications.length > 0" class="space-y-1">
                   <label for="candidate-select" class="text-xs font-semibold text-on-surface-variant block">选择排期候选人：</label>
-                  <select id="candidate-select" v-model="selectedApplicationId" class="w-full bg-white border border-outline-variant rounded-lg p-2.5 text-sm outline-none focus:border-primary cursor-pointer font-semibold">
+                  <select id="candidate-select" v-model="selectedApplicationId" class="w-full bg-white border border-outline-variant rounded-lg p-2.5 text-sm outline-none focus:border-primary cursor-pointer font-semibold" @change="clearPreview">
                     <option v-for="app in applications" :key="app.id" :value="app.id">
                       {{ applicationLabel(app) }}
                     </option>
@@ -221,6 +229,9 @@
                 </div>
                 <p v-else class="rounded-lg bg-surface-container-low p-3 text-sm text-on-surface-variant">
                   暂无可排期候选人，请先在候选人池创建申请记录。
+                </p>
+                <p v-if="applications.length && (!interviewerResources.length || !roomResources.length)" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                  当前缺少可用的面试官或会议室资源，暂时无法生成排期预览。
                 </p>
 
                 <div class="rounded-xl border border-outline-variant bg-white p-4 space-y-3">
@@ -249,7 +260,7 @@
                     <p class="font-semibold text-primary">{{ currentSuggestion.score }}</p>
                   </div>
                   <button
-                    v-if="scheduleGenerated && selectedPreview"
+                    v-if="canManageInterviews && scheduleGenerated && selectedPreview"
                     class="w-full rounded-lg bg-primary px-4 py-2.5 font-semibold text-white transition-colors hover:bg-primary-fixed-dim disabled:cursor-wait disabled:opacity-50"
                     :disabled="confirming || currentSuggestion.hasConflict"
                     @click="confirmSchedule"
@@ -291,8 +302,10 @@ import type {
 } from '../shared/api/types';
 import { checkBackendHealth } from '../shared/api/modules/health';
 import { ApiClientError } from '../shared/api/apiClient';
+import { useAuthStore } from '../features/auth/authStore';
 
 const route = useRoute();
+const { hasPermission } = useAuthStore();
 const applications = ref<CandidateApplicationListItem[]>([]);
 const selectedApplicationId = ref<number | null>(null);
 const candidates = ref<ApiCandidate[]>([]);
@@ -332,14 +345,25 @@ const scheduleGenerated = ref(false);
 const generating = ref(false);
 const confirming = ref(false);
 const calendarView = ref<'month' | 'week'>('month');
+const viewDate = ref(new Date());
 const apiSuggestion = ref<Suggestion | null>(null);
 const selectedPreview = ref<SchedulePreviewResponse | null>(null);
 const scheduleNotice = ref('');
 const serviceError = ref('');
+const serviceErrorStatus = ref<number | undefined>();
+const interviewRecords = ref<Awaited<ReturnType<typeof fetchInterviews>>>([]);
+const canManageInterviews = computed(() => hasPermission('interview.manage'));
+const serviceErrorTitle = computed(() => serviceErrorStatus.value
+  ? '面试数据加载失败。'
+  : '无法连接后端服务。');
 
 const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
 const scheduleItems = ref<ScheduleItem[]>([]);
+const todayInterviewItems = computed(() => {
+  const today = formatDateKey(new Date());
+  return interviewRecords.value.filter((item) => formatDateKey(new Date(item.start_at)) === today);
+});
 
 const currentSuggestion = computed<Suggestion>(() => apiSuggestion.value ?? {
   time: '等待生成',
@@ -360,7 +384,8 @@ const averageDuration = computed(() => {
   return Math.round(total / scheduleItems.value.length);
 });
 
-const calendarDays = ref<Array<{ date: number; muted: boolean; today: boolean; events: number; recommended: boolean; conflict: boolean }>>([]);
+const calendarTitle = computed(() => `${viewDate.value.getFullYear()} 年 ${viewDate.value.getMonth() + 1} 月`);
+const calendarDays = computed(() => buildCalendarDays(interviewRecords.value));
 
 onMounted(loadInterviewData);
 
@@ -369,6 +394,7 @@ async function loadInterviewData() {
   serviceError.value = '';
   scheduleNotice.value = '';
   permissionDenied.value = false;
+  serviceErrorStatus.value = undefined;
   try {
     await checkBackendHealth();
     const [appRows, candidateRows, jobRows, interviewerRows, roomRows, interviewRows] = await Promise.all([
@@ -384,10 +410,16 @@ async function loadInterviewData() {
     jobs.value = jobRows;
     interviewerResources.value = interviewerRows;
     roomResources.value = roomRows;
-    calendarDays.value = buildCalendarDays(interviewRows);
-    const today = new Date().toDateString();
+    interviewRecords.value = interviewRows;
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const upcomingEnd = new Date(todayStart);
+    upcomingEnd.setDate(upcomingEnd.getDate() + 7);
     scheduleItems.value = interviewRows
-      .filter((interview) => new Date(interview.start_at).toDateString() === today)
+      .filter((interview) => {
+        const start = new Date(interview.start_at);
+        return start >= todayStart && start < upcomingEnd;
+      })
       .map((interview) => {
         const application = appRows.find((item) => item.id === interview.application_id);
         return {
@@ -403,12 +435,20 @@ async function loadInterviewData() {
         };
       });
     
-    // Parse query parameter applicationId
-    const queryAppId = Number(route.query.applicationId);
+    const queryValue = route.query.application_id;
+    const queryAppId = Number(Array.isArray(queryValue) ? queryValue[0] : queryValue);
     if (queryAppId && appRows.some(a => a.id === queryAppId)) {
       selectedApplicationId.value = queryAppId;
     } else if (appRows.length > 0) {
       selectedApplicationId.value = appRows[0].id;
+      if (queryValue !== undefined) {
+        scheduleNotice.value = '链接中的候选人申请参数无效，已选择第一条有效申请。';
+      }
+    } else {
+      selectedApplicationId.value = null;
+      if (queryValue !== undefined) {
+        scheduleNotice.value = '链接中的候选人申请参数无效，当前也没有可供选择的申请。';
+      }
     }
   } catch (err: any) {
     applications.value = [];
@@ -416,10 +456,12 @@ async function loadInterviewData() {
     jobs.value = [];
     interviewerResources.value = [];
     roomResources.value = [];
+    interviewRecords.value = [];
     scheduleItems.value = [];
     if (err instanceof ApiClientError && err.status === 403) {
       permissionDenied.value = true;
     } else {
+      serviceErrorStatus.value = err instanceof ApiClientError ? err.status : undefined;
       serviceError.value = err.message || '网络连接失败，服务端未响应。';
     }
   } finally {
@@ -437,6 +479,7 @@ async function generateSchedule() {
     scheduleNotice.value = '缺少面试官或会议室数据，当前无法生成排期建议。';
     return;
   }
+  clearPreview();
   generating.value = true;
   try {
     const result = await generateInterviewSchedule(buildSchedulePayload());
@@ -486,13 +529,15 @@ function jobName(application?: CandidateApplicationListItem): string {
 
 function interviewerName(interviewerId?: number | null): string {
   const interviewer = interviewerResources.value.find((item) => item.id === Number(interviewerId));
-  return String(interviewer?.employee_name || '').trim()
-    || (interviewer ? `员工 #${interviewer.employee_id}` : '待分配面试官');
+  return String(interviewer?.employee_name || '').trim() || '面试官信息缺失';
 }
 
 function roomName(roomId?: number | null): string {
   const room = roomResources.value.find((item) => item.id === Number(roomId));
-  return String(room?.name || '').trim() || (room ? `会议室 #${room.id}` : '待分配会议室');
+  if (!room) return '会议室信息缺失';
+  const name = String(room.name || '').trim() || '未命名会议室';
+  const location = String(room.location || '').trim();
+  return location ? `${name} · ${location}` : name;
 }
 
 function applyScheduleResult(result: SchedulePreviewResponse) {
@@ -501,6 +546,9 @@ function applyScheduleResult(result: SchedulePreviewResponse) {
   if (!start || !end) throw new Error('排期建议缺少完整的开始或结束时间。');
   const startDate = new Date(start);
   const endDate = new Date(end);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate <= startDate) {
+    throw new Error('排期建议返回了无法解析的时间，请重新生成。');
+  }
   const timeLabel = `${formatClock(startDate)} - ${formatClock(endDate)}`;
   const score = Number(result.conflict_explanation?.priority_score ?? 90);
 
@@ -510,7 +558,7 @@ function applyScheduleResult(result: SchedulePreviewResponse) {
   const roleName = jobName(currentApp);
 
   apiSuggestion.value = {
-    time: `7 月 ${startDate.getDate()} 日 ${timeLabel}`,
+    time: `${startDate.getMonth() + 1} 月 ${startDate.getDate()} 日 ${timeLabel}`,
     interviewerAvailability: result.interviewer_availability || '面试官在该时间段可用。',
     candidateAvailability: result.candidate_availability || '候选人在该时间段可用。',
     conflict: result.conflict_detection || '未发现冲突。',
@@ -519,8 +567,8 @@ function applyScheduleResult(result: SchedulePreviewResponse) {
     hasConflict: Boolean(result.conflict_explanation?.conflicts && Array.isArray(result.conflict_explanation.conflicts) && result.conflict_explanation.conflicts.length),
   };
 
+  viewDate.value = new Date(startDate);
   scheduleGenerated.value = true;
-  markCalendarDay(startDate.getDate(), apiSuggestion.value.hasConflict);
   scheduleItems.value = [
     {
       time: formatClock(startDate),
@@ -573,42 +621,65 @@ async function confirmSchedule() {
   }
 }
 
-function markCalendarDay(date: number, hasConflict: boolean) {
-  calendarDays.value = calendarDays.value.map((day) => ({
-    ...day,
-    recommended: day.date === date ? true : day.recommended,
-    conflict: day.date === date ? hasConflict : day.conflict,
-  }));
-}
-
 function buildCalendarDays(interviews: Array<{ start_at: string }>) {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const first = new Date(year, month, 1);
+  const year = viewDate.value.getFullYear();
+  const month = viewDate.value.getMonth();
+  const first = calendarView.value === 'month'
+    ? new Date(year, month, 1)
+    : new Date(viewDate.value.getFullYear(), viewDate.value.getMonth(), viewDate.value.getDate());
   const startOffset = (first.getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const previousMonthDays = new Date(year, month, 0).getDate();
-  const counts = new Map<number, number>();
+  const gridStart = new Date(first);
+  gridStart.setDate(first.getDate() - startOffset);
+  const counts = new Map<string, number>();
   for (const interview of interviews) {
     const value = new Date(interview.start_at);
-    if (value.getFullYear() === year && value.getMonth() === month) {
-      counts.set(value.getDate(), (counts.get(value.getDate()) || 0) + 1);
-    }
+    if (Number.isNaN(value.getTime())) continue;
+    const key = formatDateKey(value);
+    counts.set(key, (counts.get(key) || 0) + 1);
   }
-  return Array.from({ length: 35 }, (_, index) => {
-    const offsetDay = index - startOffset + 1;
-    const muted = offsetDay < 1 || offsetDay > daysInMonth;
-    const date = offsetDay < 1 ? previousMonthDays + offsetDay : offsetDay > daysInMonth ? offsetDay - daysInMonth : offsetDay;
+  const previewStart = selectedPreview.value?.recommended_time?.start;
+  const previewDate = previewStart ? new Date(String(previewStart)) : null;
+  const previewKey = previewDate && !Number.isNaN(previewDate.getTime()) ? formatDateKey(previewDate) : '';
+  const length = calendarView.value === 'month' ? 42 : 7;
+  return Array.from({ length }, (_, index) => {
+    const value = new Date(gridStart);
+    value.setDate(gridStart.getDate() + index);
+    const key = formatDateKey(value);
+    const recommended = key === previewKey;
     return {
-      date,
-      muted,
-      today: !muted && date === now.getDate(),
-      events: muted ? 0 : counts.get(date) || 0,
-      recommended: false,
-      conflict: false,
+      key,
+      date: value.getDate(),
+      muted: calendarView.value === 'month' && value.getMonth() !== month,
+      today: key === formatDateKey(now),
+      events: counts.get(key) || 0,
+      recommended,
+      conflict: recommended && Boolean(apiSuggestion.value?.hasConflict),
     };
   });
+}
+
+function clearPreview() {
+  selectedPreview.value = null;
+  apiSuggestion.value = null;
+  scheduleGenerated.value = false;
+  scheduleNotice.value = '';
+  scheduleItems.value = scheduleItems.value.filter((item) => !item.recommended);
+}
+
+function moveCalendar(direction: number) {
+  const next = new Date(viewDate.value);
+  if (calendarView.value === 'month') next.setMonth(next.getMonth() + direction, 1);
+  else next.setDate(next.getDate() + direction * 7);
+  viewDate.value = next;
+}
+
+function goToday() {
+  viewDate.value = new Date();
+}
+
+function formatDateKey(value: Date) {
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
 }
 
 function formatClock(value: Date) {

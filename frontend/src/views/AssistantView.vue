@@ -19,7 +19,7 @@
                 </div>
               </div>
               <div>
-                <h2 class="text-lg font-bold text-on-surface m-0 bg-clip-text text-transparent bg-gradient-to-r from-on-surface to-on-surface-variant">TalentOS 智能助手</h2>
+                <h2 class="text-lg font-bold text-on-surface m-0 bg-clip-text text-transparent bg-gradient-to-r from-on-surface to-on-surface-variant">TalentFlow 智能助手</h2>
                 <div class="flex items-center gap-2 mt-0.5">
                   <span class="relative flex h-2 w-2">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />

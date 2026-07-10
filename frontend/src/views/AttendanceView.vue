@@ -1,5 +1,9 @@
 <template>
   <div class="p-4 md:p-8 pb-32 max-w-container-max mx-auto h-full flex flex-col overflow-y-auto">
+    <LoadingState v-if="loading" message="正在读取今日考勤..." detail="正在同步当前员工的签到与签退记录" />
+    <PermissionDenied v-else-if="permissionDenied" description="当前账号没有查看或操作本人考勤的权限。" />
+    <ErrorState v-else-if="pageError" :message="pageError" retry-label="重新加载" @retry="loadAttendancePage" />
+    <template v-else>
     <!-- Page Header -->
     <div class="mb-6">
       <h2 class="font-headline-lg md:font-display text-headline-lg-mobile md:text-display text-on-surface tracking-tight">今日考勤</h2>
@@ -58,34 +62,24 @@
 
       <!-- Right Panel: Location & Calendar (Span 5) -->
       <div class="lg:col-span-5 flex flex-col gap-6 h-full">
-        <!-- Location Card -->
+        <!-- Today Status Card -->
         <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm overflow-hidden flex-1 flex flex-col min-h-[300px]">
           <div class="p-4 border-b border-outline-variant/30 flex items-center justify-between bg-surface-bright">
             <div class="flex items-center gap-2 text-on-surface">
-              <span class="material-symbols-outlined text-primary">location_on</span>
-              <h3 class="font-title-lg text-[16px] font-semibold">办公地点</h3>
+              <span class="material-symbols-outlined text-primary">fact_check</span>
+              <h3 class="font-title-lg text-[16px] font-semibold">今日打卡状态</h3>
             </div>
-            <span class="font-label-md text-label-md text-secondary bg-secondary-container/30 px-2 py-0.5 rounded text-[10px]">范围匹配</span>
+            <span class="font-label-md text-label-md text-secondary bg-secondary-container/30 px-2 py-0.5 rounded text-[10px]">数据库实时记录</span>
           </div>
-
-          <div class="flex-1 relative bg-surface-container-low overflow-hidden">
-            <img
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuASzfyHRoSeoH9ReWVi2DXaPr3GUUPK1Rdzhadir5zfa_AAhu1yFsZ1-WTwcrhA92N5fk76bw-5uldR62Yzhq6Pep_d8YIT_7A3z5SjVxZx-pTnPWoFa5jRVa6gglHsZ8BzfuwbF8I9Ccp3DMb09OF-W0DH_3RHv9XLz6k-F5N9LnxSIGkl9ylFhZPVCXEVI4eroREmOLMvJeayIZm-czUnq0QCgQjup4QMCcFtwPYbRRMhum8kGnzcBf6ggvgHoO4LD9LbQblrTgcE"
-              alt="Map Location"
-              class="w-full h-full object-cover opacity-80 mix-blend-multiply"
-            />
-            <!-- Fake Map Pin & Radius -->
-            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
-              <div class="w-32 h-32 bg-primary/10 rounded-full border border-primary/20 animate-pulse"></div>
-              <div class="absolute w-6 h-6 bg-primary rounded-full shadow-lg border-2 border-white flex items-center justify-center">
-                <div class="w-2 h-2 bg-white rounded-full"></div>
-              </div>
-            </div>
+          <div class="flex flex-1 flex-col justify-center gap-4 bg-surface-container-low p-6">
+            <p class="text-sm text-on-surface-variant">签到时间</p>
+            <strong class="text-2xl text-on-surface">{{ checkInTime || '尚未签到' }}</strong>
+            <p class="text-sm text-on-surface-variant">签退时间</p>
+            <strong class="text-2xl text-on-surface">{{ checkOutTime || '尚未签退' }}</strong>
           </div>
-
           <div class="p-4 bg-surface-container-lowest border-t border-outline-variant/30">
-            <p class="font-body-md text-body-md text-on-surface font-medium">研发中心A栋</p>
-            <p class="font-label-md text-label-md text-outline mt-1">北京市朝阳区</p>
+            <p class="font-body-md text-body-md text-on-surface font-medium">Web 打卡</p>
+            <p class="font-label-md text-label-md text-outline mt-1">Sprint 1 仅记录时间事实，不进行位置验证。</p>
           </div>
         </div>
 
@@ -113,6 +107,7 @@
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -120,11 +115,17 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { checkIn, checkOut, fetchTodayAttendance, fetchWeeklyAttendance } from '../shared/api/modules/attendance';
 import { fetchMyProfile } from '../shared/api/modules/employee';
-import type { AttendanceRecord } from '../shared/api/types';
+import LoadingState from '../shared/components/feedback/LoadingState.vue';
+import ErrorState from '../shared/components/feedback/ErrorState.vue';
+import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
+import { ApiClientError } from '../shared/api/apiClient';
 
 const emit = defineEmits(['show-toast']);
 
-const employeeName = ref('张伟');
+const employeeName = ref('当前员工');
+const loading = ref(true);
+const pageError = ref('');
+const permissionDenied = ref(false);
 const attendanceLoading = ref(false);
 const time = ref('');
 const hasCheckedIn = ref(false);
@@ -149,12 +150,8 @@ const updateClock = () => {
 };
 
 const fetchEmployeeName = async () => {
-  try {
-    const profile = await fetchMyProfile();
-    employeeName.value = profile.employee.full_name || employeeName.value;
-  } catch (err) {
-    console.error('Failed to fetch employee profile:', err);
-  }
+  const profile = await fetchMyProfile();
+  employeeName.value = profile.employee.full_name || employeeName.value;
 };
 
 const formatTime = (isoString: string | null) => {
@@ -164,7 +161,6 @@ const formatTime = (isoString: string | null) => {
 };
 
 const fetchTodayStatus = async () => {
-  try {
     const record = await fetchTodayAttendance();
     if (record) {
       hasCheckedIn.value = !!record.check_in_at;
@@ -177,30 +173,40 @@ const fetchTodayStatus = async () => {
       checkInTime.value = '';
       checkOutTime.value = '';
     }
-  } catch (err) {
-    console.error('Failed to fetch today attendance:', err);
-  }
 };
 
 const fetchWeeklySummary = async () => {
-  try {
     const records = await fetchWeeklyAttendance();
-    if (records) {
-      const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-      const todayDateStr = new Date().toISOString().split('T')[0];
-
-      weeklySummary.value = records.map((r: AttendanceRecord, idx: number) => {
-        return {
-          name: days[idx],
-          status: r.status,
-          isToday: r.attendance_date === todayDateStr
-        };
-      });
-    }
-  } catch (err) {
-    console.error('Failed to fetch weekly summary:', err);
-  }
+    const today = new Date();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const recordByDate = new Map(records.map((record) => [record.attendance_date, record]));
+    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    weeklySummary.value = days.map((name, index) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + index);
+      const key = formatLocalDate(date);
+      return { name, status: recordByDate.get(key)?.status || 'NONE', isToday: key === formatLocalDate(today) };
+    });
 };
+
+function formatLocalDate(value: Date) {
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+}
+
+async function loadAttendancePage() {
+  loading.value = true;
+  pageError.value = '';
+  permissionDenied.value = false;
+  try {
+    await Promise.all([fetchEmployeeName(), fetchTodayStatus(), fetchWeeklySummary()]);
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 403) permissionDenied.value = true;
+    else pageError.value = error instanceof Error ? error.message : '考勤数据加载失败。';
+  } finally {
+    loading.value = false;
+  }
+}
 
 const handleCheckIn = async () => {
   if (attendanceLoading.value) return;
@@ -233,9 +239,7 @@ const handleCheckOut = async () => {
 onMounted(async () => {
   updateClock();
   clockTimer = setInterval(updateClock, 1000);
-  await fetchEmployeeName();
-  await fetchTodayStatus();
-  await fetchWeeklySummary();
+  await loadAttendancePage();
 });
 
 onUnmounted(() => {

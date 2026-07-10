@@ -4,6 +4,13 @@
 import apiClient from '../apiClient';
 import type { AttendanceRecord } from '../types';
 
+export interface WeeklyAttendanceSummary {
+  attendance_date: string;
+  status: AttendanceRecord['status'];
+  check_in_at: string | null;
+  check_out_at: string | null;
+}
+
 export async function fetchTodayAttendance(): Promise<AttendanceRecord | null> {
   const response = await apiClient.get<AttendanceRecord | null>('/attendance/today');
   return response.data;
@@ -19,7 +26,7 @@ export async function checkOut(): Promise<{ message: string; record: AttendanceR
   return response.data;
 }
 
-export async function fetchWeeklyAttendance(): Promise<AttendanceRecord[]> {
-  const response = await apiClient.get<AttendanceRecord[]>('/attendance/weekly');
+export async function fetchWeeklyAttendance(): Promise<WeeklyAttendanceSummary[]> {
+  const response = await apiClient.get<WeeklyAttendanceSummary[]>('/attendance/weekly');
   return response.data;
 }
