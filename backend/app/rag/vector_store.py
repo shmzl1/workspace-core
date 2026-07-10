@@ -1,11 +1,16 @@
-"""RAG vector store boundary.
+"""Vector-store Protocol only; no ChromaDB or local vector index is created."""
 
-Real Chroma writes and LLM retrieval are handled by the dedicated RAG workflow. RAG answers
-must include sources when implemented.
-"""
+from collections.abc import Sequence
+from typing import Protocol
+
+from app.rag.schemas import KnowledgeChunk, RetrievalHit, RetrievalQuery
 
 
-class VectorStore:
-    """Placeholder for future ChromaDB integration."""
+class VectorStore(Protocol):
+    def upsert(self, chunks: Sequence[KnowledgeChunk]) -> int: ...
 
-    pass
+    def search(self, query: RetrievalQuery) -> Sequence[RetrievalHit]: ...
+
+    def delete_by_source(self, source_id: str) -> int: ...
+
+    def health(self) -> dict[str, str]: ...

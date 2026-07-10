@@ -19,7 +19,7 @@ TalentFlow 通过一套 FastAPI 后端支撑 Vue Web 管理端、微信小程序
 - 考勤：员工签到、签退、今日考勤状态和本月考勤摘要。
 - 薪资预审：HR 查看预审明细、扣款来源、异常解释和待 HR 确认状态。
 - 权限审计：薪资访问控制、字段脱敏、敏感访问日志和 `trace_id`。
-- Agent 能力：当前只运行招聘策略 Agent；简历解析、岗位匹配、面试评估、决策审查和 HR 最终报告明确标记为后续阶段。员工服务 Agent、薪资预审助手与 RAG 仍未接入真实执行。
+- Agent 能力：当前只运行招聘策略 Agent；简历解析、岗位匹配、面试评估、决策审查和 HR 最终报告已建立数据、节点、Tool 与 Prompt 契约，但尚未执行。员工服务 Agent、薪资预审助手与 RAG 同样只有契约，尚未接入真实执行。
 
 ## 端与边界
 
@@ -90,6 +90,25 @@ flowchart LR
     Service --> Human
 ```
 
+## 招聘多 Agent 正式架构
+
+```text
+企业招聘目标
+→ 招聘策略 Agent
+→ 简历解析 Agent / 岗位匹配 Agent / 面试评估 Agent
+→ 决策审查 Agent
+→ HR 最终报告
+→ HR 人工决定
+```
+
+| 状态 | 范围 |
+| --- | --- |
+| 已实现 | 招聘策略规则式计划、进程内 RunStore、真实 `run_id`/`trace_id`、SSE 与前端实时看板 |
+| 已建立契约 | 六节点静态图、候选人/证据/审查/报告类型、Tool/Service Protocol、RAG Schema/Protocol |
+| 后续规划 | LangGraph、LLM、真实 RAG/ChromaDB、员工服务 Agent、薪资预审助手及其余五个招聘节点执行 |
+
+岗位匹配依赖简历解析，面试评估只能使用真实结构化面试数据。Agent 通过 Tool 调用 Service，不直接访问 Repository 或 `human_only`；Agent 不自动录用、淘汰、确认排期或确认薪资，最终决定由 HR 完成。
+
 ## 项目结构
 
 ```text
@@ -101,9 +120,19 @@ flowchart LR
 │   ├── app/
 │   │   ├── api/
 │   │   ├── modules/
+│   │   │   ├── recruitment/
+│   │   │   │   ├── intelligence/     # 招聘智能分析纯数据契约
+│   │   │   │   └── services/         # 真实上下文 Service 与未来专业 Service Protocol
 │   │   │   └── */models.py
 │   │   ├── agents/
+│   │   │   ├── runtime/              # 当前进程内 Runtime 与 SSE
+│   │   │   ├── shared/               # 状态、事件、来源、Guardrail、模型网关契约
+│   │   │   ├── workflows/            # 招聘、员工服务、薪资预审工作流契约
+│   │   │   ├── tools/                # Tool 元数据与兼容入口
+│   │   │   └── prompts/              # Prompt 边界说明
 │   │   ├── rag/
+│   │   │   ├── ingestion/            # 摄取 Protocol，未接入真实索引
+│   │   │   └── retrieval/            # 检索与引用 Protocol，未接入真实检索
 │   │   ├── shared/
 │   │   ├── human_only/
 │   │   └── agent_console/

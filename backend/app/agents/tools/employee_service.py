@@ -2,9 +2,34 @@
 
 from typing import Any
 from sqlalchemy.orm import Session
+from app.agents.shared import ToolContract
 from app.modules.attendance.service import AttendanceService
 from app.modules.employee.service import EmployeeService
 from app.modules.payroll.services.employee_salary_service import EmployeeSalaryService
+
+
+EMPLOYEE_TOOL_CONTRACTS: tuple[ToolContract, ...] = (
+    ToolContract(
+        name="get_self_attendance",
+        description="读取当前员工本人今日或月度考勤。",
+        service_boundary="AttendanceService",
+        permission="attendance.self.read",
+        read_only=True,
+        sensitive=False,
+        input_fields=("actor_user_id", "employee_id", "period"),
+        output_fields=("attendance_summary",),
+    ),
+    ToolContract(
+        name="get_self_salary_summary",
+        description="经权限校验读取当前员工本人薪资摘要。",
+        service_boundary="EmployeeSalaryService",
+        permission="payroll.self.read",
+        read_only=True,
+        sensitive=True,
+        input_fields=("actor_user_id", "employee_id"),
+        output_fields=("salary_summary",),
+    ),
+)
 
 
 def get_my_monthly_attendance_summary(

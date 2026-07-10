@@ -29,7 +29,9 @@
 - 不使用 `feature/*` 分支流程。
 - Commit 类型只使用 `feat`、`fix`、`docs`、`refactor`，并关联 Issue 或任务说明。
 
-   - `backend/app/human_only/resume_scoring.py`
+## AI 禁飞区
+
+- `backend/app/human_only/resume_scoring.py`
 
 - `backend/app/human_only/interview_scheduler.py`
 - `backend/app/human_only/salary_access_control.py`
@@ -52,6 +54,16 @@ Service 层可以包装为：
 - `check_salary_access(...)`
 
 Agent Tool 只能调用 Service 层函数，不能直接调用 `human_only` 函数。
+
+## Agent 目录与事件约束
+
+- `backend/app/agents/runtime/` 保存当前进程内 Runtime 与 SSE；`shared/` 保存公共契约；`workflows/` 保存工作流契约和静态节点元数据；`tools/` 只通过 Service 使用业务能力。
+- `backend/app/rag/` 当前只提供 Schema 和 Protocol，不得把契约描述成真实检索。
+- `backend/app/modules/recruitment/intelligence/` 只放分析契约；`services/` 同时保存真实 Run 上下文 Service 与未来专业 Service Protocol。
+- Agent 文件不得访问 Repository 或直接导入 `human_only`；新 Tool 不得创建数据库 Session、访问 Repository 或直接导入 `human_only`。
+- 前端不得伪造 Agent 日志、随机事件或固定延迟。`AGENT_THINKING` 仅表示可审计结构化阶段摘要，不得暴露隐藏思维链。
+- 招聘 Agent 不自动录用或淘汰，面试 Agent 不确认排期，薪资预审助手不确认工资。
+- 目录重构保留旧 import 兼容入口；未确认依赖迁移和测试前不得删除旧路径。
 
 ## 默认执行规则
 

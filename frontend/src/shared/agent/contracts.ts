@@ -41,6 +41,15 @@ export interface AgentErrorInfo {
   details: Record<string, unknown>;
 }
 
+export interface KnowledgeSourceReference {
+  source_id: string;
+  title: string;
+  version: string | null;
+  effective_date: string | null;
+  excerpt: string | null;
+  relevance: number | null;
+}
+
 export interface AgentEvent {
   event_id: string;
   run_id: string;
@@ -71,6 +80,7 @@ export interface AgentRunSnapshot {
   total_candidates: number;
   nodes: Record<string, AgentNodeStatus>;
   events: AgentEvent[];
+  sources: KnowledgeSourceReference[];
   error: AgentErrorInfo | null;
   created_at: string;
   updated_at: string;
@@ -113,5 +123,107 @@ export interface RecruitmentExecutionPlan {
 
 export interface RecruitmentRunSnapshot extends AgentRunSnapshot {
   execution_plan: RecruitmentExecutionPlan | null;
+}
+
+export interface ResumeEvidenceItem {
+  evidence_id: string;
+  capability: string;
+  excerpt: string;
+  source_section: string | null;
+  supports: boolean | null;
+  confidence: number | null;
+}
+
+export interface CandidateProfile {
+  candidate_id: number;
+  skills: string[];
+  normalized_skills: string[];
+  experience_months: number | null;
+  education: string[];
+  projects: string[];
+  project_roles: string[];
+  project_technologies: string[];
+  measurable_achievements: string[];
+  certificates: string[];
+  availability: string | null;
+  missing_fields: string[];
+  evidence_items: ResumeEvidenceItem[];
+}
+
+export interface JobRequirementItem {
+  requirement_id: string;
+  category: string;
+  description: string;
+  required: boolean;
+  weight: number | null;
+  source_ids: string[];
+}
+
+export interface JobRubric {
+  job_id: number;
+  version: string | null;
+  requirements: JobRequirementItem[];
+}
+
+export interface JobMatchSummary {
+  candidate_id: number;
+  overall_score: number | null;
+  job_match_score: number | null;
+  dimension_scores: Record<string, number>;
+  must_have_passed: boolean | null;
+  matched_skills: string[];
+  missing_skills: string[];
+  evidence_ids: string[];
+  knowledge_sources: KnowledgeSourceReference[];
+  suggested_interview_questions: string[];
+  recommended_action: string | null;
+}
+
+export interface InterviewEvaluationInput {
+  candidate_id: number;
+  interview_id: number | null;
+  interview_status: string;
+  interviewer_scores: Record<string, number>;
+  structured_feedback: Record<string, unknown>;
+}
+
+export interface InterviewEvaluationSummary {
+  candidate_id: number;
+  interview_id: number | null;
+  status: string;
+  conclusion: string;
+  strengths: string[];
+  risks: string[];
+  evidence: string[];
+  conflicts: string[];
+  requires_review: boolean;
+}
+
+export interface DecisionReviewFinding {
+  code: string;
+  severity: string;
+  summary: string;
+  evidence_ids: string[];
+  requires_human_review: boolean;
+}
+
+export interface DecisionReviewSummary {
+  candidate_id: number;
+  confidence: number | null;
+  findings: DecisionReviewFinding[];
+  risk_tags: string[];
+  agent_disagreements: string[];
+  deterministic_score_preserved: boolean;
+  recommended_action: string | null;
+}
+
+export interface HRReportSummary {
+  goal: RecruitmentGoal;
+  candidate_rankings: number[];
+  candidate_reviews: DecisionReviewSummary[];
+  knowledge_sources: KnowledgeSourceReference[];
+  talent_gaps: string[];
+  next_actions: string[];
+  requires_human_decision: boolean;
 }
 

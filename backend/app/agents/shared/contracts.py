@@ -1,6 +1,6 @@
 """Shared, auditable contracts for Agent runs and events."""
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import Any
 
@@ -48,6 +48,15 @@ class AgentErrorInfo(BaseModel):
     details: dict[str, Any] = Field(default_factory=dict)
 
 
+class KnowledgeSourceReference(BaseModel):
+    source_id: str
+    title: str
+    version: str | None = None
+    effective_date: date | None = None
+    excerpt: str | None = None
+    relevance: float | None = Field(default=None, ge=0, le=1)
+
+
 class AgentEvent(BaseModel):
     """Public event data. ``summary`` never contains hidden chain-of-thought."""
 
@@ -81,6 +90,17 @@ class AgentNodeContract(BaseModel):
     can_skip: bool = False
 
 
+class ToolContract(BaseModel):
+    name: str
+    description: str
+    service_boundary: str
+    permission: str
+    read_only: bool
+    sensitive: bool
+    input_fields: tuple[str, ...] = ()
+    output_fields: tuple[str, ...] = ()
+
+
 class AgentRunSnapshot(BaseModel):
     run_id: str
     trace_id: str
@@ -91,6 +111,7 @@ class AgentRunSnapshot(BaseModel):
     total_candidates: int = Field(default=0, ge=0)
     nodes: dict[str, AgentNodeStatus] = Field(default_factory=dict)
     events: list[AgentEvent] = Field(default_factory=list)
+    sources: list[KnowledgeSourceReference] = Field(default_factory=list)
     error: AgentErrorInfo | None = None
     created_at: datetime
     updated_at: datetime

@@ -2,7 +2,12 @@
 
 from pydantic import BaseModel, Field
 
-from app.agents.shared.contracts import AgentErrorInfo, AgentEvent, AgentRunStatus
+from app.agents.shared.contracts import (
+    AgentErrorInfo,
+    AgentEvent,
+    AgentRunStatus,
+    KnowledgeSourceReference,
+)
 
 
 class AgentState(BaseModel):
@@ -13,5 +18,6 @@ class AgentState(BaseModel):
     current_agent: str | None = None
     current_node: str | None = None
     events: list[AgentEvent] = Field(default_factory=list)
+    sources: list[KnowledgeSourceReference] = Field(default_factory=list)
     error: AgentErrorInfo | None = None
 

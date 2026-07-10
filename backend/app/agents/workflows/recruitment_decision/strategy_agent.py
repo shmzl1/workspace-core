@@ -12,8 +12,9 @@ from app.agents.workflows.recruitment_decision.contracts import (
 RECRUITMENT_STRATEGY_NODE = AgentNodeContract(
     name="recruitment_strategy",
     display_name="招聘策略 Agent",
-    responsibility="读取已校验的企业招聘目标并生成结构化执行计划。",
+    responsibility="读取已校验的企业招聘目标并生成专业 Agent 的结构化执行计划。",
     required_inputs=("request", "job_context", "candidate_ids", "workflow_nodes"),
+    allowed_tools=("hiring_requirement_service", "recruitment_context"),
     output_fields=("execution_plan",),
     forbidden_behaviors=("调用数据库", "调用 LLM 或 RAG", "生成候选人评分", "自动录用或淘汰"),
 )

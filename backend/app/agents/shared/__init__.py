@@ -8,6 +8,8 @@ from app.agents.shared.contracts import (
     AgentNodeStatus,
     AgentRunSnapshot,
     AgentRunStatus,
+    KnowledgeSourceReference,
+    ToolContract,
 )
 from app.agents.shared.state import AgentState
 
@@ -20,5 +22,7 @@ __all__ = [
     "AgentRunSnapshot",
     "AgentRunStatus",
     "AgentState",
+    "KnowledgeSourceReference",
+    "ToolContract",
 ]
 

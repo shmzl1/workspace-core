@@ -19,6 +19,9 @@
 - 页面按 `recruitment`、`employee`、`payroll-review` 等 feature 组织。
 - 异步页面必须有加载、空、错误和权限拒绝状态。
 - 本地静态样例数据仅用于前端展示兜底。
+- Agent 公共类型放入 `src/shared/agent/`，招聘评估契约放入 `src/features/recruitment/evaluation/`。
+- Agent 状态与事件必须使用与后端一致的大写枚举和 `snake_case` 字段。
+- `AGENT_THINKING` 只展示可审计结构化阶段摘要，不展示模型隐藏思维链。
 
 ## 禁止事项
 
@@ -31,4 +34,7 @@
 - 不直接访问底层算法，不绕过后端 Service。
 - 不引入与既定方案无关的框架。
 - 不引入 Redis、Celery、RabbitMQ、Kubernetes 或第二套后端相关目录。
+- 不使用随机日志、固定延迟、静态事件或假 API 成功状态模拟 Agent 执行。
+- 不展示密钥、完整简历、完整联系方式、完整薪资或未过滤长推理。
+- 目录重构不得删除仍被页面、Composable 或 API 模块使用的旧路径。
 - 前端开发不要自动执行 `npm run dev`；默认不运行 npm、Docker、Git、构建或启动命令，除非用户明确要求。
