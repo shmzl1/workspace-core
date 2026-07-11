@@ -1,20 +1,28 @@
-"""Protocols for future professional recruitment Services."""
+"""Protocols for professional recruitment Services."""
 
-from collections.abc import Sequence
 from typing import Protocol
 
 from app.agents.workflows.recruitment_decision.contracts import (
     CandidateProfile,
     DecisionReviewSummary,
+    EnterpriseKnowledgeSummary,
     HRReportSummary,
+    InterviewEvaluationSummary,
     JobMatchSummary,
     JobRubric,
     RecruitmentGoal,
+    RecruitmentRunContext,
 )
 
 
 class CandidateEvaluationServiceProtocol(Protocol):
-    def evaluate(self, profile: CandidateProfile, rubric: JobRubric) -> JobMatchSummary: ...
+    def evaluate(
+        self,
+        context: RecruitmentRunContext,
+        profile: CandidateProfile,
+        rubric: JobRubric,
+        knowledge: EnterpriseKnowledgeSummary,
+    ) -> JobMatchSummary: ...
 
 
 class HiringRequirementServiceProtocol(Protocol):
@@ -23,9 +31,23 @@ class HiringRequirementServiceProtocol(Protocol):
     def get_rubric(self, job_id: int) -> JobRubric: ...
 
 
-class RecruitmentReportServiceProtocol(Protocol):
-    def build_summary(
+class DecisionReviewServiceProtocol(Protocol):
+    def review(
         self,
         goal: RecruitmentGoal,
-        reviews: Sequence[DecisionReviewSummary],
+        profile: CandidateProfile,
+        job_match: JobMatchSummary,
+        interview_evaluation: InterviewEvaluationSummary | None = None,
+    ) -> DecisionReviewSummary: ...
+
+
+class RecruitmentReportServiceProtocol(Protocol):
+    def build_report(
+        self,
+        goal: RecruitmentGoal,
+        job_matches: dict[int, JobMatchSummary],
+        decision_reviews: dict[int, DecisionReviewSummary],
+        knowledge: EnterpriseKnowledgeSummary,
+        candidate_profiles: dict[int, CandidateProfile],
+        interview_evaluations: dict[int, InterviewEvaluationSummary],
     ) -> HRReportSummary: ...

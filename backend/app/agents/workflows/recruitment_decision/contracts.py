@@ -92,8 +92,8 @@ class RecruitmentExecutionPlan(BaseModel):
     interview_candidate_ids: list[int] = Field(default_factory=list)
     next_actions: list[str] = Field(default_factory=list)
     interview_evaluation_requires_real_data: bool = True
-    current_phase: str = "SPRINT_2_2_STRATEGY_RESUME_KNOWLEDGE"
-    next_phase: str = "SPRINT_2_3"
+    current_phase: str = "SPRINT_2_3_DETERMINISTIC_INTERMEDIATE"
+    next_phase: str = "LLM_RAG_INTEGRATION"
     plan_notes: list[str] = Field(default_factory=list)
 
 
@@ -105,6 +105,10 @@ class RecruitmentRunSnapshot(AgentRunSnapshot):
     candidate_profiles: dict[int, "CandidateProfile"] = Field(default_factory=dict)
     job_rubric: JobRubric | None = None
     knowledge_summary: EnterpriseKnowledgeSummary | None = None
+    job_matches: dict[int, JobMatchSummary] = Field(default_factory=dict)
+    interview_evaluations: dict[int, InterviewEvaluationSummary] = Field(default_factory=dict)
+    decision_reviews: dict[int, DecisionReviewSummary] = Field(default_factory=dict)
+    report: HRReportSummary | None = None
 
 
 class ResumeEvidenceItem(BaseModel):
@@ -175,6 +179,8 @@ class JobMatchSummary(BaseModel):
     knowledge_sources: list[KnowledgeSourceReference] = Field(default_factory=list)
     suggested_interview_questions: list[str] = Field(default_factory=list)
     recommended_action: str | None = None
+    scoring_mode: str = "DETERMINISTIC_HUMAN_ONLY"
+    requires_review: bool = False
 
 
 class InterviewEvaluationInput(BaseModel):
@@ -213,6 +219,7 @@ class DecisionReviewSummary(BaseModel):
     agent_disagreements: list[str] = Field(default_factory=list)
     deterministic_score_preserved: bool = True
     recommended_action: str | None = None
+    review_mode: str = "RULE_BASED_INTERMEDIATE"
 
 
 class HRReportSummary(BaseModel):
@@ -223,6 +230,7 @@ class HRReportSummary(BaseModel):
     talent_gaps: list[str] = Field(default_factory=list)
     next_actions: list[str] = Field(default_factory=list)
     requires_human_decision: bool = True
+    generation_mode: str = "RULE_BASED_INTERMEDIATE"
 
 
 class RecruitmentDecisionState(AgentState):

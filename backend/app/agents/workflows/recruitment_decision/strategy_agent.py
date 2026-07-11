@@ -19,6 +19,17 @@ RECRUITMENT_STRATEGY_NODE = AgentNodeContract(
     forbidden_behaviors=("调用数据库", "调用 LLM 或 RAG", "生成候选人评分", "自动录用或淘汰"),
 )
 
+CURRENT_PHASE = "SPRINT_2_3_DETERMINISTIC_INTERMEDIATE"
+NEXT_PHASE = "LLM_RAG_INTEGRATION"
+EXECUTED_NODES = (
+    RECRUITMENT_STRATEGY_NODE.name,
+    "resume_parser",
+    "job_match",
+    "decision_review",
+    "hr_report",
+)
+SKIPPED_NODES = ("interview_evaluation",)
+
 
 def build_recruitment_execution_plan(
     request: RecruitmentRunRequest,
@@ -30,8 +41,6 @@ def build_recruitment_execution_plan(
     """Build the current plan solely from validated input and static metadata."""
 
     required_nodes = [node.name for node in workflow_nodes]
-    executed_nodes = [RECRUITMENT_STRATEGY_NODE.name, "resume_parser"]
-    skipped_nodes = [name for name in required_nodes if name not in executed_nodes]
     normalized_goal = request.goal.model_copy(
         update={"job_title": job_context.job_title, "department": job_context.department}
     )
@@ -40,22 +49,25 @@ def build_recruitment_execution_plan(
         candidate_ids=list(candidate_ids),
         candidate_count=len(candidate_ids),
         required_nodes=required_nodes,
-        executed_nodes=executed_nodes,
-        skipped_nodes=skipped_nodes,
+        executed_nodes=list(EXECUTED_NODES),
+        skipped_nodes=list(SKIPPED_NODES),
         resume_parse_required=True,
         interview_candidate_ids=list(interview_candidate_ids),
         next_actions=[
             f"解析 {len(candidate_ids)} 名候选人的结构化简历上下文",
-            "检索当前岗位标准、招聘目标与招聘规则",
-            "为 Sprint 2.3 岗位匹配保留结构化画像和岗位 Rubric",
+            "通过 LOCAL_HYBRID_FALLBACK 读取当前岗位标准、招聘目标与招聘规则",
+            "使用人工维护的确定性评分算法生成岗位匹配结果",
+            "按明确规则完成决策审查并生成结构化 HR 报告",
         ],
-        current_phase="SPRINT_2_2_STRATEGY_RESUME_KNOWLEDGE",
-        next_phase="SPRINT_2_3",
+        current_phase=CURRENT_PHASE,
+        next_phase=NEXT_PHASE,
         plan_notes=[
-            "当前阶段执行招聘策略规划、企业知识检索和简历解析。",
-            "LLM 未接入，简历解析使用白名单数据库字段和安全片段确定性回退。",
-            "面试评估必须等待真实结构化面试数据。",
-            "后续阶段接入岗位匹配、决策审查和 HR 最终报告。",
+            "当前为确定性中间版本。",
+            "岗位匹配使用人工维护的确定性评分算法。",
+            "决策审查使用明确规则，不静默修改确定性评分。",
+            "HR 最终报告使用结构化汇总，最终决定由 HR 完成。",
+            "面试评估因没有真实结构化评价而跳过，原因：STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE。",
+            "尚未接入大模型、LangGraph、ChromaDB 或真实本地 RAG；企业知识继续使用 LOCAL_HYBRID_FALLBACK。",
         ],
     )
 

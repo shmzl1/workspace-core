@@ -1,7 +1,7 @@
 <template>
   <section class="evaluation-page">
     <header class="evaluation-page__hero">
-      <div><span>Sprint 2.2 · STRATEGY_RESUME_KNOWLEDGE</span><h1>多 Agent 招聘策略与简历解析</h1><p>真实执行策略规划、企业知识回退检索和确定性简历解析；岗位匹配及后续节点明确标记为 SKIPPED。</p></div>
+      <div><span>Sprint 2.3 · DETERMINISTIC_INTERMEDIATE</span><h1>多 Agent 招聘决策中间版本</h1><p>当前真实执行招聘策略、简历解析、岗位匹配、决策审查和 HR 报告；尚未接入大模型，企业知识仍为本地结构化回退，无真实结构化评价时面试评估节点跳过。</p></div>
       <div class="phase-badge">进程内 Run · 真实 SSE</div>
     </header>
 
@@ -18,6 +18,7 @@
       </div>
       <AgentNodeDetail :snapshot="snapshot" :node-name="selectedNode" />
       <Sprint22ResultsPanel :snapshot="snapshot" />
+      <Sprint23ResultsPanel :snapshot="snapshot" :candidate-names="candidateNames" />
     </template>
   </section>
 </template>
@@ -37,6 +38,7 @@ import MultiAgentWorkflowBoard from './components/MultiAgentWorkflowBoard.vue';
 import RecruitmentGoalForm from './components/RecruitmentGoalForm.vue';
 import RecruitmentRunOverview from './components/RecruitmentRunOverview.vue';
 import Sprint22ResultsPanel from './components/Sprint22ResultsPanel.vue';
+import Sprint23ResultsPanel from './components/Sprint23ResultsPanel.vue';
 import { useRecruitmentAgentRun } from './composables/useRecruitmentAgentRun';
 
 const route = useRoute();
@@ -48,6 +50,10 @@ const permissionDenied = ref(false);
 const selectedNode = ref('recruitment_strategy');
 const { snapshot, events, loading, streaming, error, isTerminal, start, restore } = useRecruitmentAgentRun();
 const runBusy = computed(() => loading.value || Boolean(snapshot.value && !isTerminal.value));
+const candidateNames = computed(() => applications.value.reduce<Record<number, string>>((names, application) => {
+  if (application.candidate_name) names[application.candidate_id] = application.candidate_name;
+  return names;
+}, {}));
 
 async function loadContext(): Promise<void> {
   contextLoading.value = true;

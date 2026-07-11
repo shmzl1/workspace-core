@@ -117,11 +117,13 @@ export function useRecruitmentAgentRun() {
     if (event.event_type === AgentEventType.AGENT_STARTED) {
       current.current_agent = event.agent_name;
       current.current_node = event.node_name;
+      current.current_candidate_id = event.candidate_id;
     }
     if (event.candidate_id !== null && [
       AgentEventType.TOOL_STARTED,
       AgentEventType.TOOL_COMPLETED,
       AgentEventType.INTERMEDIATE_RESULT,
+      AgentEventType.REVIEW_COMPLETED,
     ].includes(event.event_type)) current.current_candidate_id = event.candidate_id;
     if (event.event_type === AgentEventType.PLAN_CREATED) {
       const plan = event.summary.execution_plan;
@@ -141,7 +143,24 @@ export function useRecruitmentAgentRun() {
       if (profile && typeof profile === 'object' && event.candidate_id !== null) {
         current.candidate_profiles[String(event.candidate_id)] = profile as RecruitmentRunSnapshot['candidate_profiles'][string];
       }
+      const jobMatch = event.summary.job_match_summary;
+      if (jobMatch && typeof jobMatch === 'object' && event.candidate_id !== null) {
+        current.job_matches[String(event.candidate_id)] = jobMatch as RecruitmentRunSnapshot['job_matches'][string];
+      }
     }
+    if (event.event_type === AgentEventType.REVIEW_COMPLETED) {
+      const decisionReview = event.summary.decision_review;
+      if (decisionReview && typeof decisionReview === 'object' && event.candidate_id !== null) {
+        current.decision_reviews[String(event.candidate_id)] = decisionReview as RecruitmentRunSnapshot['decision_reviews'][string];
+      }
+    }
+    if (event.event_type === AgentEventType.REPORT_GENERATED) {
+      const report = event.summary.report;
+      if (report && typeof report === 'object') {
+        current.report = report as RecruitmentRunSnapshot['report'];
+      }
+    }
+    if (event.event_type === AgentEventType.AGENT_COMPLETED) current.current_candidate_id = null;
     if (event.event_type === AgentEventType.CANDIDATE_COMPLETED) {
       const completed = event.summary.completed_candidates;
       if (typeof completed === 'number') current.completed_candidates = completed;

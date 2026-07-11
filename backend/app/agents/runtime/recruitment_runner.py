@@ -1,4 +1,4 @@
-"""Real Sprint 2.2 strategy, knowledge and resume-parser runtime."""
+"""Deterministic Sprint 2.3 recruitment decision runtime."""
 
 import asyncio
 from datetime import datetime, timezone
@@ -8,18 +8,36 @@ from uuid import uuid4
 from app.agents.runtime.run_store import InMemoryAgentRunStore, agent_run_store
 from app.agents.shared import AgentErrorInfo, AgentEvent, AgentEventType, AgentNodeStatus, AgentRunStatus
 from app.agents.tools.knowledge_tools import EnterpriseKnowledgeTool
-from app.agents.tools.recruitment_tools import CandidateProfileTool
-from app.agents.workflows.recruitment_decision.contracts import RecruitmentRunContext
+from app.agents.tools.recruitment_tools import (
+    CandidateEvaluationTool,
+    CandidateProfileTool,
+    DecisionReviewTool,
+    RecruitmentReportTool,
+)
+from app.agents.workflows.recruitment_decision.contracts import (
+    DecisionReviewSummary,
+    RecruitmentRunContext,
+)
+from app.agents.workflows.recruitment_decision.decision_review_agent import run_decision_review
 from app.agents.workflows.recruitment_decision.graph import RECRUITMENT_WORKFLOW_NODES
+from app.agents.workflows.recruitment_decision.job_match_agent import run_job_match
+from app.agents.workflows.recruitment_decision.report_agent import build_hr_report
 from app.agents.workflows.recruitment_decision.strategy_agent import build_recruitment_execution_plan
 
 STRATEGY_NODE = "recruitment_strategy"
 RESUME_NODE = "resume_parser"
-SKIP_REASON = "CURRENT_PHASE_NOT_IMPLEMENTED"
-RUN_SCOPE = "SPRINT_2_2_STRATEGY_RESUME_KNOWLEDGE"
-NEXT_PHASE = "SPRINT_2_3"
+JOB_MATCH_NODE = "job_match"
+INTERVIEW_NODE = "interview_evaluation"
+DECISION_REVIEW_NODE = "decision_review"
+REPORT_NODE = "hr_report"
+INTERVIEW_SKIP_REASON = "STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE"
+RUN_SCOPE = "SPRINT_2_3_DETERMINISTIC_INTERMEDIATE"
+NEXT_PHASE = "LLM_RAG_INTEGRATION"
 KNOWLEDGE_TOOL_NAME = "retrieve_enterprise_knowledge"
 RESUME_TOOL_NAME = "extract_candidate_profile"
+JOB_MATCH_TOOL_NAME = "evaluate_candidate"
+DECISION_REVIEW_TOOL_NAME = "review_candidate_decision"
+REPORT_TOOL_NAME = "build_recruitment_report"
 _RUNNING_TASKS: set[asyncio.Task[None]] = set()
 
 
@@ -58,7 +76,7 @@ async def run_recruitment_strategy(
         current_step = "publish_workflow_started"
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.WORKFLOW_STARTED, AgentNodeStatus.RUNNING,
-            "Sprint 2.2 招聘工作流已启动",
+            "Sprint 2.3 确定性招聘工作流已启动",
             {"current_scope": RUN_SCOPE, "job_id": context.job.job_id, "candidate_count": len(context.candidate_ids)},
             agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE,
         ))
@@ -259,37 +277,356 @@ async def run_recruitment_strategy(
             duration_ms=_elapsed_ms(resume_started_at), fallback_used=True,
         ))
 
+        if state.job_rubric is None or state.knowledge_summary is None:
+            raise RuntimeError("recruitment knowledge context is unavailable")
+
+        current_node = JOB_MATCH_NODE
+        current_step = "start_job_match"
+        job_match_started_at = perf_counter()
+        snapshot.current_agent = JOB_MATCH_NODE
+        snapshot.current_node = JOB_MATCH_NODE
+        snapshot.nodes[JOB_MATCH_NODE] = AgentNodeStatus.RUNNING
+        state.current_agent = JOB_MATCH_NODE
+        state.current_node = JOB_MATCH_NODE
+        state.node_statuses[JOB_MATCH_NODE] = AgentNodeStatus.RUNNING
+        await store.update_snapshot(run_id, snapshot, state)
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_STARTED, AgentNodeStatus.RUNNING,
+            "岗位匹配 Agent 已启动",
+            {"current_action": "逐名调用确定性候选人评估 Tool", "candidate_count": len(context.candidate_ids)},
+            agent_name=JOB_MATCH_NODE, node_name=JOB_MATCH_NODE,
+        ))
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_THINKING, AgentNodeStatus.RUNNING,
+            "岗位匹配 Agent 正在准备确定性评分",
+            {
+                "current_goal": "保留人工维护评分结果并汇总技能缺口与证据",
+                "candidate_count": len(context.candidate_ids),
+                "scoring_mode": "DETERMINISTIC_HUMAN_ONLY",
+                "next_action": "逐名调用候选人评估 Tool",
+            },
+            agent_name=JOB_MATCH_NODE, node_name=JOB_MATCH_NODE,
+        ))
+
+        evaluation_tool = CandidateEvaluationTool()
+        job_match_requires_review = False
+        for candidate_id in context.candidate_ids:
+            candidate_started_at = perf_counter()
+            current_step = "evaluate_candidate"
+            snapshot.current_candidate_id = candidate_id
+            state.current_candidate_id = candidate_id
+            await store.update_snapshot(run_id, snapshot, state)
+            await _publish(store, _event(
+                run_id, snapshot.trace_id, AgentEventType.TOOL_STARTED, AgentNodeStatus.RUNNING,
+                f"开始评估候选人 #{candidate_id} 的岗位匹配",
+                {"current_action": "调用确定性评分边界并校验证据引用"},
+                agent_name=JOB_MATCH_NODE, node_name=JOB_MATCH_NODE, candidate_id=candidate_id,
+                tool_name=JOB_MATCH_TOOL_NAME,
+            ))
+            job_match = run_job_match(
+                context,
+                state.candidate_profiles[candidate_id],
+                state.job_rubric,
+                state.knowledge_summary,
+                evaluation_tool,
+            )
+            state.job_matches[candidate_id] = job_match
+            snapshot.job_matches[candidate_id] = job_match
+            candidate_needs_review = (
+                job_match.requires_review
+                or job_match.overall_score is None
+                or job_match.job_match_score is None
+            )
+            job_match_requires_review = job_match_requires_review or candidate_needs_review
+            await store.update_snapshot(run_id, snapshot, state)
+            await _publish(store, _event(
+                run_id, snapshot.trace_id, AgentEventType.TOOL_COMPLETED, AgentNodeStatus.RUNNING,
+                f"候选人 #{candidate_id} 岗位匹配评估完成",
+                {
+                    "candidate_id": candidate_id,
+                    "overall_score": job_match.overall_score,
+                    "job_match_score": job_match.job_match_score,
+                    "requires_review": candidate_needs_review,
+                },
+                agent_name=JOB_MATCH_NODE, node_name=JOB_MATCH_NODE, candidate_id=candidate_id,
+                tool_name=JOB_MATCH_TOOL_NAME, duration_ms=_elapsed_ms(candidate_started_at),
+            ))
+            await _publish(store, _event(
+                run_id, snapshot.trace_id, AgentEventType.INTERMEDIATE_RESULT, AgentNodeStatus.RUNNING,
+                f"候选人 #{candidate_id} 岗位匹配结果已生成",
+                {"job_match_summary": job_match.model_dump(mode="json")},
+                agent_name=JOB_MATCH_NODE, node_name=JOB_MATCH_NODE, candidate_id=candidate_id,
+                source_count=len(job_match.knowledge_sources),
+            ))
+
+        current_step = "complete_job_match"
+        snapshot.current_candidate_id = None
+        state.current_candidate_id = None
+        job_match_status = (
+            AgentNodeStatus.NEEDS_REVIEW if job_match_requires_review else AgentNodeStatus.COMPLETED
+        )
+        snapshot.nodes[JOB_MATCH_NODE] = job_match_status
+        state.node_statuses[JOB_MATCH_NODE] = job_match_status
+        await store.update_snapshot(run_id, snapshot, state)
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_COMPLETED, job_match_status,
+            "岗位匹配 Agent 已完成，存在结果需人工复核"
+            if job_match_requires_review else "岗位匹配 Agent 已完成",
+            {
+                "completed_node": JOB_MATCH_NODE,
+                "evaluated_candidates": len(state.job_matches),
+                "review_required": job_match_requires_review,
+                "next_action": "跳过无真实数据的面试评估并执行决策审查",
+            },
+            agent_name=JOB_MATCH_NODE, node_name=JOB_MATCH_NODE,
+            source_count=len(snapshot.sources), duration_ms=_elapsed_ms(job_match_started_at),
+        ))
+
+        current_node = INTERVIEW_NODE
+        current_step = "skip_interview_evaluation"
+        snapshot.current_agent = INTERVIEW_NODE
+        snapshot.current_node = INTERVIEW_NODE
+        snapshot.nodes[INTERVIEW_NODE] = AgentNodeStatus.SKIPPED
+        state.current_agent = INTERVIEW_NODE
+        state.current_node = INTERVIEW_NODE
+        state.node_statuses[INTERVIEW_NODE] = AgentNodeStatus.SKIPPED
+        await store.update_snapshot(run_id, snapshot, state)
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_COMPLETED, AgentNodeStatus.SKIPPED,
+            "面试评估 Agent 已跳过",
+            {
+                "skip_reason": INTERVIEW_SKIP_REASON,
+                "structured_interview_feedback_available": False,
+                "interview_conclusion_generated": False,
+                "next_action": "决策审查将缺少真实面试评价标记为待人工补充",
+            },
+            agent_name=INTERVIEW_NODE, node_name=INTERVIEW_NODE,
+        ))
+
+        current_node = DECISION_REVIEW_NODE
+        current_step = "start_decision_review"
+        review_started_at = perf_counter()
+        snapshot.current_agent = DECISION_REVIEW_NODE
+        snapshot.current_node = DECISION_REVIEW_NODE
+        snapshot.nodes[DECISION_REVIEW_NODE] = AgentNodeStatus.RUNNING
+        state.current_agent = DECISION_REVIEW_NODE
+        state.current_node = DECISION_REVIEW_NODE
+        state.node_statuses[DECISION_REVIEW_NODE] = AgentNodeStatus.RUNNING
+        await store.update_snapshot(run_id, snapshot, state)
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_STARTED, AgentNodeStatus.RUNNING,
+            "决策审查 Agent 已启动",
+            {"current_action": "逐名检查评分、必备条件、证据、画像完整度和面试缺失"},
+            agent_name=DECISION_REVIEW_NODE, node_name=DECISION_REVIEW_NODE,
+        ))
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_THINKING, AgentNodeStatus.RUNNING,
+            "决策审查 Agent 正在准备规则审查",
+            {
+                "current_goal": "用公开确定性公式计算可信度并保留原始评分",
+                "candidate_count": len(context.candidate_ids),
+                "interview_data_status": INTERVIEW_SKIP_REASON,
+                "next_action": "逐名调用决策审查 Tool",
+            },
+            agent_name=DECISION_REVIEW_NODE, node_name=DECISION_REVIEW_NODE,
+        ))
+
+        review_tool = DecisionReviewTool()
+        decision_requires_review = False
+        for candidate_id in context.candidate_ids:
+            candidate_started_at = perf_counter()
+            current_step = "review_candidate_decision"
+            snapshot.current_candidate_id = candidate_id
+            state.current_candidate_id = candidate_id
+            await store.update_snapshot(run_id, snapshot, state)
+            await _publish(store, _event(
+                run_id, snapshot.trace_id, AgentEventType.TOOL_STARTED, AgentNodeStatus.RUNNING,
+                f"开始审查候选人 #{candidate_id} 的决策依据",
+                {"current_action": "执行规则式证据、阈值和风险审查"},
+                agent_name=DECISION_REVIEW_NODE, node_name=DECISION_REVIEW_NODE,
+                candidate_id=candidate_id, tool_name=DECISION_REVIEW_TOOL_NAME,
+            ))
+            review = run_decision_review(
+                context.request.goal,
+                state.candidate_profiles[candidate_id],
+                state.job_matches[candidate_id],
+                state.interview_evaluations.get(candidate_id),
+                review_tool,
+            )
+            state.decision_reviews[candidate_id] = review
+            snapshot.decision_reviews[candidate_id] = review
+            candidate_needs_review = _decision_requires_review(
+                review,
+                context.request.goal.confidence_threshold,
+            )
+            decision_requires_review = decision_requires_review or candidate_needs_review
+            await store.update_snapshot(run_id, snapshot, state)
+            await _publish(store, _event(
+                run_id, snapshot.trace_id, AgentEventType.TOOL_COMPLETED, AgentNodeStatus.RUNNING,
+                f"候选人 #{candidate_id} 决策审查完成",
+                {
+                    "candidate_id": candidate_id,
+                    "confidence": review.confidence,
+                    "finding_count": len(review.findings),
+                    "requires_review": candidate_needs_review,
+                },
+                agent_name=DECISION_REVIEW_NODE, node_name=DECISION_REVIEW_NODE,
+                candidate_id=candidate_id, tool_name=DECISION_REVIEW_TOOL_NAME,
+                duration_ms=_elapsed_ms(candidate_started_at),
+            ))
+            await _publish(store, _event(
+                run_id, snapshot.trace_id, AgentEventType.REVIEW_COMPLETED, AgentNodeStatus.RUNNING,
+                f"候选人 #{candidate_id} 审查结果已生成",
+                {"decision_review": review.model_dump(mode="json")},
+                agent_name=DECISION_REVIEW_NODE, node_name=DECISION_REVIEW_NODE,
+                candidate_id=candidate_id,
+            ))
+
+        current_step = "complete_decision_review"
+        snapshot.current_candidate_id = None
+        state.current_candidate_id = None
+        review_status = (
+            AgentNodeStatus.NEEDS_REVIEW if decision_requires_review else AgentNodeStatus.COMPLETED
+        )
+        snapshot.nodes[DECISION_REVIEW_NODE] = review_status
+        state.node_statuses[DECISION_REVIEW_NODE] = review_status
+        await store.update_snapshot(run_id, snapshot, state)
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_COMPLETED, review_status,
+            "决策审查 Agent 已完成，结果需 HR 复核"
+            if decision_requires_review else "决策审查 Agent 已完成",
+            {
+                "completed_node": DECISION_REVIEW_NODE,
+                "reviewed_candidates": len(state.decision_reviews),
+                "review_required": decision_requires_review,
+                "deterministic_scores_preserved": all(
+                    review.deterministic_score_preserved for review in state.decision_reviews.values()
+                ),
+                "next_action": "生成 HR 结构化最终报告",
+            },
+            agent_name=DECISION_REVIEW_NODE, node_name=DECISION_REVIEW_NODE,
+            duration_ms=_elapsed_ms(review_started_at),
+        ))
+
+        current_node = REPORT_NODE
+        current_step = "start_hr_report"
+        report_started_at = perf_counter()
+        snapshot.current_agent = REPORT_NODE
+        snapshot.current_node = REPORT_NODE
+        snapshot.nodes[REPORT_NODE] = AgentNodeStatus.RUNNING
+        state.current_agent = REPORT_NODE
+        state.current_node = REPORT_NODE
+        state.node_statuses[REPORT_NODE] = AgentNodeStatus.RUNNING
+        await store.update_snapshot(run_id, snapshot, state)
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_STARTED, AgentNodeStatus.RUNNING,
+            "HR 最终报告节点已启动",
+            {"current_action": "汇总真实评分、审查结果、知识来源和人才缺口"},
+            agent_name=REPORT_NODE, node_name=REPORT_NODE,
+        ))
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_THINKING, AgentNodeStatus.RUNNING,
+            "HR 最终报告节点正在准备结构化汇总",
+            {
+                "current_goal": "生成只包含建议与待复核状态的确定性报告",
+                "candidate_count": len(context.candidate_ids),
+                "next_action": "调用招聘报告 Tool",
+            },
+            agent_name=REPORT_NODE, node_name=REPORT_NODE,
+        ))
+        report_tool = RecruitmentReportTool()
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.TOOL_STARTED, AgentNodeStatus.RUNNING,
+            "开始生成 HR 结构化报告",
+            {"current_action": "执行稳定排序、来源去重和人才缺口汇总"},
+            agent_name=REPORT_NODE, node_name=REPORT_NODE, tool_name=REPORT_TOOL_NAME,
+        ))
+        current_step = "build_hr_report"
+        report = build_hr_report(
+            context.request.goal,
+            state.job_matches,
+            state.decision_reviews,
+            state.knowledge_summary,
+            state.candidate_profiles,
+            state.interview_evaluations,
+            report_tool,
+        )
+        state.report = report
+        snapshot.report = report
+        await store.update_snapshot(run_id, snapshot, state)
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.TOOL_COMPLETED, AgentNodeStatus.RUNNING,
+            "HR 结构化报告生成完成",
+            {
+                "candidate_count": len(report.candidate_rankings),
+                "knowledge_source_count": len(report.knowledge_sources),
+                "requires_human_decision": report.requires_human_decision,
+            },
+            agent_name=REPORT_NODE, node_name=REPORT_NODE, tool_name=REPORT_TOOL_NAME,
+            source_count=len(report.knowledge_sources), duration_ms=_elapsed_ms(report_started_at),
+        ))
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.REPORT_GENERATED, AgentNodeStatus.RUNNING,
+            "HR 最终报告已生成",
+            {"report": report.model_dump(mode="json")},
+            agent_name=REPORT_NODE, node_name=REPORT_NODE,
+            source_count=len(report.knowledge_sources),
+        ))
+        snapshot.nodes[REPORT_NODE] = AgentNodeStatus.COMPLETED
+        state.node_statuses[REPORT_NODE] = AgentNodeStatus.COMPLETED
+        await store.update_snapshot(run_id, snapshot, state)
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_COMPLETED, AgentNodeStatus.COMPLETED,
+            "HR 最终报告节点已完成",
+            {
+                "completed_node": REPORT_NODE,
+                "report_generated": True,
+                "requires_human_decision": report.requires_human_decision,
+                "next_action": "由 HR 查看报告并完成人工决定",
+            },
+            agent_name=REPORT_NODE, node_name=REPORT_NODE,
+            source_count=len(report.knowledge_sources), duration_ms=_elapsed_ms(report_started_at),
+        ))
+
         current_step = "complete_workflow"
-        for node_name in plan.skipped_nodes:
-            snapshot.nodes[node_name] = AgentNodeStatus.SKIPPED
-            state.node_statuses[node_name] = AgentNodeStatus.SKIPPED
         snapshot.status = AgentRunStatus.COMPLETED
         snapshot.current_agent = None
         snapshot.current_node = None
+        snapshot.current_candidate_id = None
         state.status = AgentRunStatus.COMPLETED
         state.current_agent = None
         state.current_node = None
+        state.current_candidate_id = None
         await store.update_snapshot(run_id, snapshot, state)
+        review_required_candidates = sum(
+            _decision_requires_review(review, context.request.goal.confidence_threshold)
+            for review in state.decision_reviews.values()
+        )
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.WORKFLOW_COMPLETED, AgentNodeStatus.COMPLETED,
-            "Sprint 2.2 招聘策略、知识检索与简历解析已完成",
+            "Sprint 2.3 确定性招聘决策中间版本已完成",
             {
                 "current_scope": RUN_SCOPE,
                 "executed_nodes": plan.executed_nodes,
                 "skipped_nodes": plan.skipped_nodes,
-                "skip_reason": SKIP_REASON,
-                "completed_candidates": snapshot.completed_candidates,
+                "skip_reasons": {INTERVIEW_NODE: INTERVIEW_SKIP_REASON},
+                "total_candidates": snapshot.total_candidates,
+                "scored_candidates": sum(
+                    match.overall_score is not None and match.job_match_score is not None
+                    for match in state.job_matches.values()
+                ),
+                "review_required_candidates": review_required_candidates,
                 "knowledge_source_count": len(snapshot.sources),
+                "report_generated": snapshot.report is not None,
                 "next_phase": NEXT_PHASE,
             },
             source_count=len(snapshot.sources), duration_ms=_elapsed_ms(started_at), fallback_used=True,
         ))
-    except Exception as exc:
+    except Exception:
         error = AgentErrorInfo(
             code="RECRUITMENT_WORKFLOW_FAILED",
-            message="Sprint 2.2 招聘工作流执行失败。",
+            message="Sprint 2.3 确定性招聘工作流执行失败。",
             details={
-                "exception_type": type(exc).__name__,
                 "failed_node": current_node,
                 "failed_step": current_step,
                 "candidate_id": snapshot.current_candidate_id,
@@ -308,11 +645,31 @@ async def run_recruitment_strategy(
         await store.update_snapshot(run_id, snapshot, state)
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.WORKFLOW_FAILED, AgentNodeStatus.FAILED,
-            "Sprint 2.2 招聘工作流失败",
+            "Sprint 2.3 确定性招聘工作流失败",
             {"failed_node": current_node, "failed_step": current_step, "current_scope": RUN_SCOPE},
             agent_name=current_node, node_name=current_node, candidate_id=snapshot.current_candidate_id,
             duration_ms=_elapsed_ms(started_at), fallback_used=True, error=error,
         ))
+
+
+def _decision_requires_review(
+    review: DecisionReviewSummary,
+    confidence_threshold: float,
+) -> bool:
+    mandatory_review_codes = {
+        "DETERMINISTIC_SCORE_UNAVAILABLE",
+        "REQUIRED_SKILL_MISSING",
+        "INTERVIEW_DATA_MISSING",
+        "CONFIDENCE_BELOW_THRESHOLD",
+    }
+    finding_codes = {finding.code for finding in review.findings}
+    return (
+        bool(finding_codes & mandatory_review_codes)
+        or review.confidence is None
+        or review.confidence < confidence_threshold
+        or any(finding.severity == "HIGH" for finding in review.findings)
+        or any(finding.requires_human_review for finding in review.findings)
+    )
 
 
 async def _publish(store: InMemoryAgentRunStore, event: AgentEvent) -> None:

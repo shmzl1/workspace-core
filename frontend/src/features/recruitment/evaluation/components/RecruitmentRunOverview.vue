@@ -11,8 +11,9 @@
       <article><span>当前候选人</span><strong>{{ currentCandidate }}</strong></article>
       <article><span>当前 Agent</span><strong>{{ currentAgent }}</strong></article>
       <article><span>阶段进度</span><strong>{{ phaseProgress }}</strong></article>
+      <article><span>面试评估</span><strong>{{ interviewEvaluation }}</strong></article>
       <article><span>真实运行耗时</span><strong>{{ elapsed }}</strong></article>
-      <article><span>当前范围</span><strong>SPRINT_2_2_STRATEGY_RESUME_KNOWLEDGE</strong></article>
+      <article><span>当前范围</span><strong>{{ currentScope }}</strong></article>
     </div>
   </section>
 </template>
@@ -37,6 +38,13 @@ const agentLabels: Record<string, string> = {
   decision_review: '决策审查 Agent',
   hr_report: 'HR 最终报告',
 };
+const executionNodes = [
+  'recruitment_strategy',
+  'resume_parser',
+  'job_match',
+  'decision_review',
+  'hr_report',
+] as const;
 
 const goalSummary = computed(() => {
   const goal = props.snapshot?.goal;
@@ -55,7 +63,7 @@ const currentCandidate = computed(() => {
   const candidateId = props.snapshot?.current_candidate_id;
   if (candidateId) return `候选人 #${candidateId}`;
   if (props.snapshot?.completed_candidates === props.snapshot?.total_candidates && props.snapshot?.total_candidates) {
-    return '当前阶段候选人解析已结束';
+    return props.snapshot.status === AgentRunStatus.COMPLETED ? '候选人处理已结束' : '候选人画像已完成，等待后续节点';
   }
   return '等待候选人解析';
 });
@@ -66,12 +74,28 @@ const currentAgent = computed(() => {
 });
 const phaseProgress = computed(() => {
   const nodes = props.snapshot?.nodes;
-  const statuses = [nodes?.recruitment_strategy, nodes?.resume_parser];
-  const completed = statuses.filter((status) => status === AgentNodeStatus.COMPLETED).length;
-  if (statuses.some((status) => status === AgentNodeStatus.FAILED)) return `${completed} / 2（失败）`;
-  if (statuses.some((status) => status === AgentNodeStatus.RUNNING)) return `${completed} / 2（执行中）`;
-  return `${completed} / 2（${completed === 2 ? '100%' : '等待'}）`;
+  const statuses = executionNodes.map((node) => nodes?.[node]);
+  const finished = statuses.filter((status) => [AgentNodeStatus.COMPLETED, AgentNodeStatus.NEEDS_REVIEW].includes(status as AgentNodeStatus)).length;
+  const reviewRequired = statuses.filter((status) => status === AgentNodeStatus.NEEDS_REVIEW).length;
+  if (statuses.some((status) => status === AgentNodeStatus.FAILED)) return `${finished} / 5（失败）`;
+  if (statuses.some((status) => status === AgentNodeStatus.RUNNING)) return `${finished} / 5（执行中）`;
+  if (finished === executionNodes.length && reviewRequired) return `${finished} / 5（已结束，${reviewRequired} 个节点需复核）`;
+  return `${finished} / 5（${finished === executionNodes.length ? '100%' : '等待'}）`;
 });
+const interviewEvaluation = computed(() => {
+  const snapshot = props.snapshot;
+  if (!snapshot) return AgentNodeStatus.WAITING;
+  const status = snapshot.nodes.interview_evaluation || AgentNodeStatus.WAITING;
+  if (status !== AgentNodeStatus.SKIPPED) return status;
+  const event = [...snapshot.events].reverse().find((item) => item.node_name === 'interview_evaluation');
+  const eventReason = event?.summary.skip_reason ?? event?.summary.reason;
+  const reason = typeof eventReason === 'string'
+    ? eventReason
+    : 'STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE';
+  return `${status} · ${reason}`;
+});
+const currentScope = computed(() => props.snapshot?.execution_plan?.current_phase
+  || 'SPRINT_2_3_DETERMINISTIC_INTERMEDIATE');
 const elapsed = computed(() => {
   const snapshot = props.snapshot;
   if (!snapshot) return '0.0 s';

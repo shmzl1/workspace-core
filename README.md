@@ -4,7 +4,7 @@ TalentFlow 智聘中枢是面向招聘决策、员工服务、考勤薪资预审
 
 ## 当前状态
 
-当前状态按三类记录：Sprint 1 业务代码以及 Sprint 2.1 的进程内 Agent Run、规则式招聘策略计划、SSE 和前端实时看板均为“代码存在，待本地人工验收”；多 Agent、Tool、RAG 与招聘 intelligence 的结构为“已建立目录或契约”；Sprint 2.2、Sprint 2.3 和 Sprint 3 的业务能力为“计划中”。Run 在后端重启后会丢失。
+当前状态按三类记录：Sprint 1 业务代码以及 Sprint 2.3 的进程内 Agent Run、招聘策略、企业知识本地回退、确定性简历解析、岗位匹配、决策审查、HR 最终报告、SSE 和前端实时看板均为“代码存在，待本地人工验收”；面试评估、RAG 与其余 Agent 的结构为“已建立目录或契约”；真实大模型、LangGraph、ChromaDB、真实本地知识库和 Sprint 3 能力为“计划中”。Run 在后端重启后会丢失。
 
 数据库层当前已建立 SQLAlchemy ORM 模型、Alembic 配置和首次迁移文件 `0001_initial_schema`。该迁移尚未执行，仓库当前不包含种子数据或已验证的部署结果。
 
@@ -19,7 +19,7 @@ TalentFlow 通过一套 FastAPI 后端支撑 Vue Web 管理端、微信小程序
 - 考勤：员工签到、签退、今日考勤状态和本月考勤摘要。
 - 薪资预审：HR 查看预审明细、扣款来源、异常解释和待 HR 确认状态。
 - 权限审计：薪资访问控制、字段脱敏、敏感访问日志和 `trace_id`。
-- Agent 能力：招聘策略 Runtime 代码存在，待本地人工验收；简历解析、岗位匹配、面试评估、决策审查和 HR 最终报告已建立目录或契约。员工服务 Agent、薪资预审助手、LangGraph、LLM 与真实 RAG 均为计划中。
+- Agent 能力：招聘策略、确定性简历解析、岗位匹配、规则式决策审查和结构化 HR 最终报告代码存在，待本地人工验收；企业知识使用 `LOCAL_HYBRID_FALLBACK`，面试评估无真实结构化数据时跳过。员工服务 Agent、薪资预审助手、LangGraph、LLM 与真实 RAG 均为计划中。
 
 ## 端与边界
 
@@ -54,7 +54,7 @@ TalentFlow 通过一套 FastAPI 后端支撑 Vue Web 管理端、微信小程序
 | Vue 3 + TypeScript + Vite   | Web 管理端            |
 | FastAPI + Python 3.12       | 一套共享后端          |
 | PostgreSQL                  | 结构化业务数据        |
-| 规则式异步 Runtime + SSE    | Sprint 2.1 招聘策略运行与实时事件 |
+| 规则式异步 Runtime + SSE    | Sprint 2.3 确定性招聘工作流与实时事件 |
 | LangGraph + LangChain Tools | 后续 Agent 编排规划   |
 | ChromaDB                    | 后续企业制度 RAG 规划 |
 | Gradio                      | 内部 Agent 调试台     |
@@ -103,11 +103,11 @@ flowchart LR
 
 | 状态 | 范围 |
 | --- | --- |
-| 代码存在，待本地人工验收 | 招聘策略规则式计划、进程内 RunStore、`run_id`/`trace_id`、SSE、Agent API 与前端实时看板 |
-| 已建立目录或契约 | 六节点静态图、候选人/证据/审查/报告类型、Tool/Service Protocol、RAG Schema/Protocol |
-| 计划中 | LangGraph、LLM、真实 RAG/ChromaDB、员工服务 Agent、薪资预审助手及其余五个招聘节点执行 |
+| 代码存在，待本地人工验收 | 招聘策略、确定性简历解析、岗位匹配、决策审查、HR 最终报告、进程内 RunStore、`run_id`/`trace_id`、SSE、Agent API 与前端实时看板 |
+| 已建立目录或契约 | 面试评估节点、候选人/证据/审查/报告类型与 RAG Schema/Protocol |
+| 计划中 | LangGraph、LLM、真实 RAG/ChromaDB、真实本地知识库、真实面试评价 Agent、员工服务 Agent、薪资预审助手 |
 
-岗位匹配依赖简历解析，面试评估只能使用真实结构化面试数据。Agent 通过 Tool 调用 Service，不直接访问 Repository 或 `human_only`；Agent 不自动录用、淘汰、确认排期或确认薪资，最终决定由 HR 完成。
+当前阶段为 `SPRINT_2_3_DETERMINISTIC_INTERMEDIATE`，下一阶段为 `LLM_RAG_INTEGRATION`。执行节点为招聘策略、简历解析、岗位匹配、决策审查和 HR 最终报告；企业知识仍使用 `LOCAL_HYBRID_FALLBACK`，未建立真实本地知识库。面试评估只能使用真实结构化数据，无数据时以 `STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE` 标记为 `SKIPPED`，决策审查继续执行并记录缺失复核项。Agent 通过 Tool 调用 Service，不直接访问 Repository 或 `human_only`；Agent 不自动录用、淘汰、确认排期或确认薪资，最终决定由 HR 完成。
 
 ## 项目结构
 
@@ -122,13 +122,13 @@ flowchart LR
 │   │   ├── modules/
 │   │   │   ├── recruitment/
 │   │   │   │   ├── intelligence/     # 招聘智能分析纯数据契约
-│   │   │   │   └── services/         # 真实上下文 Service 与未来专业 Service Protocol
+│   │   │   │   └── services/         # 上下文、匹配、审查与报告 Service
 │   │   │   └── */models.py
 │   │   ├── agents/
 │   │   │   ├── runtime/              # 当前进程内 Runtime 与 SSE
 │   │   │   ├── shared/               # 状态、事件、来源、Guardrail、模型网关契约
 │   │   │   ├── workflows/            # 招聘、员工服务、薪资预审工作流契约
-│   │   │   ├── tools/                # Tool 元数据与兼容入口
+│   │   │   ├── tools/                # Tool 契约、兼容入口与 Service 委托
 │   │   │   └── prompts/              # Prompt 边界说明
 │   │   ├── rag/
 │   │   │   ├── ingestion/            # 摄取 Protocol，未接入真实索引

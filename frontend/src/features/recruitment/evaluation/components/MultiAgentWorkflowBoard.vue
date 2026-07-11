@@ -47,17 +47,20 @@ function buildNode(name:string,label:string):NodeView {
     AgentEventType.REPORT_GENERATED,
   ].includes(event.event_type));
   const status = props.snapshot?.nodes[name] || AgentNodeStatus.WAITING;
+  const skipReason = status === AgentNodeStatus.SKIPPED ? resolveSkipReason(name, nodeEvents) : '';
   return {
     name, label, status,
     action: typeof actionEvent?.summary.current_action === 'string'
       ? actionEvent.summary.current_action : nodeEvents.at(-1)?.display_name || '等待真实运行事件',
     duration: durationEvent?.duration_ms ?? null,
     eventCount: nodeEvents.length,
-    skipReason: status === AgentNodeStatus.SKIPPED ? 'CURRENT_PHASE_NOT_IMPLEMENTED' : '',
+    skipReason,
     selected: props.selectedNode === name,
     tool: toolEvent?.tool_name || '本阶段未调用',
     sourceCount: nodeEvents.reduce((max, event) => Math.max(max, event.source_count), 0),
-    output: status === AgentNodeStatus.SKIPPED ? '当前阶段未执行' : summarize(outputEvent?.summary),
+    output: status === AgentNodeStatus.SKIPPED
+      ? outputEvent ? summarize(outputEvent.summary) : skippedOutput(name)
+      : summarize(outputEvent?.summary),
   };
 }
 function findLast(events:AgentEvent[], predicate:(event:AgentEvent)=>boolean):AgentEvent|undefined {
@@ -69,6 +72,24 @@ function summarize(summary:Record<string,unknown>|undefined):string {
   if (typeof preferred === 'string') return preferred;
   const text = JSON.stringify(summary);
   return text.length > 100 ? `${text.slice(0,97)}…` : text;
+}
+function resolveSkipReason(name:string,events:AgentEvent[]):string {
+  const event=[...events].reverse().find((item)=>item.status===AgentNodeStatus.SKIPPED);
+  const directReason=event?.summary.skip_reason??event?.summary.reason;
+  if(typeof directReason==='string') return directReason;
+  const reasons=event?.summary.skip_reasons;
+  if(reasons&&typeof reasons==='object') {
+    const nodeReason=(reasons as Record<string,unknown>)[name];
+    if(typeof nodeReason==='string') return nodeReason;
+  }
+  return name==='interview_evaluation'
+    ? 'STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE'
+    : '节点已由后端标记为跳过';
+}
+function skippedOutput(name:string):string {
+  return name==='interview_evaluation'
+    ? '未生成面试评分或结论，决策审查将标记缺少真实面试评价。'
+    : '节点未产生结构化结果。';
 }
 const NodeCard = defineComponent({
   props:{ node:{ type:Object as PropType<NodeView>, required:true } },

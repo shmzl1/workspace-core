@@ -23,23 +23,23 @@
 
 ## 4. 简历解析 Agent
 
-计划从简历和授权字段提取 `CandidateProfile`、缺失项与 `ResumeEvidenceItem`。简历内指令只作为待分析文本；无证据的信息不得断言；当前已建立目录或契约。
+从简历和授权字段确定性提取 `CandidateProfile`、缺失项与 `ResumeEvidenceItem`。简历内指令只作为待分析文本，无证据的信息不得断言；代码存在，待本地人工验收。
 
 ## 5. 岗位匹配 Agent
 
-计划依赖简历解析结果、岗位 Rubric、必备条件、企业知识来源及确定性评分 Service，输出 `JobMatchSummary`。不得随机生成评分或绕过必备条件；当前已建立目录或契约。
+依赖简历解析结果、岗位 Rubric、必备条件、企业知识来源及确定性评分 Service，输出 `JobMatchSummary`，`scoring_mode` 为 `DETERMINISTIC_HUMAN_ONLY`。Tool 只委托 Service，Service 通过既有 bridge 调用人工维护的 `score_resume(...)`；算法不可用时保留真实技能与证据，但不补造分数并标记人工复核。代码存在，待本地人工验收。
 
 ## 6. 面试评估 Agent
 
-计划只读取真实结构化面试数据并输出 `InterviewEvaluationSummary`。无数据时只能显示待面试或 `SKIPPED`，不得伪造评价；当前已建立目录或契约。
+只允许读取真实结构化面试数据并输出 `InterviewEvaluationSummary`。当前确定性中间版本不执行智能面试分析；无真实结构化评价时以 `STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE` 标记为 `SKIPPED`，不得伪造技术、沟通或项目评价。当前已建立目录或契约。
 
 ## 7. 决策审查 Agent
 
-计划检查证据覆盖、必备条件、知识版本、简历与面试冲突及专业节点分歧。可以降低可信度或要求人工复核，但不得静默修改确定性评分；当前已建立目录或契约。
+按明确规则检查确定性评分、必备条件、证据覆盖、画像完整度、阈值和真实面试数据是否缺失，并确定性计算可信度，`review_mode` 为 `RULE_BASED_INTERMEDIATE`。缺少面试评价时继续执行并产生 `INTERVIEW_DATA_MISSING`；可以要求人工复核，但 `deterministic_score_preserved` 始终为 `true`。代码存在，待本地人工验收。
 
 ## 8. HR 最终报告
 
-计划汇总招聘目标、候选人排名、评分分解、证据、来源、面试状态、审查结论、可信度与建议。报告不拥有录用、淘汰、排期确认或薪资确认权；当前已建立目录或契约。
+按确定性规则汇总招聘目标、候选人排名、审查结果、真实来源、人才缺口与下一步建议，`generation_mode` 为 `RULE_BASED_INTERMEDIATE`；有分候选人按分数降序且同分按编号升序，无分候选人排在最后。报告只表示建议和待复核状态，`requires_human_decision` 始终为 `true`，不拥有录用、淘汰、排期确认或薪资确认权。代码存在，待本地人工验收。
 
 ## 9. 员工服务 Agent
 
@@ -51,7 +51,7 @@
 
 ## 11. Agent State
 
-`AgentState` 保存 `run_id`、`trace_id`、创建用户、状态、当前节点、事件、来源和错误。招聘状态在此基础上保留真实 Run 上下文，并为未来专业结果提供默认空字段。
+`AgentState` 保存 `run_id`、`trace_id`、创建用户、状态、当前节点、事件、来源和错误。招聘状态在此基础上保留真实 Run 上下文，并以默认空字段保存候选人画像、岗位匹配、面试评价、决策审查和 HR 报告。
 
 ## 12. Agent Event
 
@@ -59,23 +59,23 @@
 
 ## 13. Runtime 与 SSE
 
-进程内 RunStore、招聘策略 Runner、历史事件重放、新增事件订阅、心跳和终止关闭代码存在，待本地人工验收。Snapshot 保存规范化招聘目标、岗位摘要和候选人 ID 范围；Run 不是持久化任务，后端重启后丢失；当前不依赖 LangGraph、LLM 或 RAG。
+进程内 RunStore、Sprint 2.3 确定性 Runner、历史事件重放、新增事件订阅、心跳和终止关闭代码存在，待本地人工验收。Snapshot 保存规范化招聘目标、岗位摘要、候选人范围、画像、岗位匹配、决策审查和 HR 报告；Run 不是持久化任务，后端重启后丢失。当前阶段不依赖 LangGraph、LLM 或真实 RAG。
 
 ## 14. Tool 边界
 
-调用链为 `Agent -> Tool -> Service -> Repository / human_only`。Agent 不访问 Repository 或 `human_only`；Tool 不创建新的数据库 Session，不直接访问 Repository 或 `human_only`。现有员工 Tool 兼容入口在引用迁移前保留。
+Agent 核心算法调用链为 `Agent -> Tool -> Service -> human_only`，纯规则审查与报告由 Tool 委托对应 Service。Agent 不访问 Repository 或 `human_only`；Tool 不创建新的数据库 Session，不直接访问 Repository 或 `human_only`。岗位匹配、决策审查和报告 Tool 的真实委托代码存在，待本地人工验收；现有员工 Tool 兼容入口在引用迁移前保留。
 
 ## 15. RAG 与来源
 
-当前只有 Schema、Citation、摄取/检索/向量存储 Protocol，属于已建立目录或契约。真实 ChromaDB、Embedding、索引和检索为计划中，不得伪造命中。来源统一包含 `source_id`、标题、文档类型、部门、岗位编号、版本、生效区间、摘录和相关度。
+当前只有 Schema、Citation、摄取/检索/向量存储 Protocol，属于已建立目录或契约。企业招聘知识继续由 Service 以 `LOCAL_HYBRID_FALLBACK` 返回结构化来源，不是 RAG 命中，也未建立真实本地知识库。真实 ChromaDB、Embedding、索引和检索为计划中，不得伪造命中。来源统一包含 `source_id`、标题、文档类型、部门、岗位编号、版本、生效区间、摘录和相关度。
 
 ## 16. 可信度
 
-计划由代码按证据覆盖、画像完整度、Rubric 覆盖、知识相关度和节点一致性计算，评分与可信度分开显示。当前只有 `ConfidenceBreakdown` 和计算 Protocol。
+Sprint 2.3 决策审查按 `0.4 × 证据覆盖 + 0.3 × 画像完整度 + 0.2 × 评分可用性 + 0.1 × 面试可用性` 计算可信度，结果限制在 0～100 并保留两位小数。可信度与人工维护的确定性评分分开显示，审查不得修改评分；代码存在，待本地人工验收。
 
 ## 17. 前端实时展示
 
-`RecruitmentEvaluationPage`、总体运行状态、流程板、事件流、节点详情、目标表单、Agent API 和 SSE Composable 代码存在，待本地人工验收。总体状态基于 Snapshot 和真实时间戳；卡片与详情只消费真实事件中的动作、Tool、来源、结果、回退和错误。无 Tool/RAG 时明确显示未调用或未检索，不得使用随机日志、固定延迟或静态事件冒充执行。
+`RecruitmentEvaluationPage`、Sprint 2.3 结果面板、总体运行状态、流程板、事件流、节点详情、目标表单、Agent API 和 SSE Composable 代码存在，待本地人工验收。总体状态基于 Snapshot 和真实时间戳；岗位匹配、决策审查和 HR 报告只消费 Snapshot 与真实事件，面试节点如实显示 `SKIPPED`。无 Tool/RAG 时明确显示未调用或未检索，不得使用随机日志、固定延迟或静态事件冒充执行。
 
 ## 18. 隐私与安全
 
@@ -83,19 +83,19 @@
 
 ## 19. 降级策略
 
-LLM、RAG 或未来节点不可用时，不生成假评分、假来源、假面试、假审查或假报告。确定性评分、排期、考勤、薪资预审和权限能力保持独立；未接入节点明确显示计划中或 `SKIPPED`。
+LLM、RAG 或人工评分算法不可用时，不生成假评分、假来源或假面试。人工评分算法不可用时岗位匹配返回无分结果并要求人工复核，规则式审查与结构化报告仍可继续；确定性评分、排期、考勤、薪资预审和权限能力保持独立。
 
 ## 20. 当前代码状态
 
 | 状态 | 内容 |
 | --- | --- |
-| 代码存在，待本地人工验收 | RunStore、招聘策略与确定性简历解析 Runner、企业知识本地回退 Service、SSE、Agent API、前端评估页面与 Composable |
-| 已建立目录或契约 | 六节点元数据、Agent/Tool/Service、招聘 intelligence、RAG、员工服务与薪资预审契约 |
-| 计划中 | Sprint 2.3 岗位匹配及后续专业节点、LangGraph、LLM、真实 RAG/ChromaDB、完整报告、员工服务 Agent、薪资预审助手与 Gradio 执行 |
+| 代码存在，待本地人工验收 | RunStore、招聘策略、确定性简历解析、岗位匹配、规则式决策审查、结构化 HR 报告、企业知识本地回退、SSE、Agent API、前端评估页面与 Composable |
+| 已建立目录或契约 | 面试评估、招聘 intelligence、RAG、员工服务与薪资预审契约 |
+| 计划中 | LangGraph、LLM、真实 RAG/ChromaDB、真实本地知识库、真实面试评价 Agent、员工服务 Agent、薪资预审助手与 Gradio 执行 |
 
-## 附录：当前 Sprint 2.2 代码细节
+## 附录：当前 Sprint 2.3 代码细节
 
-### Sprint 2.2 招聘策略、知识与简历解析运行
+### Sprint 2.3 确定性中间版本运行
 
 ```text
 HR 提交真实岗位、候选人与企业招聘目标
@@ -104,13 +104,20 @@ HR 提交真实岗位、候选人与企业招聘目标
 → 招聘策略 Agent 生成 RecruitmentExecutionPlan
 → 企业知识 Tool 调用 RecruitmentKnowledgeService
 → 简历解析 Tool 逐候选人调用 ResumeProfileService
+→ 岗位匹配 Tool 逐候选人调用 CandidateEvaluationService
+→ 面试评估因无真实结构化评价标记为 SKIPPED
+→ 决策审查 Tool 逐候选人调用 DecisionReviewService
+→ 报告 Tool 调用 RecruitmentReportService
 → SSE 发布真实 AgentEvent
-→ 前端增量更新工作流、来源、候选人画像与证据
+→ 前端增量更新工作流、来源、候选人画像、匹配、审查与报告
+→ HR 人工决定
 ```
 
-按当前代码，策略计划由已校验请求、岗位摘要、候选人范围和静态 Graph 元数据生成。知识 Tool 返回带岗位、部门、文档类型、版本和生效时间的本地混合回退结果；简历 Tool 只使用 Service 提供的白名单结构化字段和有限简历摘录，产出候选人画像、证据与未知字段。两者都不运行 LLM 或 ChromaDB。
+执行计划的 `executed_nodes` 固定为 `recruitment_strategy`、`resume_parser`、`job_match`、`decision_review`、`hr_report`，`skipped_nodes` 只包含 `interview_evaluation`。当前阶段为 `SPRINT_2_3_DETERMINISTIC_INTERMEDIATE`，下一阶段为 `LLM_RAG_INTEGRATION`。
 
-运行完成时招聘策略与简历解析 Agent 为 `COMPLETED`；岗位匹配、面试评估、决策审查和 HR 最终报告为 `SKIPPED`，原因统一为 `CURRENT_PHASE_NOT_IMPLEMENTED`。Run 仅保存在当前后端进程中，重启后不可恢复。
+岗位匹配使用人工维护的确定性评分算法；决策审查使用明确规则；HR 最终报告使用结构化汇总。无真实结构化面试评价时，面试评估以 `STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE` 跳过，决策审查继续执行并增加缺少真实面试评价的复核项。`NEEDS_REVIEW` 是合法业务结果，不会单独使工作流失败；报告正常生成后工作流可为 `COMPLETED`。
+
+企业知识仍使用 `LOCAL_HYBRID_FALLBACK`。当前未接入真实大模型、LangGraph、LangChain、ChromaDB、Embedding、外部模型调用或真实本地知识库，不把结构化回退描述为真实 RAG。Run 仅保存在当前后端进程中，重启后不可恢复。
 
 `AGENT_THINKING` 只包含当前目标、候选人数、当前动作、缺失信息和下一步计划等可审计结构化摘要，不包含模型隐藏思维链。
 
@@ -128,13 +135,13 @@ HR 提交真实岗位、候选人与企业招聘目标
 
 ### 招聘多 Agent 工作流
 
-- 当前状态：招聘策略 Agent、企业知识本地回退和确定性简历解析 Agent 代码存在，待本地人工验收。
-- 后续节点：岗位匹配 Agent、面试评估 Agent、决策审查 Agent、HR 最终报告。
+- 当前状态：招聘策略 Agent、企业知识本地回退、确定性简历解析 Agent、岗位匹配 Agent、决策审查 Agent 和 HR 最终报告代码存在，待本地人工验收。
+- 面试评估：当前只保留契约；无真实结构化评价时跳过，不生成替代评价。
 - 输入：企业招聘目标、真实岗位、真实候选人投递和 HR 操作上下文。
 - 可调用 Tool：岗位 Service、候选人 Service、评分 Service、排期 Service、报告 Service。
 - 不可调用 Tool：薪资确认、薪资修改、无权限薪资查询、禁飞区内部函数。
-- 当前输出：`RecruitmentExecutionPlan`、`EnterpriseKnowledgeSummary`、`JobRubric`、`CandidateProfile`、真实 Run Snapshot 和 AgentEvent。
-- Trace：保留候选人筛选条件、评分调用、排期调用和解释摘要。
+- 当前输出：`RecruitmentExecutionPlan`、`EnterpriseKnowledgeSummary`、`JobRubric`、`CandidateProfile`、`JobMatchSummary`、`DecisionReviewSummary`、`HRReportSummary`、真实 Run Snapshot 和 AgentEvent。
+- Trace：保留候选人筛选条件、真实 Tool 调用、面试跳过原因和结构化解释摘要。
 - RAG 来源：涉及制度或招聘规则时返回来源。
 - 降级策略：核心算法未接入时不模拟算法结果，只提示待人工禁飞区接入。
 
@@ -144,10 +151,10 @@ HR 提交真实岗位、候选人与企业招聘目标
 | --- | --- | --- | --- |
 | 招聘策略 | 已校验目标、岗位与候选人范围 | `RecruitmentExecutionPlan` | 代码存在，待本地人工验收 |
 | 简历解析 | Service 白名单候选人字段、有限简历摘录、策略计划 | `CandidateProfile` 与证据 | 代码存在，待本地人工验收 |
-| 岗位匹配 | 候选人画像、岗位 Rubric、确定性 Service 结果 | `JobMatchSummary` | 已建立目录或契约；运行时 `SKIPPED` |
-| 面试评估 | 真实结构化面试数据 | `InterviewEvaluationSummary` | 已建立目录或契约；运行时 `SKIPPED` |
-| 决策审查 | 匹配结果、真实面试评价、来源 | `DecisionReviewSummary` | 已建立目录或契约；运行时 `SKIPPED` |
-| HR 最终报告 | 招聘目标、审查结果、来源 | `HRReportSummary` | 已建立目录或契约；运行时 `SKIPPED` |
+| 岗位匹配 | 候选人画像、岗位 Rubric、确定性 Service 结果 | `JobMatchSummary` | 代码存在，待本地人工验收 |
+| 面试评估 | 真实结构化面试数据 | `InterviewEvaluationSummary` | 已建立目录或契约；无真实数据时 `SKIPPED` |
+| 决策审查 | 匹配结果、真实面试评价、来源 | `DecisionReviewSummary` | 代码存在，待本地人工验收 |
+| HR 最终报告 | 招聘目标、审查结果、来源 | `HRReportSummary` | 代码存在，待本地人工验收 |
 
 岗位匹配依赖简历解析。面试评估无真实数据时只能保持待面试或 `SKIPPED`；决策审查不得静默修改确定性分数；HR 报告不得把建议描述成已执行决定。
 
@@ -171,8 +178,8 @@ HR 提交真实岗位、候选人与企业招聘目标
 
 ### Tool、RAG 与模型边界
 
-- Tool 保存 Service 边界、权限、敏感性和输入输出元数据；Sprint 2.2 的知识与简历 Tool 只调用对应招聘 Service。
-- RAG 包当前只有文档元数据、Chunk、过滤、检索结果、引用、摄取/检索/向量存储 Protocol，没有 ChromaDB、Embedding 或真实索引。Sprint 2.2 企业知识由招聘 Service 执行本地结构化加关键词回退，并明确返回 `LOCAL_HYBRID_FALLBACK`。
+- Tool 保存 Service 边界、权限、敏感性和输入输出元数据；Sprint 2.3 的知识、简历、岗位匹配、决策审查和报告 Tool 只调用对应招聘 Service。
+- RAG 包当前只有文档元数据、Chunk、过滤、检索结果、引用、摄取/检索/向量存储 Protocol，没有 ChromaDB、Embedding、真实索引或真实本地知识库。企业知识由招聘 Service 执行本地结构化加关键词回退，并明确返回 `LOCAL_HYBRID_FALLBACK`。
 - 未来 RAG 回答必须返回 `source_id`、标题、版本/生效时间、摘录和相关度；无来源时不得伪造答案依据。
 - 模型网关当前只有结构化输入输出 Protocol，不访问 HTTP、凭据或模型。
 
@@ -180,5 +187,5 @@ HR 提交真实岗位、候选人与企业招聘目标
 
 - 可信度后续按证据覆盖、画像完整度、Rubric 覆盖、知识相关度与 Agent 一致性分解，不用单一模型分数替代确定性评分。
 - Trace 和 SSE 只保存最小必要的结构化摘要，不输出完整简历、完整薪资、隐藏思维链或无关敏感属性。
-- LLM、ChromaDB 或未来节点不可用时，现有确定性业务与 Sprint 2.2 策略/简历解析继续独立工作；未实现节点保持 `SKIPPED`，不生成假评分、假面试评价、假审查或假报告。
+- LLM、ChromaDB 或真实 RAG 不可用时，Sprint 2.3 确定性中间版本继续独立工作；人工评分算法不可用时不补造分数，面试无真实数据时保持 `SKIPPED`，审查与报告只使用已有结构化事实。
 - Agent 只提供事实、解释、审查与建议，HR 保留录用、淘汰、排期确认和薪资确认权。

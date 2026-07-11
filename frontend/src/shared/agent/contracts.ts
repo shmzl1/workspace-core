@@ -139,8 +139,8 @@ export interface RecruitmentExecutionPlan {
   interview_candidate_ids: number[];
   next_actions: string[];
   interview_evaluation_requires_real_data: boolean;
-  current_phase: 'SPRINT_2_2_STRATEGY_RESUME_KNOWLEDGE';
-  next_phase: 'SPRINT_2_3';
+  current_phase: string;
+  next_phase: string;
   plan_notes: string[];
 }
 
@@ -152,6 +152,10 @@ export interface RecruitmentRunSnapshot extends AgentRunSnapshot {
   candidate_profiles: Record<string, CandidateProfile>;
   job_rubric: JobRubric | null;
   knowledge_summary: EnterpriseKnowledgeSummary | null;
+  job_matches: Record<string, JobMatchSummary>;
+  interview_evaluations: Record<string, InterviewEvaluationSummary>;
+  decision_reviews: Record<string, DecisionReviewSummary>;
+  report: HRReportSummary | null;
 }
 
 export interface ResumeEvidenceItem {
@@ -222,6 +226,8 @@ export interface JobMatchSummary {
   knowledge_sources: KnowledgeSourceReference[];
   suggested_interview_questions: string[];
   recommended_action: string | null;
+  scoring_mode: string;
+  requires_review: boolean;
 }
 
 export interface InterviewEvaluationInput {
@@ -260,6 +266,7 @@ export interface DecisionReviewSummary {
   agent_disagreements: string[];
   deterministic_score_preserved: boolean;
   recommended_action: string | null;
+  review_mode: string;
 }
 
 export interface HRReportSummary {
@@ -270,5 +277,6 @@ export interface HRReportSummary {
   talent_gaps: string[];
   next_actions: string[];
   requires_human_decision: boolean;
+  generation_mode: string;
 }
 

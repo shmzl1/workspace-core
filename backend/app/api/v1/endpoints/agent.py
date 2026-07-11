@@ -1,4 +1,10 @@
-"""Authenticated Sprint 2.2 recruitment Agent Run endpoints."""
+"""Authenticated Sprint 2.3 deterministic-intermediate recruitment Run endpoints.
+
+The existing in-process Run, owner isolation and raw ``AgentEvent`` SSE contract
+remain unchanged. The current phase adds deterministic job matching, rule-based
+decision review and a structured HR report; interview evaluation is skipped when
+real structured feedback is unavailable.
+"""
 
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -35,6 +41,8 @@ async def create_recruitment_run(
     current_user: User = Depends(require_permission("agent.hr.use")),
     session: Session = Depends(get_db_session),
 ) -> ApiResponse[RecruitmentRunSnapshot]:
+    """Create an in-process Sprint 2.3 deterministic-intermediate Run."""
+
     context_service = RecruitmentRunContextService(
         RecruitmentService.from_session(session),
         InterviewService.from_session(session),
@@ -73,6 +81,8 @@ async def get_recruitment_run(
     run_id: str,
     current_user: User = Depends(require_permission("agent.hr.use")),
 ) -> ApiResponse[RecruitmentRunSnapshot]:
+    """Return the current owner's latest in-process Run snapshot."""
+
     record = await agent_run_store.get_owned(run_id, current_user.id)
     return ok(record.snapshot, record.snapshot.trace_id)
 
@@ -87,5 +97,7 @@ async def stream_recruitment_run_events(
     request: Request,
     current_user: User = Depends(require_permission("agent.hr.use")),
 ) -> StreamingResponse:
+    """Stream the current owner's Run as raw ``AgentEvent`` SSE messages."""
+
     await agent_run_store.get_owned(run_id, current_user.id)
     return create_agent_event_stream(request, run_id, current_user.id, agent_run_store)

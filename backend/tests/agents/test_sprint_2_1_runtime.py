@@ -1,4 +1,4 @@
-"""Sprint 2.2 runtime, compatibility, permission and SSE acceptance tests."""
+"""Sprint 2.3 runtime, compatibility, permission and SSE acceptance tests."""
 
 import asyncio
 from datetime import date, datetime, timezone
@@ -118,7 +118,7 @@ def test_compatibility_and_intelligence_packages_import() -> None:
     assert intelligence.ResumeExtractionResult
 
 
-def test_sprint_2_2_runner_executes_strategy_knowledge_and_resume_parser() -> None:
+def test_sprint_2_3_runner_executes_deterministic_intermediate_workflow() -> None:
     async def scenario() -> None:
         store = InMemoryAgentRunStore()
         state, snapshot = build_models()
@@ -137,23 +137,81 @@ def test_sprint_2_2_runner_executes_strategy_knowledge_and_resume_parser() -> No
         assert record.snapshot.status is AgentRunStatus.COMPLETED
         assert record.snapshot.nodes["recruitment_strategy"] is AgentNodeStatus.COMPLETED
         assert record.snapshot.nodes["resume_parser"] is AgentNodeStatus.COMPLETED
-        assert all(
-            record.snapshot.nodes[node.name] is AgentNodeStatus.SKIPPED
-            for node in RECRUITMENT_WORKFLOW_NODES
-            if node.name not in {"recruitment_strategy", "resume_parser"}
-        )
+        assert record.snapshot.nodes["job_match"] is AgentNodeStatus.COMPLETED
+        assert record.snapshot.nodes["interview_evaluation"] is AgentNodeStatus.SKIPPED
+        assert record.snapshot.nodes["decision_review"] is AgentNodeStatus.NEEDS_REVIEW
+        assert record.snapshot.nodes["hr_report"] is AgentNodeStatus.COMPLETED
         thinking = next(event for event in record.events if event.event_type is AgentEventType.AGENT_THINKING)
         assert "optional_salary_budget" not in thinking.summary["current_goal"]
         assert {event.tool_name for event in record.events if event.tool_name} == {
             "retrieve_enterprise_knowledge",
             "extract_candidate_profile",
+            "evaluate_candidate",
+            "review_candidate_decision",
+            "build_recruitment_report",
         }
         assert record.snapshot.completed_candidates == 2
         assert len(record.snapshot.candidate_profiles) == 2
+        assert len(record.snapshot.job_matches) == 2
+        assert record.snapshot.interview_evaluations == {}
+        assert len(record.snapshot.decision_reviews) == 2
+        assert record.snapshot.report is not None
+        assert record.snapshot.report.requires_human_decision is True
+        assert all(
+            any(finding.code == "INTERVIEW_DATA_MISSING" for finding in review.findings)
+            for review in record.snapshot.decision_reviews.values()
+        )
         assert record.snapshot.knowledge_summary is not None
         assert record.snapshot.knowledge_summary.retrieval_mode == "LOCAL_HYBRID_FALLBACK"
         assert record.snapshot.sources
-        assert "三年 Python 与 FastAPI 项目经验。" not in record.snapshot.model_dump_json()
+        assert "resume_excerpt" not in record.snapshot.model_dump_json()
+
+        job_match_events = [
+            event.event_type for event in record.events if event.node_name == "job_match"
+        ]
+        assert job_match_events == [
+            AgentEventType.AGENT_STARTED,
+            AgentEventType.AGENT_THINKING,
+            AgentEventType.TOOL_STARTED,
+            AgentEventType.TOOL_COMPLETED,
+            AgentEventType.INTERMEDIATE_RESULT,
+            AgentEventType.TOOL_STARTED,
+            AgentEventType.TOOL_COMPLETED,
+            AgentEventType.INTERMEDIATE_RESULT,
+            AgentEventType.AGENT_COMPLETED,
+        ]
+        review_events = [
+            event.event_type for event in record.events if event.node_name == "decision_review"
+        ]
+        assert review_events == [
+            AgentEventType.AGENT_STARTED,
+            AgentEventType.AGENT_THINKING,
+            AgentEventType.TOOL_STARTED,
+            AgentEventType.TOOL_COMPLETED,
+            AgentEventType.REVIEW_COMPLETED,
+            AgentEventType.TOOL_STARTED,
+            AgentEventType.TOOL_COMPLETED,
+            AgentEventType.REVIEW_COMPLETED,
+            AgentEventType.AGENT_COMPLETED,
+        ]
+        report_events = [
+            event.event_type for event in record.events if event.node_name == "hr_report"
+        ]
+        assert report_events == [
+            AgentEventType.AGENT_STARTED,
+            AgentEventType.AGENT_THINKING,
+            AgentEventType.TOOL_STARTED,
+            AgentEventType.TOOL_COMPLETED,
+            AgentEventType.REPORT_GENERATED,
+            AgentEventType.AGENT_COMPLETED,
+        ]
+        workflow_summary = record.events[-1].summary
+        assert workflow_summary["current_scope"] == "SPRINT_2_3_DETERMINISTIC_INTERMEDIATE"
+        assert workflow_summary["skip_reasons"] == {
+            "interview_evaluation": "STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE"
+        }
+        assert workflow_summary["report_generated"] is True
+        assert workflow_summary["review_required_candidates"] == 2
 
     asyncio.run(scenario())
 
