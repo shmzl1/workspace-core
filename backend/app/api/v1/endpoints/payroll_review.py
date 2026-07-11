@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
-from app.core.dependencies import get_current_employee, require_permission, user_permissions
+from app.core.dependencies import get_current_employee, require_any_permission, require_permission, user_permissions
 from app.modules.auth.models import User
 from app.modules.payroll.schemas import PayrollPreAuditReviewRequest
 from app.modules.payroll.services.pre_audit_service import PayrollPreAuditService
@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.get("/records")
 def list_payroll_review_records(
-    current_user: User = Depends(require_permission("payroll.review.read")),
+    current_user: User = Depends(require_any_permission("payroll.review.read", "payroll.all.read")),
     current_employee=Depends(get_current_employee),
     session: Session = Depends(get_db_session),
 ) -> object:

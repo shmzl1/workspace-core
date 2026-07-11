@@ -279,6 +279,14 @@ docker compose ps
 
 ## 2.6 创建或更新数据库表结构
 
+当前代码包含 `0003_add_leave_requests` 迁移。团队成员同步代码后，在确认本地 PostgreSQL 连接可用的前提下执行：
+
+```powershell
+cd backend
+alembic upgrade head
+cd ..
+```
+
 进入后端目录：
 
 ```powershell

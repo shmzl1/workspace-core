@@ -34,7 +34,9 @@
 </template>
 
 <script setup lang="ts">
-import { pipelineStages } from '../../../shared/data/recruitmentDashboard';
+import type { PipelineStage } from '../../../shared/types/recruitmentDashboard';
+
+defineProps<{ pipelineStages: PipelineStage[] }>();
 </script>
 
 <style scoped lang="scss">

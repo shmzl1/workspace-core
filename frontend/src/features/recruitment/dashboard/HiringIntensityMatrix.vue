@@ -29,9 +29,9 @@
 </template>
 
 <script setup lang="ts">
-import { buildHeatmapValues, heatmapRows } from '../../../shared/data/recruitmentDashboard';
-
-const values = buildHeatmapValues();
+const props = defineProps<{ values: number[] }>();
+const values = props.values;
+const heatmapRows = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 </script>
 
 <style scoped lang="scss">

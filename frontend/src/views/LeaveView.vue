@@ -24,13 +24,13 @@
               <span class="font-title-lg text-title-lg text-on-surface">年假</span>
             </div>
             <div class="flex items-baseline gap-xs mt-auto">
-              <span class="font-display text-display text-on-surface">12.5</span>
+              <span class="font-display text-display text-on-surface">{{ remaining('ANNUAL') }}</span>
               <span class="font-body-md text-body-md text-on-surface-variant">天剩余</span>
             </div>
             <div class="w-full bg-surface-container-highest h-1 rounded-full mt-sm overflow-hidden">
-              <div class="bg-primary h-full" :style="{ width: '75%' }"></div>
+              <div class="bg-primary h-full" :style="{ width: `${percentage('ANNUAL')}%` }"></div>
             </div>
-            <p class="font-label-md text-label-md text-on-surface-variant mt-sm">总额: 15天</p>
+            <p class="font-label-md text-label-md text-on-surface-variant mt-sm">总额: {{ total('ANNUAL') }}天</p>
           </div>
           
           <!-- Sick Leave -->
@@ -42,13 +42,13 @@
               <span class="font-title-lg text-title-lg text-on-surface">带薪病假</span>
             </div>
             <div class="flex items-baseline gap-xs mt-auto">
-              <span class="font-display text-display text-on-surface">3.0</span>
+              <span class="font-display text-display text-on-surface">{{ remaining('SICK') }}</span>
               <span class="font-body-md text-body-md text-on-surface-variant">天剩余</span>
             </div>
             <div class="w-full bg-surface-container-highest h-1 rounded-full mt-sm overflow-hidden">
-              <div class="bg-secondary h-full" :style="{ width: '60%' }"></div>
+              <div class="bg-secondary h-full" :style="{ width: `${percentage('SICK')}%` }"></div>
             </div>
-            <p class="font-label-md text-label-md text-on-surface-variant mt-sm">总额: 5天</p>
+            <p class="font-label-md text-label-md text-on-surface-variant mt-sm">总额: {{ total('SICK') }}天</p>
           </div>
           
           <!-- Time Off in Lieu -->
@@ -60,13 +60,13 @@
               <span class="font-title-lg text-title-lg text-on-surface">调休</span>
             </div>
             <div class="flex items-baseline gap-xs mt-auto">
-              <span class="font-display text-display text-on-surface">16.0</span>
+              <span class="font-display text-display text-on-surface">{{ remaining('COMP_TIME') }}</span>
               <span class="font-body-md text-body-md text-on-surface-variant">小时剩余</span>
             </div>
             <div class="w-full bg-surface-container-highest h-1 rounded-full mt-sm overflow-hidden">
-              <div class="bg-tertiary h-full" :style="{ width: '40%' }"></div>
+              <div class="bg-tertiary h-full" :style="{ width: `${percentage('COMP_TIME')}%` }"></div>
             </div>
-            <p class="font-label-md text-label-md text-on-surface-variant mt-sm">将于 12/31 过期 8 小时</p>
+            <p class="font-label-md text-label-md text-on-surface-variant mt-sm">总额: {{ total('COMP_TIME') }} 小时</p>
           </div>
         </div>
         
@@ -87,38 +87,12 @@
                 </tr>
               </thead>
               <tbody class="font-body-md text-body-md divide-y divide-outline-variant/20">
-                <tr class="hover:bg-surface-container-lowest transition-colors">
-                  <td class="px-md py-sm">年假</td>
-                  <td class="px-md py-sm text-on-surface-variant">2023-11-20 至 2023-11-22</td>
-                  <td class="px-md py-sm">3 天</td>
-                  <td class="px-md py-sm">
-                    <span class="inline-flex items-center px-xs py-[2px] rounded-sm bg-secondary-container/30 text-secondary font-label-md text-[10px] uppercase">已批准</span>
-                  </td>
-                  <td class="px-md py-sm text-right">
-                    <button class="text-primary hover:underline font-label-md">查看</button>
-                  </td>
-                </tr>
-                <tr class="hover:bg-surface-container-lowest transition-colors">
-                  <td class="px-md py-sm">带薪病假</td>
-                  <td class="px-md py-sm text-on-surface-variant">2023-10-15</td>
-                  <td class="px-md py-sm">1 天</td>
-                  <td class="px-md py-sm">
-                    <span class="inline-flex items-center px-xs py-[2px] rounded-sm bg-secondary-container/30 text-secondary font-label-md text-[10px] uppercase">已批准</span>
-                  </td>
-                  <td class="px-md py-sm text-right">
-                    <button class="text-primary hover:underline font-label-md">查看</button>
-                  </td>
-                </tr>
-                <tr class="hover:bg-surface-container-lowest transition-colors">
-                  <td class="px-md py-sm">调休</td>
-                  <td class="px-md py-sm text-on-surface-variant">2023-09-01 (14:00-18:00)</td>
-                  <td class="px-md py-sm">4 小时</td>
-                  <td class="px-md py-sm">
-                    <span class="inline-flex items-center px-xs py-[2px] rounded-sm bg-outline-variant/30 text-on-surface-variant font-label-md text-[10px] uppercase">已归档</span>
-                  </td>
-                  <td class="px-md py-sm text-right">
-                    <button class="text-primary hover:underline font-label-md">查看</button>
-                  </td>
+                <tr v-for="request in requests" :key="request.id" class="hover:bg-surface-container-lowest transition-colors">
+                  <td class="px-md py-sm">{{ leaveLabel(request.leave_type) }}</td>
+                  <td class="px-md py-sm text-on-surface-variant">{{ formatRange(request.start_at, request.end_at) }}</td>
+                  <td class="px-md py-sm">{{ request.duration_hours }} 小时</td>
+                  <td class="px-md py-sm"><span class="inline-flex items-center px-xs py-[2px] rounded-sm bg-secondary-container/30 text-secondary font-label-md text-[10px] uppercase">{{ request.status }}</span></td>
+                  <td class="px-md py-sm text-right"><button class="text-primary hover:underline font-label-md">查看</button></td>
                 </tr>
               </tbody>
             </table>
@@ -173,4 +147,21 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
+import { fetchLeaveOverview, type LeaveBalanceItem, type LeaveRequestItem } from '../shared/api/modules/employee';
+
+const balances = ref<LeaveBalanceItem[]>([]);
+const requests = ref<LeaveRequestItem[]>([]);
+type LeaveType = LeaveBalanceItem['leave_type'];
+const balancesByType = computed(() => new Map(balances.value.map((item) => [item.leave_type, item])));
+const total = (type: LeaveType) => Number(balancesByType.value.get(type)?.total_days ?? 0);
+const remaining = (type: LeaveType) => Math.max(0, total(type) - Number(balancesByType.value.get(type)?.used_days ?? 0));
+const percentage = (type: LeaveType) => total(type) ? Math.round(remaining(type) * 100 / total(type)) : 0;
+const leaveLabel = (type: string) => ({ ANNUAL: '年假', SICK: '带薪病假', COMP_TIME: '调休' }[type] ?? type);
+const formatRange = (start: string, end: string) => `${new Date(start).toLocaleString()} 至 ${new Date(end).toLocaleString()}`;
+onMounted(async () => {
+  const overview = await fetchLeaveOverview();
+  balances.value = overview.balances;
+  requests.value = overview.requests;
+});
 </script>

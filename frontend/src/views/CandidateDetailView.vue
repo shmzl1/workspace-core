@@ -489,7 +489,24 @@ function fromApiCandidate(
 }
 
 function computedScore(candidate: Candidate): number | null {
-  return candidate.aiScore;
+  // The sliders are an interactive preview. Recalculate from the persisted
+  // dimension scores immediately, while the evaluation action persists the
+  // same weights and result through the API.
+  if (candidate.aiScore === null) return null;
+  const dimensions: Record<WeightKey, number> = {
+    project_experience: candidate.dimScores.project_experience ?? 0,
+    skill_match: candidate.dimScores.skill_match ?? 0,
+    education: candidate.dimScores.education ?? 0,
+    work_experience: candidate.dimScores.work_experience ?? 0,
+    overall_quality: candidate.dimScores.overall_quality ?? 0,
+  };
+  const totalWeight = Object.values(weights).reduce((sum, value) => sum + value, 0);
+  if (totalWeight <= 0) return candidate.aiScore;
+  const weighted = (Object.keys(dimensions) as WeightKey[]).reduce(
+    (sum, key) => sum + dimensions[key] * weights[key],
+    0,
+  ) / totalWeight;
+  return Math.round(weighted * 100) / 100;
 }
 
 function getDimensionScore(candidateId: number, dimKey: WeightKey): number {

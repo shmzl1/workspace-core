@@ -19,13 +19,13 @@ import AppTopbar from './AppTopbar.vue';
 import AppSidebar from './AppSidebar.vue';
 import GlobalAgentBar from './GlobalAgentBar.vue';
 import ToastMessage from '../shared/components/base/ToastMessage.vue';
-import { initialTraceLogs } from '../shared/data/recruitmentDashboard';
 
 const router = useRouter();
 const route = useRoute();
 const { currentUser, logout } = useAuthStore();
 const toastMessage = ref('');
-const traceLogs = ref<string[]>([...initialTraceLogs]);
+// Only server-provided, auditable Agent events may be displayed here.
+const traceLogs = ref<string[]>([]);
 let toastTimer: number | undefined;
 const currentLabel = computed(() => String(route.meta.label || ''));
 const agentRole = computed(() => currentUser.value?.permissions.includes('agent.hr.use') ? 'hr' : 'employee');
@@ -59,7 +59,6 @@ function handleLogout() {
 
 function handleAgentCommand(command: string) {
   if (!command.trim()) return;
-  traceLogs.value = [`已接收任务：${command}`, ...traceLogs.value].slice(0, 5);
   showToast('智能助手任务已提交。');
 }
 </script>

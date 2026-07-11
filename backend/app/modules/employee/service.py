@@ -56,3 +56,8 @@ class EmployeeService:
         if balance is None:
             return {"employee_id": employee_id, "year": year, "leave_type": "ANNUAL", "total_days": "0", "used_days": "0"}
         return model_to_dict(balance, ["id", "employee_id", "leave_type", "year", "total_days", "used_days"])
+
+    def get_leave_overview(self, employee_id: int, year: int) -> dict:
+        balances = [model_to_dict(item, ["id", "employee_id", "leave_type", "year", "total_days", "used_days"]) for item in self.repository.list_leave_balances(employee_id, year)]
+        requests = [model_to_dict(item, ["id", "leave_type", "start_at", "end_at", "duration_hours", "reason", "status", "approved_at"]) for item in self.repository.list_leave_requests(employee_id)]
+        return {"balances": balances, "requests": requests}

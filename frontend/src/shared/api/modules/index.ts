@@ -8,6 +8,7 @@ export * from './payrollReview';
 export * from './attendance';
 export * from './employee';
 export * from './payroll';
+export * from './policy';
 export * from './audit';
 export * from './health';
 export * from './agent';

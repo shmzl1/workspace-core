@@ -1,0 +1,8 @@
+[
+  {"id": 1, "document_code": "TF-POL-001", "title": "员工手册", "category": "员工福利", "source_path": "docs/policies/employee-handbook.pdf", "version": "v2.1", "metadata_json": {"required": true, "summary": "员工行为、福利与服务说明"}},
+  {"id": 2, "document_code": "TF-POL-002", "title": "考勤与休假管理制度", "category": "考勤休假", "source_path": "docs/policies/attendance-leave.pdf", "version": "v1.3", "metadata_json": {"required": true, "summary": "打卡、加班及各类请假规则"}},
+  {"id": 3, "document_code": "TF-POL-003", "title": "差旅报销管理办法", "category": "差旅报销", "source_path": "docs/policies/travel-expense.pdf", "version": "v1.1", "metadata_json": {"summary": "出差申请和费用报销标准"}},
+  {"id": 4, "document_code": "TF-POL-004", "title": "商业行为与职业道德准则", "category": "行为准则", "source_path": "docs/policies/code-of-conduct.pdf", "version": "v1.5", "metadata_json": {"required": true, "summary": "职业道德与合规要求"}},
+  {"id": 5, "document_code": "TF-POL-005", "title": "混合办公与远程协作规范", "category": "办公协作", "source_path": "docs/policies/hybrid-work.pdf", "version": "v1.0", "metadata_json": {"summary": "适用于经主管批准的混合办公安排，明确办公地点、信息安全和工作时段要求"}},
+  {"id": 6, "document_code": "TF-POL-006", "title": "员工健康体检与心理支持服务说明", "category": "员工福利", "source_path": "docs/policies/wellbeing-support.pdf", "version": "v1.2", "metadata_json": {"summary": "说明年度健康体检、员工援助计划及预约方式，不包含个人健康信息"}}
+]

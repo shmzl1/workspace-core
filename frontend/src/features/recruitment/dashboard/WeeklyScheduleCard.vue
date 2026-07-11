@@ -24,7 +24,8 @@
 </template>
 
 <script setup lang="ts">
-import { weeklySchedule } from '../../../shared/data/recruitmentDashboard';
+import type { ScheduleItem } from '../../../shared/types/recruitmentDashboard';
+defineProps<{ weeklySchedule: ScheduleItem[] }>();
 </script>
 
 <style scoped lang="scss">

@@ -23,6 +23,13 @@ export async function fetchLeaveBalance(year?: number): Promise<LeaveBalance> {
   return response.data;
 }
 
+export interface LeaveBalanceItem { id: number; employee_id: number; leave_type: 'ANNUAL' | 'SICK' | 'COMP_TIME'; year: number; total_days: number; used_days: number; }
+export interface LeaveRequestItem { id: number; leave_type: string; start_at: string; end_at: string; duration_hours: number; reason: string | null; status: string; approved_at: string | null; }
+export async function fetchLeaveOverview(year?: number): Promise<{ balances: LeaveBalanceItem[]; requests: LeaveRequestItem[] }> {
+  const response = await apiClient.get('/employees/me/leave-overview', { params: { year } });
+  return response.data;
+}
+
 // ── 薪资 ───────────────────────────────────
 
 export interface PayrollSummary {

@@ -52,3 +52,13 @@ def get_my_leave_balance(
     service: EmployeeService = Depends(get_employee_service),
 ) -> object:
     return ok(service.get_annual_leave(current_employee.id, year or date.today().year))
+
+
+@router.get("/me/leave-overview")
+def get_my_leave_overview(
+    year: int | None = None,
+    current_employee: Employee = Depends(get_current_employee),
+    _=Depends(require_permission("leave.self.read")),
+    service: EmployeeService = Depends(get_employee_service),
+) -> object:
+    return ok(service.get_leave_overview(current_employee.id, year or date.today().year))

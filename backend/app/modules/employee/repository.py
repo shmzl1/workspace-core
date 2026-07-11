@@ -2,7 +2,7 @@
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.modules.employee.models import Employee, LeaveBalance
+from app.modules.employee.models import Employee, LeaveBalance, LeaveRequest
 
 
 class EmployeeRepository:
@@ -33,3 +33,9 @@ class EmployeeRepository:
                 LeaveBalance.leave_type == "ANNUAL",
             )
         )
+
+    def list_leave_balances(self, employee_id: int, year: int) -> list[LeaveBalance]:
+        return list(self.session.scalars(select(LeaveBalance).where(LeaveBalance.employee_id == employee_id, LeaveBalance.year == year).order_by(LeaveBalance.leave_type)))
+
+    def list_leave_requests(self, employee_id: int) -> list[LeaveRequest]:
+        return list(self.session.scalars(select(LeaveRequest).where(LeaveRequest.employee_id == employee_id).order_by(LeaveRequest.start_at.desc(), LeaveRequest.id.desc())))
