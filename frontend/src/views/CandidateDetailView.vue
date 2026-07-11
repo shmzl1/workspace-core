@@ -71,47 +71,75 @@
       </section>
 
       <section class="candidate-pool__content">
-        <div class="candidate-table-card">
-          <div class="candidate-table-card__header">
-            <div>
-              <h3>候选人列表</h3>
-              <p>{{ filterHint }}</p>
+        <div class="candidate-pool__left">
+          <div class="candidate-table-card">
+            <div class="candidate-table-card__header">
+              <div>
+                <h3>候选人列表</h3>
+                <p>{{ filterHint }}</p>
+              </div>
+              <span>{{ visibleCandidates.length }} 人</span>
             </div>
-            <span>{{ visibleCandidates.length }} 人</span>
+
+            <EmptyState
+              v-if="visibleCandidates.length === 0"
+              title="当前筛选无候选人"
+              :description="emptyFilterMessage"
+            />
+            <div v-else class="candidate-table">
+              <button
+                v-for="candidate in visibleCandidates"
+                :key="candidate.id"
+                class="candidate-row"
+                :class="{ 'candidate-row--selected': selectedId === candidate.id }"
+                @click="selectCandidate(candidate)"
+              >
+                <span class="candidate-row__name">
+                  <strong>{{ candidate.name }}</strong>
+                  <small>{{ candidate.location }} · {{ candidate.availableIn }}</small>
+                </span>
+                <span>{{ candidate.role }}</span>
+                <span><em :class="stageClass(candidate.stage)">{{ candidate.stage }}</em></span>
+                <span class="score">{{ computedScore(candidate) ?? '--' }}</span>
+                <span v-if="candidate.match !== null">
+                  <span class="match-bar"><i :style="{ width: `${candidate.match}%` }"></i></span>
+                  <small>{{ candidate.match }}%</small>
+                </span>
+                <span v-else class="text-on-surface-variant">待评估</span>
+                <span><em :class="riskClass(candidate.riskLevel)">{{ candidate.riskLabel }}</em></span>
+                <span class="candidate-row__action">
+                  <strong>{{ candidate.recommendedAction }}</strong>
+                  <button class="link-button" @click.stop="selectCandidate(candidate)">查看评估</button>
+                </span>
+              </button>
+            </div>
           </div>
 
-          <EmptyState
-            v-if="visibleCandidates.length === 0"
-            title="当前筛选无候选人"
-            :description="emptyFilterMessage"
-          />
-          <div v-else class="candidate-table">
-            <button
-              v-for="candidate in visibleCandidates"
-              :key="candidate.id"
-              class="candidate-row"
-              :class="{ 'candidate-row--selected': selectedId === candidate.id }"
-              @click="selectCandidate(candidate)"
-            >
-              <span class="candidate-row__name">
-                <strong>{{ candidate.name }}</strong>
-                <small>{{ candidate.location }} · {{ candidate.availableIn }}</small>
-              </span>
-              <span>{{ candidate.role }}</span>
-              <span><em :class="stageClass(candidate.stage)">{{ candidate.stage }}</em></span>
-              <span class="score">{{ computedScore(candidate) ?? '--' }}</span>
-              <span v-if="candidate.match !== null">
-                <span class="match-bar"><i :style="{ width: `${candidate.match}%` }"></i></span>
-                <small>{{ candidate.match }}%</small>
-              </span>
-              <span v-else class="text-on-surface-variant">待评估</span>
-              <span><em :class="riskClass(candidate.riskLevel)">{{ candidate.riskLabel }}</em></span>
-              <span class="candidate-row__action">
-                <strong>{{ candidate.recommendedAction }}</strong>
-                <button class="link-button" @click.stop="selectCandidate(candidate)">查看评估</button>
-              </span>
-            </button>
-          </div>
+          <section v-if="canScoreCandidate" class="weight-sandbox weight-sandbox--inline">
+            <div class="weight-sandbox__header">
+              <h3><span class="material-symbols-outlined">tune</span>评分维度权重调整</h3>
+              <button class="weight-sandbox__reset" @click="resetWeights">
+                <span class="material-symbols-outlined">restart_alt</span>
+                恢复默认
+              </button>
+            </div>
+            <div class="weight-sandbox__sliders">
+              <div v-for="dim in weightDimensions" :key="dim.key" class="weight-slider">
+                <div class="weight-slider__header">
+                  <label>{{ dim.label }}</label>
+                  <span class="weight-slider__value">{{ weights[dim.key] }}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  :value="weights[dim.key]"
+                  class="weight-slider__input"
+                  @input="(event: Event) => updateWeight(dim.key, Number((event.target as HTMLInputElement).value))"
+                />
+              </div>
+            </div>
+          </section>
         </div>
 
         <aside v-if="selectedCandidate" class="candidate-detail-card">
@@ -208,32 +236,6 @@
             </button>
           </div>
         </aside>
-
-        <section v-if="canScoreCandidate" class="weight-sandbox weight-sandbox--inline">
-          <div class="weight-sandbox__header">
-            <h3><span class="material-symbols-outlined">tune</span>评分维度权重调整</h3>
-            <button class="weight-sandbox__reset" @click="resetWeights">
-              <span class="material-symbols-outlined">restart_alt</span>
-              恢复默认
-            </button>
-          </div>
-          <div class="weight-sandbox__sliders">
-            <div v-for="dim in weightDimensions" :key="dim.key" class="weight-slider">
-              <div class="weight-slider__header">
-                <label>{{ dim.label }}</label>
-                <span class="weight-slider__value">{{ weights[dim.key] }}%</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                :value="weights[dim.key]"
-                class="weight-slider__input"
-                @input="(event: Event) => updateWeight(dim.key, Number((event.target as HTMLInputElement).value))"
-              />
-            </div>
-          </div>
-        </section>
       </section>
     </template>
   </div>
@@ -710,6 +712,7 @@ function riskClass(level: Candidate['riskLevel']) {
 .metric-card strong { color: var(--color-text); font-size: 26px; }
 .metric-card small { color: var(--color-muted); font-weight: 700; }
 .candidate-pool__content { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.9fr); gap: 18px; align-items: start; }
+.candidate-pool__left { display: flex; flex-direction: column; gap: 18px; }
 .candidate-table-card, .candidate-detail-card { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: #fff; box-shadow: var(--shadow-card); }
 .candidate-table-card { overflow: hidden; }
 .candidate-table-card__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--color-line); }
@@ -758,16 +761,19 @@ function riskClass(level: Candidate['riskLevel']) {
 .stage-select { min-height: 40px; max-width: 180px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-text); padding: 0 10px; font-weight: 700; }
 .stage-note { min-height: 40px; padding: 0 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-text); }
 .terminal-stage { color: var(--color-muted); font-size: 13px; }
-.weight-sandbox { max-width: 1440px; margin: 0 auto 22px; padding: 20px 24px; border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: linear-gradient(135deg, rgba(36,85,245,0.03), rgba(36,85,245,0.01)); box-shadow: 0 2px 12px rgba(36,85,245,0.06); }
-.weight-sandbox--inline { grid-column: 1 / -1; max-width: none; margin: 0; }
+.weight-sandbox { max-width: 1440px; margin: 0 auto 22px; padding: 20px 24px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: #fff; box-shadow: var(--shadow-card); }
+.weight-sandbox--inline { max-width: none; margin: 0; }
 .weight-sandbox__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .weight-sandbox__header h3, .weight-sandbox__reset { display: flex; align-items: center; gap: 8px; }
-.weight-sandbox__header h3 { margin: 0; font-size: 16px; font-weight: 800; color: var(--color-primary); }
+.weight-sandbox__header h3 { margin: 0; font-size: 16px; font-weight: 800; color: var(--color-text); }
 .weight-sandbox__reset { padding: 6px 14px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-muted); font-size: 12px; font-weight: 700; cursor: pointer; }
-.weight-sandbox__sliders { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; }
-.weight-slider__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-.weight-slider__header label { font-size: 13px; font-weight: 700; color: var(--color-muted); }
-.weight-slider__value { color: var(--color-primary); font-weight: 900; }
+.weight-sandbox__sliders { display: flex; flex-direction: column; gap: 0; }
+.weight-slider { padding: 14px 0; border-bottom: 1px solid var(--color-line); }
+.weight-slider:last-child { border-bottom: 0; padding-bottom: 0; }
+.weight-slider:first-child { padding-top: 0; }
+.weight-slider__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.weight-slider__header label { font-size: 14px; font-weight: 700; color: var(--color-text); }
+.weight-slider__value { color: var(--color-primary); font-weight: 900; font-size: 14px; }
 .weight-slider__input { width: 100%; }
 .job-filter-bar {
   display: flex;
@@ -810,6 +816,6 @@ function riskClass(level: Candidate['riskLevel']) {
 .job-select:focus {
   border-color: var(--color-primary);
 }
-@media (max-width: 1180px) { .candidate-pool__content { grid-template-columns: 1fr; } .candidate-detail-card { position: static; } .weight-sandbox__sliders { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1180px) { .candidate-pool__content { grid-template-columns: 1fr; } .candidate-detail-card { position: static; } }
 @media (max-width: 860px) { .candidate-pool__hero { align-items: stretch; flex-direction: column; } .candidate-pool__summary, .detail-grid { grid-template-columns: 1fr; } .candidate-row { grid-template-columns: 1fr; } }
 </style>
