@@ -66,39 +66,51 @@
                 <div class="relative h-20 w-full bg-surface-container-lowest/50 rounded-lg border border-outline-variant/30 overflow-hidden mb-3 p-3 flex justify-between items-center px-8">
                   <!-- Nodes -->
                   <div class="flex flex-col items-center gap-1 z-10">
-                    <div class="w-8 h-8 rounded-full bg-surface border-2 border-primary/40 flex items-center justify-center text-primary/70">
-                      <span class="material-symbols-outlined text-[16px]">parse</span>
+                    <div class="w-8 h-8 rounded-full bg-surface border-2 border-emerald-500 flex items-center justify-center text-emerald-500">
+                      <span class="material-symbols-outlined text-[16px]">shield</span>
                     </div>
-                    <span class="text-[10px] text-outline font-medium">解析意图</span>
+                    <span class="text-[10px] text-emerald-600 font-medium">解析与审计</span>
                   </div>
                   
-                  <div class="flex-1 h-0.5 bg-primary/30 mx-2" />
+                  <div class="flex-1 h-0.5 bg-emerald-500 mx-2" />
                   
                   <div class="flex flex-col items-center gap-1 z-10">
-                    <div class="w-8 h-8 rounded-full bg-surface border-2 border-primary flex items-center justify-center text-primary shadow-[0_0_10px_rgba(27,77,255,0.3)] scale-110">
+                    <div class="w-8 h-8 rounded-full bg-surface border-2 border-emerald-500 flex items-center justify-center text-emerald-500">
                       <span class="material-symbols-outlined text-[16px]">database</span>
                     </div>
-                    <span class="text-[10px] text-primary font-bold">向量搜索</span>
+                    <span class="text-[10px] text-emerald-600 font-medium">RAG 检索</span>
                   </div>
                   
-                  <div class="flex-1 h-0.5 bg-outline-variant/50 mx-2" />
+                  <div class="flex-1 h-0.5 bg-emerald-500 mx-2" />
                   
                   <div class="flex flex-col items-center gap-1 z-10">
-                    <div class="w-8 h-8 rounded-full bg-surface border-2 border-outline-variant flex items-center justify-center text-on-surface-variant">
-                      <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                    <div class="w-8 h-8 rounded-full bg-surface border-2 border-primary flex items-center justify-center text-primary shadow-[0_0_10px_rgba(27,77,255,0.3)] scale-110 animate-pulse">
+                      <span class="material-symbols-outlined text-[16px]">psychology</span>
                     </div>
-                    <span class="text-[10px] text-outline font-medium">综合分析</span>
+                    <span class="text-[10px] text-primary font-bold">综合分析</span>
                   </div>
                 </div>
 
-                <div class="space-y-1.5 font-mono text-[11px] text-on-surface-variant">
-                  <div class="flex items-center gap-2 opacity-60">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    <span>已解析意图："假期政策摘要" + "结转规则"</span>
+                <div class="space-y-1.5 font-mono text-[11px] text-on-surface-variant bg-surface-container-lowest/30 p-2.5 rounded border border-outline-variant/20">
+                  <div class="flex items-start gap-2 opacity-75">
+                    <span class="text-emerald-500 shrink-0">✔</span>
+                    <span>[解析与审计] 提取意图: <code>POLICY_QUERY</code> | 用户权限 <code>policy.read</code> 验证成功</span>
                   </div>
-                  <div class="flex items-center gap-2 text-primary font-medium">
-                    <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                    <span>正在查询政策数据库 (相似度评分: 0.94)...</span>
+                  <div class="flex items-start gap-2 opacity-75">
+                    <span class="text-emerald-500 shrink-0">✔</span>
+                    <span>[解析与审计] 审计服务记录数据读取操作，可解释安全通道已就绪</span>
+                  </div>
+                  <div class="flex items-start gap-2 opacity-75">
+                    <span class="text-emerald-500 shrink-0">✔</span>
+                    <span>[RAG 检索] 构建检索契约 <code>RetrievalQuery(active_only=True)</code> 并查询 ChromaDB 向量存储</span>
+                  </div>
+                  <div class="flex items-start gap-2 opacity-75">
+                    <span class="text-emerald-500 shrink-0">✔</span>
+                    <span>[RAG 检索] 成功召回匹配的制度文档片段，最高相似度评分 (relevance): 0.9431</span>
+                  </div>
+                  <div class="flex items-start gap-2 text-primary font-medium">
+                    <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse mt-1 shrink-0" />
+                    <span>[综合分析] 载入 <code>KnowledgeChunk</code> [员工手册 (v2024.1)]，LLM 模型合规推理并生成可解释回答...</span>
                   </div>
                 </div>
               </div>
