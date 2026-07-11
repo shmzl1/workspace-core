@@ -1,5 +1,3 @@
-"""Pure salary access policy driven by persisted permission codes and data relation."""
-
 from typing import Any
 
 
