@@ -1,8 +1,8 @@
 <template>
   <section class="sprint23-results">
     <header class="sprint23-results__heading">
-      <div><span>Sprint 2.3 结果</span><h2>岗位匹配、决策审查与 HR 报告</h2></div>
-      <strong>确定性中间版本</strong>
+      <div><span>招聘决策</span><h2>岗位匹配、决策审查与 HR 报告</h2></div>
+      <strong>确定性结果与智能叙述</strong>
     </header>
 
     <section class="result-section">
@@ -130,6 +130,11 @@
         <strong>{{ report?.generation_mode || '等待生成' }}</strong>
       </header>
       <div v-if="report" class="report-grid">
+        <article class="report-card report-card--wide">
+          <h4>报告摘要</h4>
+          <p>{{ report.executive_summary || '当前使用确定性报告摘要。' }}</p>
+          <small>模型：{{ report.model_name || '未使用模型' }} · fallback_used：{{ report.fallback_used }}</small>
+        </article>
         <article class="report-card">
           <h4>候选人排序</h4>
           <ol v-if="report.candidate_rankings.length" class="ranking-list">
@@ -174,6 +179,22 @@
             <li v-for="action in report.next_actions" :key="action">{{ action }}</li>
           </ul>
           <p v-else class="empty-inline">当前报告未返回下一步动作。</p>
+        </article>
+
+        <article class="report-card">
+          <h4>风险摘要</h4>
+          <ul v-if="report.risk_summary.length" class="compact-list">
+            <li v-for="risk in report.risk_summary" :key="risk">{{ risk }}</li>
+          </ul>
+          <p v-else class="empty-inline">当前没有模型增强风险摘要。</p>
+        </article>
+
+        <article class="report-card">
+          <h4>缺失信息</h4>
+          <ul v-if="report.missing_information.length" class="compact-list">
+            <li v-for="item in report.missing_information" :key="item">{{ item }}</li>
+          </ul>
+          <p v-else class="empty-inline">未标记额外缺失信息。</p>
         </article>
 
         <div class="human-decision">

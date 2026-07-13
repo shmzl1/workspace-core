@@ -1,9 +1,16 @@
 <template>
   <section class="evaluation-page">
     <header class="evaluation-page__hero">
-      <div><span>Sprint 2.3 · DETERMINISTIC_INTERMEDIATE</span><h1>多 Agent 招聘决策中间版本</h1><p>当前真实执行招聘策略、简历解析、岗位匹配、决策审查和 HR 报告；尚未接入大模型，企业知识仍为本地结构化回退，无真实结构化评价时面试评估节点跳过。</p></div>
-      <div class="phase-badge">进程内 Run · 真实 SSE</div>
+      <div><span>招聘决策中心</span><h1>多 Agent 招聘评估</h1><p>围绕招聘目标生成策略、企业知识、候选人画像、岗位匹配、决策审查与 HR 建议，确定性评分和最终决定始终保留人工边界。</p></div>
+      <div class="phase-badge">PostgreSQL Run · 实时 SSE</div>
     </header>
+
+    <IntegrationStatusPanel
+      :health="integrationHealth"
+      :loading="healthLoading"
+      :error="healthError"
+      @refresh="loadIntegrationStatus"
+    />
 
     <PermissionDenied v-if="permissionDenied" description="当前账号缺少 agent.hr.use 权限。" />
     <LoadingState v-else-if="contextLoading" message="正在读取真实岗位与候选人…" />
@@ -24,16 +31,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ApiClientError } from '../../../shared/api/apiClient';
 import { fetchApplications, fetchJobs, type CandidateApplicationListItem } from '../../../shared/api/modules/recruitment';
+import { getBackendHealth, type BackendHealth } from '../../../shared/api/modules/health';
 import type { Job } from '../../../shared/api/types';
 import ErrorState from '../../../shared/components/feedback/ErrorState.vue';
 import LoadingState from '../../../shared/components/feedback/LoadingState.vue';
 import PermissionDenied from '../../../shared/components/feedback/PermissionDenied.vue';
 import AgentEventFeed from './components/AgentEventFeed.vue';
 import AgentNodeDetail from './components/AgentNodeDetail.vue';
+import IntegrationStatusPanel from './components/IntegrationStatusPanel.vue';
 import MultiAgentWorkflowBoard from './components/MultiAgentWorkflowBoard.vue';
 import RecruitmentGoalForm from './components/RecruitmentGoalForm.vue';
 import RecruitmentRunOverview from './components/RecruitmentRunOverview.vue';
@@ -48,6 +57,9 @@ const contextLoading = ref(true);
 const contextError = ref('');
 const permissionDenied = ref(false);
 const selectedNode = ref('recruitment_strategy');
+const integrationHealth = ref<BackendHealth | null>(null);
+const healthLoading = ref(false);
+const healthError = ref('');
 const { snapshot, events, loading, streaming, error, isTerminal, start, restore } = useRecruitmentAgentRun();
 const runBusy = computed(() => loading.value || Boolean(snapshot.value && !isTerminal.value));
 const candidateNames = computed(() => applications.value.reduce<Record<number, string>>((names, application) => {
@@ -69,11 +81,28 @@ async function loadContext(): Promise<void> {
   }
 }
 
+async function loadIntegrationStatus(): Promise<void> {
+  healthLoading.value = true;
+  healthError.value = '';
+  try {
+    integrationHealth.value = await getBackendHealth();
+  } catch (cause) {
+    integrationHealth.value = null;
+    healthError.value = cause instanceof Error ? cause.message : '集成状态暂时无法获取';
+  } finally {
+    healthLoading.value = false;
+  }
+}
+
 onMounted(async () => {
-  await loadContext();
+  await Promise.all([loadContext(), loadIntegrationStatus()]);
   const queryRunId = route.query.run_id;
   const runId = Array.isArray(queryRunId) ? queryRunId[0] : queryRunId;
   if (typeof runId === 'string' && runId) await restore(runId);
+});
+
+watch(() => snapshot.value?.status, (status, previous) => {
+  if (status && status !== previous && isTerminal.value) void loadIntegrationStatus();
 });
 </script>
 

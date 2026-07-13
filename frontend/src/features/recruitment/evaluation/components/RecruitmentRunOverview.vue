@@ -95,7 +95,7 @@ const interviewEvaluation = computed(() => {
   return `${status} · ${reason}`;
 });
 const currentScope = computed(() => props.snapshot?.execution_plan?.current_phase
-  || 'SPRINT_2_3_DETERMINISTIC_INTERMEDIATE');
+  || 'SPRINT_2_3_INTEGRATED');
 const elapsed = computed(() => {
   const snapshot = props.snapshot;
   if (!snapshot) return '0.0 s';

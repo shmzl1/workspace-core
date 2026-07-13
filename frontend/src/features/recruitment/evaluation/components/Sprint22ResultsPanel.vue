@@ -1,6 +1,6 @@
 <template>
   <section class="sprint22-results">
-    <header><div><span>Sprint 2.2 结果</span><h2>策略、画像与企业知识</h2></div><strong>真实结构化输出</strong></header>
+    <header><div><span>招聘评估</span><h2>策略、画像与企业知识</h2></div><strong>可审计结构化输出</strong></header>
     <div class="sprint22-results__cards">
       <article>
         <h3>招聘策略卡片</h3>
@@ -13,6 +13,10 @@
           <div><dt>已有面试候选人</dt><dd>{{ plan?.interview_candidate_ids.length || 0 }}</dd></div>
           <div><dt>已完成步骤</dt><dd>{{ completedSteps }}</dd></div>
           <div><dt>下一步动作</dt><dd>{{ plan?.next_actions.join('；') || '等待真实执行计划' }}</dd></div>
+          <div><dt>生成模式</dt><dd>{{ plan?.generation_mode || '等待生成' }}</dd></div>
+          <div><dt>模型</dt><dd>{{ plan?.model_name || '未使用模型' }}</dd></div>
+          <div><dt>回退</dt><dd>{{ plan ? (plan.fallback_used ? '是' : '否') : '—' }}</dd></div>
+          <div><dt>策略摘要</dt><dd>{{ plan?.strategy_summary || '使用确定性策略摘要' }}</dd></div>
         </dl>
       </article>
       <article>
@@ -25,6 +29,7 @@
           <div><dt>最低经验</dt><dd>{{ knowledge ? `${knowledge.min_experience_months} 个月` : '—' }}</dd></div>
           <div><dt>命中文档</dt><dd>{{ knowledge?.sources.length || 0 }}</dd></div>
           <div><dt>检索模式</dt><dd>{{ knowledge?.retrieval_mode || '等待检索' }}</dd></div>
+          <div><dt>检索提示</dt><dd>{{ knowledge?.warnings.join('；') || '无' }}</dd></div>
         </dl>
       </article>
     </div>

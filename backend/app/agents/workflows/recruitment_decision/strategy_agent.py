@@ -53,6 +53,32 @@ def build_recruitment_execution_plan(
     normalized_goal = request.goal.model_copy(
         update={"job_title": job_context.job_title, "department": job_context.department}
     )
+    return RecruitmentExecutionPlan(
+        goal=normalized_goal,
+        candidate_ids=list(candidate_ids),
+        candidate_count=len(candidate_ids),
+        required_nodes=required_nodes,
+        executed_nodes=list(EXECUTED_NODES),
+        skipped_nodes=list(SKIPPED_NODES),
+        resume_parse_required=True,
+        interview_candidate_ids=list(interview_candidate_ids),
+        next_actions=[
+            f"解析 {len(candidate_ids)} 名候选人的结构化简历上下文",
+            "通过当前可用知识模式读取岗位标准、招聘目标与招聘规则",
+            "使用人工维护的确定性评分算法生成岗位匹配结果",
+            "按明确规则完成决策审查并生成结构化 HR 报告",
+        ],
+        current_phase=CURRENT_PHASE,
+        next_phase=NEXT_PHASE,
+        plan_notes=[
+            "确定性计划先生成，模型仅增强白名单叙述字段。",
+            "岗位匹配使用人工维护的确定性评分算法。",
+            "决策审查使用明确规则，不静默修改确定性评分。",
+            "HR 最终报告以结构化汇总为基线，最终决定由 HR 完成。",
+            "面试评估因没有真实结构化评价而跳过，原因：STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE。",
+            "LLM 或 RAG 不可用时必须明确降级，不得影响确定性评分与工作流完成。",
+        ],
+    )
 
 
 class StrategyEnhancement(BaseModel):
@@ -127,30 +153,4 @@ def _mark_output_error(model_gateway: ModelGateway) -> None:
     marker = getattr(model_gateway, "mark_output_error", None)
     if callable(marker):
         marker()
-    return RecruitmentExecutionPlan(
-        goal=normalized_goal,
-        candidate_ids=list(candidate_ids),
-        candidate_count=len(candidate_ids),
-        required_nodes=required_nodes,
-        executed_nodes=list(EXECUTED_NODES),
-        skipped_nodes=list(SKIPPED_NODES),
-        resume_parse_required=True,
-        interview_candidate_ids=list(interview_candidate_ids),
-        next_actions=[
-            f"解析 {len(candidate_ids)} 名候选人的结构化简历上下文",
-            "通过当前可用知识模式读取岗位标准、招聘目标与招聘规则",
-            "使用人工维护的确定性评分算法生成岗位匹配结果",
-            "按明确规则完成决策审查并生成结构化 HR 报告",
-        ],
-        current_phase=CURRENT_PHASE,
-        next_phase=NEXT_PHASE,
-        plan_notes=[
-            "确定性计划先生成，模型仅增强白名单叙述字段。",
-            "岗位匹配使用人工维护的确定性评分算法。",
-            "决策审查使用明确规则，不静默修改确定性评分。",
-            "HR 最终报告以结构化汇总为基线，最终决定由 HR 完成。",
-            "面试评估因没有真实结构化评价而跳过，原因：STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE。",
-            "LLM 或 RAG 不可用时必须明确降级，不得影响确定性评分与工作流完成。",
-        ],
-    )
 

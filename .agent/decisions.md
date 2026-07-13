@@ -110,7 +110,7 @@
 - 状态：已接受
 - 决策：Sprint 2.2 的 SSE、`AgentEvent` 和前端展示代码存在，待本地人工验收；事件只展示可审计阶段摘要。
 - 原因：支持实时可视化与审计，同时保护隐私和模型内部推理。
-- 影响：SSE 先重放历史事件再发送新增事件，使用 `event: agent_event` 并支持心跳；Run 仅保存在当前后端进程，不是持久化任务系统。前端不伪造日志，`AGENT_THINKING` 不暴露隐藏思维链。
+- 影响：SSE 先从 PostgreSQL 重放历史事件，再发送当前进程 Queue 中的新增事件，使用 `event: agent_event` 并支持心跳；前端不伪造日志，`AGENT_THINKING` 不暴露隐藏思维链。
 
 ## ADR-017：Agent 不拥有最终业务决策权
 
@@ -135,7 +135,21 @@
 
 ## ADR-020：Sprint 2.2 企业知识采用可声明的本地回退
 
-- 状态：已接受
+- 状态：已由 ADR-022 扩展，保留为故障回退
 - 决策：在 ChromaDB、Embedding 和 LLM 尚未接入时，招聘知识由 `Agent -> Tool -> RecruitmentKnowledgeService` 执行结构化过滤加关键词相关度的本地回退，并在契约中明确返回 `LOCAL_HYBRID_FALLBACK`。
 - 原因：Sprint 2.2 需要真实、可审计的岗位标准与来源，同时不能把静态契约或本地数据伪装成向量检索。
 - 影响：来源必须携带岗位/部门、文档类型、版本、生效日期、有限摘录和相关度；`backend/app/rag/` 继续只保存 Schema/Protocol。未来接入真实 ChromaDB 时必须新增明确运行模式并保持当前来源契约兼容。
+
+## ADR-021：异步集成网关与应用级依赖注入
+
+- 状态：已由 ADR-022 落实
+- 决策：ModelGateway 和 RetrievalGateway 使用异步接口，由 ApplicationContainer 统一组装并通过 RecruitmentRunnerDependencies 注入 Runner。当前确定性本地知识回退继续保留。
+- 原因：真实模型、Embedding 和 ChromaDB 尚未实现，需要先建立无网络副作用、可检查状态且不影响确定性业务的稳定边界。
+- 影响：真实模型计划通过 `httpx` 调用 OpenAI 兼容 API，本地知识库计划使用 ChromaDB 持久化；LangChain 和 LangGraph 不是连通前置条件。LLM/RAG 故障不得影响确定性业务，真实检索失败时允许明确回退到 `LOCAL_HYBRID_FALLBACK`，健康接口不返回凭证。
+
+## ADR-022：持久化 Agent Runtime 并接入 OpenAI-compatible LLM 与 ChromaDB
+
+- 状态：已接受，代码存在，待本地人工验收
+- 决策：Agent Run、节点、事件和 Tool 调用保存到 PostgreSQL，SSE Queue 继续保留在当前进程；招聘策略与 HR 报告仅在确定性结果生成后使用 OpenAI-compatible Gateway 增强白名单叙述字段；企业知识使用自定义 Embedding Client、ChromaDB Persistent Collection、Metadata 过滤和关键词重排。
+- 原因：支持后端重启后按 `run_id` 恢复审计结果，同时让模型和知识库成为可关闭、可降级的增强能力，不改变人工算法和 HR 最终决定权。
+- 影响：新增 `0004_agent_runtime` 迁移；LLM/RAG 失败时分别使用 `RULE_BASED_FALLBACK` 和 `LOCAL_HYBRID_FALLBACK`；健康接口返回安全状态和知识库计数，不返回密钥、连接串、文档全文或模型原始响应。

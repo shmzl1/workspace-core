@@ -212,7 +212,7 @@ export function useRecruitmentAgentRun() {
 
 function errorMessage(cause: unknown): string {
   if (cause instanceof ApiClientError && cause.code === 'AGENT_RUN_NOT_FOUND') {
-    return '本次运行记录仅保存在当前后端进程中，请重新发起。';
+    return '未找到该运行记录，或当前账号无权访问。';
   }
   return cause instanceof Error ? cause.message : '招聘策略运行请求失败。';
 }

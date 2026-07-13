@@ -1,0 +1,60 @@
+{
+  "documents": [
+    {
+      "source_id": "job-standard-java-intern-001",
+      "title": "Java 后端开发实习生岗位标准",
+      "document_type": "JOB_STANDARD",
+      "department": "研发部",
+      "job_code": "JOB-JAVA-INTERN-001",
+      "version": "2026.1",
+      "effective_from": "2026-01-01",
+      "effective_to": null,
+      "file_path": "java-backend-intern-job-standard.md",
+      "is_active": true,
+      "attributes": {
+        "knowledge_type": "JOB_STANDARD",
+        "required_skills": ["Java", "SQL", "REST API"],
+        "preferred_skills": ["Spring Boot", "PostgreSQL"],
+        "min_experience_months": 0
+      }
+    },
+    {
+      "source_id": "recruitment-risk-rules-001",
+      "title": "招聘风险审查规则",
+      "document_type": "RECRUITMENT_RULES",
+      "department": "研发部",
+      "job_code": null,
+      "version": "2026.1",
+      "effective_from": "2026-01-01",
+      "effective_to": null,
+      "file_path": "recruitment-risk-rules.md",
+      "is_active": true,
+      "attributes": {
+        "knowledge_type": "RECRUITMENT_RULES",
+        "risk_rules": [
+          "必备技能缺失需要人工复核",
+          "缺少证据不能判断为明确具备",
+          "简历信息冲突需要人工核查",
+          "不得根据敏感属性做招聘判断",
+          "Agent 不得自动录用或淘汰"
+        ]
+      }
+    },
+    {
+      "source_id": "structured-interview-standard-001",
+      "title": "结构化面试评价标准",
+      "document_type": "INTERVIEW_STANDARD",
+      "department": "研发部",
+      "job_code": null,
+      "version": "2026.1",
+      "effective_from": "2026-01-01",
+      "effective_to": null,
+      "file_path": "structured-interview-standard.md",
+      "is_active": true,
+      "attributes": {
+        "knowledge_type": "INTERVIEW_STANDARD",
+        "interview_criteria": ["技术能力", "项目能力", "沟通表达", "问题解决能力"]
+      }
+    }
+  ]
+}

@@ -26,6 +26,9 @@
     </div>
     <div v-if="strategyPlan" class="node-detail__plan">
       <h3>招聘策略执行计划</h3>
+      <p><b>generation_mode</b>{{ strategyPlan.generation_mode }}</p>
+      <p><b>model_name</b>{{ strategyPlan.model_name || '未使用模型' }}</p>
+      <p><b>fallback_used</b>{{ strategyPlan.fallback_used }}</p>
       <p><b>required_nodes</b>{{ strategyPlan.required_nodes.join(' → ') }}</p>
       <p><b>executed_nodes</b>{{ strategyPlan.executed_nodes.join('、') }}</p>
       <p><b>skipped_nodes</b>{{ strategyPlan.skipped_nodes.join('、') }}</p>

@@ -142,6 +142,16 @@ export interface RecruitmentExecutionPlan {
   current_phase: string;
   next_phase: string;
   plan_notes: string[];
+  strategy_summary: string | null;
+  risk_reminders: string[];
+  missing_information: string[];
+  model_name: string | null;
+  fallback_used: boolean;
+  generation_mode: string;
+  model_duration_ms: number | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
 }
 
 export interface RecruitmentRunSnapshot extends AgentRunSnapshot {
@@ -212,6 +222,7 @@ export interface EnterpriseKnowledgeSummary {
   risk_rules: string[];
   retrieval_mode: string;
   sources: KnowledgeSourceReference[];
+  warnings: string[];
 }
 
 export interface JobMatchSummary {
@@ -278,5 +289,14 @@ export interface HRReportSummary {
   next_actions: string[];
   requires_human_decision: boolean;
   generation_mode: string;
+  executive_summary: string | null;
+  risk_summary: string[];
+  missing_information: string[];
+  model_name: string | null;
+  fallback_used: boolean;
+  model_duration_ms: number | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
 }
 
