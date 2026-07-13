@@ -13,6 +13,7 @@ from pydantic import SecretStr
 from app.agents.shared.model_errors import (
     ModelGatewayConfigurationError,
     ModelGatewayDisabledError,
+    ModelGatewayOutputError,
     ModelGatewayUnavailableError,
 )
 
@@ -100,7 +101,8 @@ class NotImplementedModelGateway:
             ready=False,
             provider=self.provider,
             model_name=self.model_name if self.configured else None,
-            mode="NOT_IMPLEMENTED" if self.configured else "MISCONFIGURED",
+            mode="DEGRADED" if self.configured else "MISCONFIGURED",
+            last_error="MODEL_PROVIDER_NOT_IMPLEMENTED" if self.configured else "MODEL_CONFIGURATION_INCOMPLETE",
         )
 
     async def aclose(self) -> None:
@@ -211,13 +213,14 @@ class OpenAICompatibleModelGateway:
                 mode="MISCONFIGURED",
                 last_error="MODEL_CONFIGURATION_INCOMPLETE",
             )
+        mode = "READY" if self._ready else "DEGRADED" if self._last_error else "CONFIGURED"
         return ModelGatewayStatus(
             enabled=True,
             configured=True,
             ready=self._ready,
             provider=self.provider,
             model_name=self.model_name,
-            mode="READY" if self._ready else "DEGRADED",
+            mode=mode,
             last_error=self._last_error,
         )
 

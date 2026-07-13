@@ -64,12 +64,13 @@ async def trace_id_middleware(request: Request, call_next):
 async def health() -> object:
     container = get_application_container()
     integrations = await container.get_integration_status()
+    status_exclude = set() if settings.app_env.strip().casefold() == "development" else {"last_error"}
     return ok({
         "status": "ok",
         "overall_mode": integrations.overall_mode,
         "integrations": {
-            "llm": integrations.llm.model_dump(exclude={"last_error"}),
-            "rag": integrations.rag.model_dump(exclude={"last_error"}),
+            "llm": integrations.llm.model_dump(exclude=status_exclude),
+            "rag": integrations.rag.model_dump(exclude=status_exclude),
         },
         "run_store": {"mode": container.agent_run_store.mode},
     })

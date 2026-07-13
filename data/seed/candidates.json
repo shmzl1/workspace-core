@@ -1,5 +1,128 @@
 [
-  {"id": 1, "candidate_no": "TF-C-0001", "full_name": "候选人甲", "email": "candidate.a@example.test", "phone": "13800000001", "resume_file_path": null, "resume_text": "演示简历：Java、SQL、课程项目。", "skills": ["Java", "SQL", "Spring Boot"], "experience_months": 6, "available_from": "2026-07-15", "source": "SEED", "profile_json": {"demo": true, "project_experience": "校园招聘系统"}},
-  {"id": 2, "candidate_no": "TF-C-0002", "full_name": "候选人乙", "email": "candidate.b@example.test", "phone": "13800000002", "resume_file_path": null, "resume_text": "演示简历：Java、Python、实习经历。", "skills": ["Java", "Python", "PostgreSQL"], "experience_months": 10, "available_from": "2026-07-20", "source": "SEED", "profile_json": {"demo": true, "project_experience": "数据看板"}},
-  {"id": 3, "candidate_no": "TF-C-0003", "full_name": "候选人丙", "email": "candidate.c@example.test", "phone": "13800000003", "resume_file_path": null, "resume_text": "演示简历：REST API、数据库课程设计。", "skills": ["Java", "REST API", "SQL"], "experience_months": 3, "available_from": "2026-07-18", "source": "SEED", "profile_json": {"demo": true, "project_experience": "课程管理平台"}}
+  {
+    "id": 1,
+    "candidate_no": "CAN-AG-001",
+    "full_name": "陈晨",
+    "email": "chenchen@example.test",
+    "phone": "13800000001",
+    "resume_file_path": null,
+    "resume_text": "陈晨具有 30 个月 Python 智能应用开发经历，主要使用 FastAPI、PostgreSQL 和 Docker 交付企业应用。能够说明 REST API、模型接口和工具调用之间的权限边界。\n\n在企业招聘多 Agent 决策平台中，负责 Agent 工作流、RAG 检索、SSE 事件流和 PostgreSQL Run 持久化。项目记录了节点状态、知识来源与工具执行摘要，并在模型异常时进入可审计的自动回退流程。\n\n候选人能够完整说明本人负责范围、接口契约和故障恢复方式，项目证据与岗位要求匹配度较高。",
+    "skills": ["Python", "FastAPI", "REST API", "LLM API", "Agent", "RAG", "Tool Calling", "PostgreSQL", "Docker", "ChromaDB"],
+    "experience_months": 30,
+    "available_from": "2026-08-01",
+    "source": "SEED",
+    "profile_json": {
+      "education": ["软件工程本科"],
+      "projects": ["企业招聘多 Agent 决策平台"],
+      "project_roles": ["负责 Agent 工作流、RAG 检索、SSE 事件流和 PostgreSQL Run 持久化"],
+      "project_technologies": ["Python", "FastAPI", "LangGraph", "ChromaDB", "PostgreSQL", "Docker"],
+      "measurable_achievements": ["将模型异常后的恢复方式由人工处理改为自动回退", "完成可追踪的多 Agent 节点状态与来源记录"],
+      "certificates": ["软件设计师资格证书"]
+    }
+  },
+  {
+    "id": 2,
+    "candidate_no": "CAN-AG-002",
+    "full_name": "吴桐",
+    "email": "wutong@example.test",
+    "phone": "13800000002",
+    "resume_file_path": null,
+    "resume_text": "吴桐具有 14 个月 Python 与 FastAPI 项目经历，能够完成基础接口开发、模型调用和 PostgreSQL 数据读写。目前的 Agent 与 RAG 经验主要来自课程实践。\n\n在课程知识库问答系统中，完成模型调用、文档切片和基础向量检索，能够展示完整问答流程。材料中尚未体现复杂 Agent 编排、生产部署、模型回退和 RAG 评测。\n\n候选人具备继续培养基础，但需要通过面试确认状态管理、异常处理和可审计工程能力。",
+    "skills": ["Python", "FastAPI", "LLM API", "PostgreSQL", "基础 RAG"],
+    "experience_months": 14,
+    "available_from": "2026-08-08",
+    "source": "SEED",
+    "profile_json": {
+      "education": ["计算机应用技术本科"],
+      "projects": ["课程知识库问答系统"],
+      "project_roles": ["完成模型调用、文档切片和基础向量检索"],
+      "project_technologies": ["Python", "FastAPI", "PostgreSQL"],
+      "measurable_achievements": [],
+      "certificates": []
+    }
+  },
+  {
+    "id": 3,
+    "candidate_no": "CAN-DATA-001",
+    "full_name": "周晓",
+    "email": "zhouxiao@example.test",
+    "phone": "13800000003",
+    "resume_file_path": null,
+    "resume_text": "周晓具有 36 个月数据平台开发经历，熟悉 Python、SQL、Spark、Flink、Kafka 和 ClickHouse。能够从数据接入、实时计算到指标服务说明完整链路。\n\n在企业实时经营数据平台中，负责 Kafka 数据接入、Flink 实时任务和 ClickHouse 指标服务。实际处理过重复消费、Checkpoint 失败和 Spark 数据倾斜，并能说明定位与恢复过程。\n\n项目职责、技术栈和故障证据较完整，适合进入结构化技术面试。",
+    "skills": ["Python", "SQL", "Spark", "Flink", "Kafka", "ETL", "ClickHouse", "数据仓库"],
+    "experience_months": 36,
+    "available_from": "2026-07-28",
+    "source": "SEED",
+    "profile_json": {
+      "education": ["数据科学与大数据技术本科"],
+      "projects": ["企业实时经营数据平台"],
+      "project_roles": ["负责 Kafka 数据接入、Flink 实时任务和 ClickHouse 指标服务"],
+      "project_technologies": ["Python", "SQL", "Spark", "Flink", "Kafka", "ClickHouse"],
+      "measurable_achievements": ["完成重复消费幂等治理", "处理 Checkpoint 失败和 Spark 数据倾斜"],
+      "certificates": ["数据工程专项课程结业证书"]
+    }
+  },
+  {
+    "id": 4,
+    "candidate_no": "CAN-DATA-002",
+    "full_name": "李然",
+    "email": "liran@example.test",
+    "phone": "13800000004",
+    "resume_file_path": null,
+    "resume_text": "李然具有 20 个月离线数据处理经历，日常使用 SQL、Spark、Hive 和 Linux 完成 ETL 开发。对数据仓库分层和定时任务有实际项目经验。\n\n在离线销售数据仓库项目中，负责数据清洗、数仓分层和定时任务维护。现有材料没有展示 Kafka、Flink、实时处理或完整数据质量体系。\n\n候选人与离线数仓方向部分匹配，需进一步确认实时链路和质量治理能力。",
+    "skills": ["SQL", "Spark", "Hive", "ETL", "数据仓库", "Linux"],
+    "experience_months": 20,
+    "available_from": "2026-08-05",
+    "source": "SEED",
+    "profile_json": {
+      "education": ["信息管理本科"],
+      "projects": ["离线销售数据仓库"],
+      "project_roles": ["负责数据清洗、数仓分层和定时任务"],
+      "project_technologies": ["SQL", "Spark", "Hive", "Linux"],
+      "measurable_achievements": [],
+      "certificates": []
+    }
+  },
+  {
+    "id": 5,
+    "candidate_no": "CAN-AIP-001",
+    "full_name": "何川",
+    "email": "hechuan@example.test",
+    "phone": "13800000005",
+    "resume_file_path": null,
+    "resume_text": "何川具有 34 个月模型平台和基础设施开发经历，熟悉 Python、Linux、Docker、Kubernetes 与模型 API。能够说明模型网关、监控和故障处理的协作边界。\n\n在企业多模型统一接入平台中，负责模型网关、限流、重试、熔断、链路追踪和版本切换。项目处理过模型接口不兼容、429、5xx 和超时降级问题，并保留了故障定位记录。\n\n候选人具备较完整的平台交付与故障处理证据，和岗位核心职责高度匹配。",
+    "skills": ["Python", "Linux", "Docker", "Kubernetes", "模型 API", "模型网关", "Prometheus", "OpenTelemetry", "故障排查"],
+    "experience_months": 34,
+    "available_from": "2026-07-30",
+    "source": "SEED",
+    "profile_json": {
+      "education": ["计算机科学与技术本科"],
+      "projects": ["企业多模型统一接入平台"],
+      "project_roles": ["负责模型网关、限流、重试、熔断、链路追踪和版本切换"],
+      "project_technologies": ["Python", "Docker", "Kubernetes", "Prometheus", "OpenTelemetry"],
+      "measurable_achievements": ["处理模型接口不兼容与 429、5xx 错误", "建立超时降级与模型版本切换流程"],
+      "certificates": ["云原生应用开发课程结业证书"]
+    }
+  },
+  {
+    "id": 6,
+    "candidate_no": "CAN-AIP-002",
+    "full_name": "郑凯",
+    "email": "zhengkai@example.test",
+    "phone": "13800000006",
+    "resume_file_path": null,
+    "resume_text": "郑凯具有 20 个月后端服务部署与监控经历，能够使用 Python、Linux 和 Docker 维护常规 HTTP 服务。熟悉 Prometheus 与 Grafana 的基础指标展示。\n\n在后端服务部署与监控平台中，负责容器部署和基础服务监控，能够处理常见进程和网络问题。材料中缺少模型网关、推理服务、Embedding 和模型版本管理经验。\n\n候选人具备基础平台能力，但模型服务方向的证据仍需通过面试补充。",
+    "skills": ["Python", "Linux", "Docker", "HTTP", "Prometheus", "Grafana"],
+    "experience_months": 20,
+    "available_from": "2026-08-07",
+    "source": "SEED",
+    "profile_json": {
+      "education": ["网络工程本科"],
+      "projects": ["后端服务部署与监控平台"],
+      "project_roles": ["负责容器部署和基础服务监控"],
+      "project_technologies": ["Python", "Linux", "Docker", "Prometheus", "Grafana"],
+      "measurable_achievements": [],
+      "certificates": []
+    }
+  }
 ]

@@ -87,7 +87,7 @@ class ApplicationContainer:
     async def get_integration_status(self) -> IntegrationStatus:
         llm = await self.model_gateway.get_status()
         rag = await self.knowledge_lifecycle.get_status()
-        overall_mode = "OK" if llm.mode in {"DISABLED", "READY"} and rag.mode in {"DISABLED", "READY"} else "DEGRADED"
+        overall_mode = "OK" if llm.mode in {"DISABLED", "CONFIGURED", "READY"} and rag.mode in {"DISABLED", "READY"} else "DEGRADED"
         return IntegrationStatus(overall_mode=overall_mode, llm=llm, rag=rag)
 
 

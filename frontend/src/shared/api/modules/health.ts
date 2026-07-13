@@ -7,6 +7,7 @@ export interface IntegrationHealthStatus {
   configured: boolean;
   ready: boolean;
   mode: string;
+  last_error?: string | null;
 }
 
 export interface LlmHealthStatus extends IntegrationHealthStatus {

@@ -16,11 +16,17 @@
         <span>LLM</span>
         <strong :class="modeClass(health?.integrations.llm.mode)">{{ health?.integrations.llm.mode || '读取中' }}</strong>
         <small>{{ health?.integrations.llm.model_name || health?.integrations.llm.provider || '—' }}</small>
+        <small v-if="visibleError(health?.integrations.llm.mode, health?.integrations.llm.last_error)" class="integration-status__last-error">
+          {{ visibleError(health?.integrations.llm.mode, health?.integrations.llm.last_error) }}
+        </small>
       </article>
       <article>
         <span>RAG</span>
         <strong :class="modeClass(health?.integrations.rag.mode)">{{ health?.integrations.rag.mode || '读取中' }}</strong>
         <small>{{ health?.integrations.rag.collection_name || '—' }}</small>
+        <small v-if="visibleError(health?.integrations.rag.mode, health?.integrations.rag.last_error)" class="integration-status__last-error">
+          {{ visibleError(health?.integrations.rag.mode, health?.integrations.rag.last_error) }}
+        </small>
       </article>
       <article>
         <span>知识库</span>
@@ -55,8 +61,13 @@ const countLabel = computed(() => {
 
 function modeClass(mode?: string): string {
   if (mode === 'READY' || mode === 'POSTGRESQL') return 'is-ready';
+  if (mode === 'CONFIGURED') return 'is-configured';
   if (mode === 'DISABLED') return 'is-disabled';
   return mode ? 'is-degraded' : '';
+}
+
+function visibleError(mode?: string, lastError?: string | null): string {
+  return mode === 'DEGRADED' || mode === 'MISCONFIGURED' ? lastError || '' : '';
 }
 </script>
 
@@ -73,7 +84,8 @@ function modeClass(mode?: string): string {
 .integration-status article span,.integration-status article small { color:var(--color-subtle); font-size:10px; }
 .integration-status article strong { margin:5px 0; color:var(--color-text); font-size:13px; }
 .integration-status__error { margin:0; padding:11px; background:#fff7ed; color:#9a3412; font-size:12px; }
-.is-ready { color:#166534!important; }.is-disabled { color:#475569!important; }.is-degraded { color:#b45309!important; }
+.integration-status__last-error { margin-top:5px; color:#9a3412!important; }
+.is-ready { color:#166534!important; }.is-configured { color:#475569!important; }.is-disabled { color:#64748b!important; }.is-degraded { color:#b45309!important; }
 .is-spinning { animation:spin 1s linear infinite; } @keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:850px){.integration-status__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.integration-status__grid{grid-template-columns:1fr}}

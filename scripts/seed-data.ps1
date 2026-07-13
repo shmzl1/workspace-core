@@ -8,7 +8,7 @@ $RepoRoot = Resolve-Path (Join-Path $ScriptDir "..")
 
 Push-Location $RepoRoot
 try {
-    & $Python "scripts/build-demo-data.py"
+    & $Python "scripts/seed_dev_data.py"
 }
 finally {
     Pop-Location

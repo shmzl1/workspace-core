@@ -1,3 +1,44 @@
 [
-  {"id": 1, "job_code": "JOB-JAVA-INTERN-001", "title": "Java 后端开发实习生", "department": "研发部", "description": "参与招聘演示的虚构岗位，关注 Java 基础、数据库和项目经历。", "required_skills": ["Java", "SQL", "REST API"], "preferred_skills": ["Spring Boot", "PostgreSQL"], "min_experience_months": 0, "location": "武汉", "employment_type": "INTERN", "status": "OPEN", "owner_user_id": 1}
+  {
+    "id": 1,
+    "job_code": "JOB-AGENT-001",
+    "title": "Agent 应用开发工程师",
+    "department": "智能应用研发部",
+    "description": "负责企业级 Agent、RAG、工具调用、状态持久化和可审计工作流开发。",
+    "required_skills": ["Python", "FastAPI", "REST API", "LLM API", "Agent", "RAG", "Tool Calling", "PostgreSQL", "Git", "Docker"],
+    "preferred_skills": ["LangGraph", "AutoGen", "CrewAI", "MCP", "ChromaDB", "Milvus", "pgvector", "混合检索", "重排序", "结构化输出", "Prompt Injection 防护", "OpenTelemetry", "Agent 状态持久化"],
+    "min_experience_months": 12,
+    "location": "武汉",
+    "employment_type": "FULL_TIME",
+    "status": "OPEN",
+    "owner_user_id": 3
+  },
+  {
+    "id": 2,
+    "job_code": "JOB-DATA-001",
+    "title": "大数据分析与处理工程师",
+    "department": "数据平台研发部",
+    "description": "负责批流数据处理、数据仓库、数据质量和企业可信数据底座建设。",
+    "required_skills": ["Python", "SQL", "Spark", "Flink", "Kafka", "ETL", "数据仓库", "数据质量", "Linux", "Git"],
+    "preferred_skills": ["Hive", "ClickHouse", "Trino", "Iceberg", "Hudi", "Delta Lake", "Airflow", "Doris", "实时数仓", "湖仓一体", "数据血缘", "数据治理", "CDC", "Debezium"],
+    "min_experience_months": 18,
+    "location": "武汉",
+    "employment_type": "FULL_TIME",
+    "status": "OPEN",
+    "owner_user_id": 3
+  },
+  {
+    "id": 3,
+    "job_code": "JOB-AI-PLATFORM-001",
+    "title": "AI 平台与模型服务工程师",
+    "department": "AI 基础设施部",
+    "description": "负责模型网关、推理服务、Embedding、监控、限流和故障降级。",
+    "required_skills": ["Python", "Docker", "Linux", "模型 API", "模型网关", "服务监控", "HTTP", "PostgreSQL", "Git", "故障排查"],
+    "preferred_skills": ["Kubernetes", "vLLM", "Triton", "Ray Serve", "KServe", "Prometheus", "Grafana", "OpenTelemetry", "Redis", "向量数据库", "模型评测", "灰度发布", "限流", "熔断", "成本治理"],
+    "min_experience_months": 18,
+    "location": "武汉",
+    "employment_type": "FULL_TIME",
+    "status": "OPEN",
+    "owner_user_id": 3
+  }
 ]
