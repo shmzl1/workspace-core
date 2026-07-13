@@ -1,62 +1,6 @@
 {
   "documents": [
     {
-      "source_id": "job-standard-java-intern-001",
-      "title": "Java 后端开发实习生岗位标准",
-      "document_type": "JOB_STANDARD",
-      "department": "研发部",
-      "job_code": "JOB-JAVA-INTERN-001",
-      "version": "2026.1",
-      "effective_from": "2026-01-01",
-      "effective_to": null,
-      "file_path": "java-backend-intern-job-standard.md",
-      "is_active": true,
-      "attributes": {
-        "knowledge_type": "JOB_STANDARD",
-        "required_skills": ["Java", "SQL", "REST API"],
-        "preferred_skills": ["Spring Boot", "PostgreSQL"],
-        "min_experience_months": 0
-      }
-    },
-    {
-      "source_id": "recruitment-risk-rules-001",
-      "title": "招聘风险审查规则",
-      "document_type": "RECRUITMENT_RULES",
-      "department": "研发部",
-      "job_code": null,
-      "version": "2026.1",
-      "effective_from": "2026-01-01",
-      "effective_to": null,
-      "file_path": "recruitment-risk-rules.md",
-      "is_active": true,
-      "attributes": {
-        "knowledge_type": "RECRUITMENT_RULES",
-        "risk_rules": [
-          "必备技能缺失需要人工复核",
-          "缺少证据不能判断为明确具备",
-          "简历信息冲突需要人工核查",
-          "不得根据敏感属性做招聘判断",
-          "Agent 不得自动录用或淘汰"
-        ]
-      }
-    },
-    {
-      "source_id": "structured-interview-standard-001",
-      "title": "结构化面试评价标准",
-      "document_type": "INTERVIEW_STANDARD",
-      "department": "研发部",
-      "job_code": null,
-      "version": "2026.1",
-      "effective_from": "2026-01-01",
-      "effective_to": null,
-      "file_path": "structured-interview-standard.md",
-      "is_active": true,
-      "attributes": {
-        "knowledge_type": "INTERVIEW_STANDARD",
-        "interview_criteria": ["技术能力", "项目能力", "沟通表达", "问题解决能力"]
-      }
-    },
-    {
       "source_id": "company-ai-data-strategy-2026",
       "title": "云智数科有限公司 AI 与数据人才战略（2026）",
       "document_type": "RECRUITMENT_RULES",
@@ -71,10 +15,11 @@
         "knowledge_type": "RECRUITMENT_RULES",
         "risk_rules": [
           "项目证据优先于技能关键词",
+          "缺少证据时需要人工确认",
           "不得使用敏感个人属性评分",
+          "模型不得修改确定性评分",
           "Agent 不得自动录用或淘汰",
-          "降级与缺少信息必须明确展示",
-          "模型不得修改确定性评分"
+          "降级与回退必须明确展示"
         ]
       }
     },
@@ -118,7 +63,13 @@
           "OpenTelemetry",
           "Agent 状态持久化"
         ],
-        "min_experience_months": 12
+        "min_experience_months": 12,
+        "interview_criteria": [
+          "Agent 工作流设计",
+          "RAG 工程",
+          "模型故障回退",
+          "权限与审计"
+        ]
       }
     },
     {
@@ -162,7 +113,13 @@
           "CDC",
           "Debezium"
         ],
-        "min_experience_months": 18
+        "min_experience_months": 18,
+        "interview_criteria": [
+          "批流处理",
+          "数据仓库设计",
+          "分布式任务优化",
+          "数据质量"
+        ]
       }
     },
     {
@@ -207,99 +164,12 @@
           "熔断",
           "成本治理"
         ],
-        "min_experience_months": 18
-      }
-    },
-    {
-      "source_id": "interview-standard-agent-application-engineer-001",
-      "title": "Agent 应用开发工程师结构化面试标准",
-      "document_type": "INTERVIEW_STANDARD",
-      "department": "智能应用研发部",
-      "job_code": "JOB-AGENT-001",
-      "version": "2026.1",
-      "effective_from": "2026-01-01",
-      "effective_to": null,
-      "file_path": "agent-application-engineer-interview-standard.md",
-      "is_active": true,
-      "attributes": {
-        "knowledge_type": "INTERVIEW_STANDARD",
+        "min_experience_months": 18,
         "interview_criteria": [
-          "Agent 工作流设计",
-          "RAG 工程",
-          "模型故障回退",
-          "权限与审计",
-          "提示词注入防护"
-        ]
-      }
-    },
-    {
-      "source_id": "interview-standard-big-data-engineer-001",
-      "title": "大数据分析与处理工程师结构化面试标准",
-      "document_type": "INTERVIEW_STANDARD",
-      "department": "数据平台研发部",
-      "job_code": "JOB-DATA-001",
-      "version": "2026.1",
-      "effective_from": "2026-01-01",
-      "effective_to": null,
-      "file_path": "big-data-engineer-interview-standard.md",
-      "is_active": true,
-      "attributes": {
-        "knowledge_type": "INTERVIEW_STANDARD",
-        "interview_criteria": [
-          "批流处理",
-          "Kafka 消费语义",
-          "数据仓库设计",
-          "数据质量与血缘",
-          "分布式任务优化"
-        ]
-      }
-    },
-    {
-      "source_id": "interview-standard-ai-platform-engineer-001",
-      "title": "AI 平台与模型服务工程师结构化面试标准",
-      "document_type": "INTERVIEW_STANDARD",
-      "department": "AI 基础设施部",
-      "job_code": "JOB-AI-PLATFORM-001",
-      "version": "2026.1",
-      "effective_from": "2026-01-01",
-      "effective_to": null,
-      "file_path": "ai-platform-engineer-interview-standard.md",
-      "is_active": true,
-      "attributes": {
-        "knowledge_type": "INTERVIEW_STANDARD",
-        "interview_criteria": [
-          "模型网关设计",
+          "模型网关",
           "推理服务部署",
-          "故障切换与降级",
-          "可观测与成本治理",
-          "模型与 RAG 评测"
-        ]
-      }
-    },
-    {
-      "source_id": "technology-recruitment-evidence-rules-001",
-      "title": "技术岗位招聘证据规则",
-      "document_type": "RECRUITMENT_RULES",
-      "department": null,
-      "job_code": null,
-      "version": "2026.1",
-      "effective_from": "2026-01-01",
-      "effective_to": null,
-      "file_path": "technology-recruitment-evidence-rules.md",
-      "is_active": true,
-      "attributes": {
-        "knowledge_type": "RECRUITMENT_RULES",
-        "risk_rules": [
-          "技能关键词不能直接等同于能力",
-          "团队项目必须区分本人职责",
-          "指标必须说明基线规模和环境",
-          "缺少证据时标记 UNKNOWN",
-          "模型推断不得写成简历事实",
-          "关键判断必须关联证据",
-          "不得使用敏感个人属性评分",
-          "Agent 不得自动作最终决定",
-          "降级回退和缺少信息必须展示",
-          "不得因缺少特定框架直接淘汰"
+          "故障处理",
+          "可观测性"
         ]
       }
     }
