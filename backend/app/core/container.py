@@ -103,6 +103,8 @@ def _build_application_container(settings: Settings) -> ApplicationContainer:
                 timeout_seconds=settings.llm_timeout_seconds,
                 max_retries=settings.llm_max_retries,
                 temperature=settings.llm_temperature,
+                proxy_url=settings.llm_proxy_url,
+                trust_env=settings.llm_trust_env,
             )
         else:
             model_gateway = NotImplementedModelGateway(

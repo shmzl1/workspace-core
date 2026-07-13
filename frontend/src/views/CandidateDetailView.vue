@@ -15,12 +15,6 @@
       <button class="btn" @click="loadCandidatePool()">重新加载</button>
     </section>
 
-    <EmptyState
-      v-else-if="isEmpty"
-      title="暂无候选人"
-      description="当前岗位还没有候选人申请，请先发布岗位或导入简历。"
-    />
-
     <template v-else>
       <section class="candidate-pool__hero">
         <div>
@@ -29,6 +23,18 @@
           <p>集中查看候选人评分、岗位匹配度、风险标签与下一步推荐动作。</p>
         </div>
         <div class="candidate-pool__actions">
+          <input
+            ref="resumeFileInput"
+            type="file"
+            accept=".pdf,application/pdf"
+            multiple
+            hidden
+            @change="handleResumeFiles"
+          />
+          <button class="btn btn--primary" :disabled="importing" @click="openResumeFilePicker">
+            <span class="material-symbols-outlined">person_add</span>
+            {{ importing ? '导入中…' : '添加候选人' }}
+          </button>
           <button class="btn btn--primary" @click="applySmartFilter">
             <span class="material-symbols-outlined">auto_awesome</span>
             智能筛选
@@ -58,6 +64,12 @@
         </select>
       </section>
 
+      <EmptyState
+        v-if="isEmpty"
+        title="暂无候选人"
+        description="当前岗位还没有候选人申请，请先发布岗位或导入简历。"
+      />
+
       <p v-if="evaluationNotice" class="notice">{{ evaluationNotice }}</p>
 
       <section class="candidate-pool__summary">
@@ -82,7 +94,7 @@
             </div>
 
             <EmptyState
-              v-if="visibleCandidates.length === 0"
+              v-if="visibleCandidates.length === 0 && !isEmpty"
               title="当前筛选无候选人"
               :description="emptyFilterMessage"
             />
@@ -247,7 +259,7 @@ import { useRouter } from 'vue-router';
 import LoadingState from '../shared/components/feedback/LoadingState.vue';
 import EmptyState from '../shared/components/feedback/EmptyState.vue';
 import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
-import { advanceCandidateStage, fetchApplication, fetchApplications, fetchCandidates, fetchJobs, scoreCandidate } from '../shared/api/modules/recruitment';
+import { advanceCandidateStage, fetchApplication, fetchApplications, fetchCandidates, fetchJobs, importCandidateResumes, scoreCandidate } from '../shared/api/modules/recruitment';
 import { checkBackendHealth } from '../shared/api/modules/health';
 import { ApiClientError } from '../shared/api/apiClient';
 import { useAuthStore } from '../features/auth/authStore';
@@ -289,6 +301,8 @@ const emit = defineEmits<{
 }>();
 
 const loading = ref(true);
+const importing = ref(false);
+const resumeFileInput = ref<HTMLInputElement | null>(null);
 const scoring = ref(false);
 const advancing = ref(false);
 const permissionDenied = ref(false);
@@ -388,6 +402,39 @@ const filterHint = computed(() => {
 });
 
 onMounted(loadCandidatePool);
+
+function openResumeFilePicker() {
+  if (!importing.value) resumeFileInput.value?.click();
+}
+
+async function handleResumeFiles(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const files = Array.from(input.files ?? []);
+  if (!files.length) return;
+  if (files.some((file) => !file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf')) {
+    emit('show-toast', '仅支持选择 PDF 简历文件。');
+    input.value = '';
+    return;
+  }
+  importing.value = true;
+  try {
+    const result = await importCandidateResumes(files);
+    emit('show-toast', `成功导入 ${result.imported_count} 人，跳过重复 ${result.duplicate_count} 人，失败 ${result.failed_count} 份。`);
+    const failures = result.items.filter((item) => item.status === 'FAILED');
+    if (failures.length) {
+      emit('show-toast', failures.map((item) => `${item.filename}：${item.message}`).join('；'));
+    }
+    const firstImported = result.items.find((item) => item.status === 'IMPORTED');
+    if (firstImported?.application_id) {
+      await loadCandidatePool(firstImported.application_id);
+    }
+  } catch (error) {
+    emit('show-toast', error instanceof Error ? error.message : '简历导入失败。');
+  } finally {
+    importing.value = false;
+    input.value = '';
+  }
+}
 
 async function loadCandidatePool(preferredApplicationId?: number) {
   loading.value = true;

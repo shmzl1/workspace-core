@@ -16,11 +16,38 @@ class RecruitmentRepository:
     def list_jobs(self) -> list[Job]:
         return list(self.session.scalars(select(Job).order_by(Job.id)).all())
 
+    def list_jobs_for_resume_import(self) -> list[Job]:
+        """Return all jobs so the service can distinguish closed from unknown jobs."""
+        return self.list_jobs()
+
     def get_job(self, job_id: int) -> Job | None:
         return self.session.get(Job, job_id)
 
     def list_candidates(self) -> list[Candidate]:
         return list(self.session.scalars(select(Candidate).order_by(Candidate.id)).all())
+
+    def create_resume_import(
+        self,
+        candidate: Candidate,
+        application: CandidateApplication,
+        pipeline_record: CandidatePipelineRecord,
+    ) -> tuple[Candidate, CandidateApplication]:
+        """Persist the three import records as one transaction."""
+        try:
+            self.session.add(candidate)
+            self.session.flush()
+            application.candidate_id = candidate.id
+            self.session.add(application)
+            self.session.flush()
+            pipeline_record.application_id = application.id
+            self.session.add(pipeline_record)
+            self.session.commit()
+            self.session.refresh(candidate)
+            self.session.refresh(application)
+            return candidate, application
+        except Exception:
+            self.session.rollback()
+            raise
 
     def list_applications(self) -> list[tuple[CandidateApplication, Candidate | None, Job | None]]:
         rows = self.session.execute(

@@ -1,10 +1,12 @@
 """Recruitment schemas."""
 
+import json
+
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class JobRead(BaseModel):
@@ -37,6 +39,73 @@ class CandidateRead(BaseModel):
     experience_months: int
     available_from: date | None = None
     source: str
+
+
+class ParsedResumeCandidate(BaseModel):
+    full_name: str = Field(min_length=1)
+    email: str | None = None
+    phone: str | None = None
+    skills: list[str] = Field(default_factory=list)
+    experience_months: int = Field(default=0, ge=0)
+    available_from: date | None = None
+    target_job_title: str = Field(min_length=1)
+    target_job_code: str | None = None
+    target_department: str | None = None
+    education: list[str] = Field(default_factory=list)
+    work_experiences: list[str] = Field(default_factory=list)
+    projects: list[str] = Field(default_factory=list)
+    project_roles: list[str] = Field(default_factory=list)
+    project_technologies: list[str] = Field(default_factory=list)
+    measurable_achievements: list[str] = Field(default_factory=list)
+    certificates: list[str] = Field(default_factory=list)
+    current_location: str | None = None
+    summary: str | None = None
+
+    @field_validator(
+        "skills",
+        "education",
+        "work_experiences",
+        "projects",
+        "project_roles",
+        "project_technologies",
+        "measurable_achievements",
+        "certificates",
+        mode="before",
+    )
+    @classmethod
+    def normalize_string_lists(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        items = value if isinstance(value, list) else [value]
+        normalized: list[str] = []
+        for item in items:
+            if isinstance(item, str):
+                text = item.strip()
+            elif isinstance(item, (dict, list)):
+                text = json.dumps(item, ensure_ascii=False, separators=(",", ":"))
+            else:
+                text = str(item).strip()
+            if text:
+                normalized.append(text)
+        return normalized
+
+
+class CandidateResumeImportItemRead(BaseModel):
+    filename: str
+    status: Literal["IMPORTED", "DUPLICATE", "FAILED"]
+    full_name: str | None = None
+    matched_job_id: int | None = None
+    matched_job_title: str | None = None
+    candidate_id: int | None = None
+    application_id: int | None = None
+    message: str
+
+
+class CandidateResumeImportResponse(BaseModel):
+    imported_count: int
+    duplicate_count: int
+    failed_count: int
+    items: list[CandidateResumeImportItemRead]
 
 
 class CandidateApplicationRead(BaseModel):

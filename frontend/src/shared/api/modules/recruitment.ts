@@ -5,6 +5,7 @@ import type {
   CandidateApplicationDetail,
   CandidateScoreRequest,
   CandidateScoreResponse,
+  CandidateResumeImportResponse,
   AdvanceStageResponse,
   Job,
   PipelineStage,
@@ -33,6 +34,19 @@ export async function fetchCandidates(params?: {
   page_size?: number;
 }): Promise<Candidate[]> {
   const response = await apiClient.get<Candidate[]>('/recruitment/candidates', { params });
+  return response.data;
+}
+
+export async function importCandidateResumes(files: File[]): Promise<CandidateResumeImportResponse> {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append('files', file);
+  }
+  const response = await apiClient.post<CandidateResumeImportResponse>(
+    '/recruitment/candidates/import',
+    formData,
+    { timeout: 300000, headers: { 'Content-Type': 'multipart/form-data' } },
+  );
   return response.data;
 }
 

@@ -43,6 +43,26 @@ export type EmploymentType = 'INTERN' | 'FULL_TIME' | 'PART_TIME';
 export type JobStatus = 'DRAFT' | 'OPEN' | 'CLOSED';
 export type CandidateSource = 'MANUAL' | 'UPLOAD' | 'SEED' | 'REFERRAL';
 
+export type CandidateResumeImportStatus = 'IMPORTED' | 'DUPLICATE' | 'FAILED';
+
+export interface CandidateResumeImportItem {
+  filename: string;
+  status: CandidateResumeImportStatus;
+  full_name: string | null;
+  matched_job_id: number | null;
+  matched_job_title: string | null;
+  candidate_id: number | null;
+  application_id: number | null;
+  message: string;
+}
+
+export interface CandidateResumeImportResponse {
+  imported_count: number;
+  duplicate_count: number;
+  failed_count: number;
+  items: CandidateResumeImportItem[];
+}
+
 export type PipelineStage =
   | 'APPLIED'
   | 'AI_SCREENED'

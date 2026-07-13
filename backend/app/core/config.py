@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = Field(default=30, gt=0)
     llm_max_retries: int = Field(default=2, ge=0)
     llm_temperature: float = Field(default=0.2, ge=0, le=2)
+    llm_proxy_url: SecretStr = Field(default_factory=lambda: SecretStr(""))
+    llm_trust_env: bool = True
     openai_base_url: str = ""
     openai_api_key: SecretStr = Field(default_factory=lambda: SecretStr(""))
     openai_model: str = ""

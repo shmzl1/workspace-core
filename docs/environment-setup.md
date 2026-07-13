@@ -234,6 +234,8 @@ OPENAI_API_KEY=自己的真实APIKey
 
 模板已包含本地 PostgreSQL、JWT、CORS、LLM、RAG、ChromaDB、模型和检索参数，无需逐项修改。Embedding 默认使用 `volcengine_multimodal` 与 `doubao-embedding-vision-251215`；`EMBEDDING_BASE_URL` 与 `EMBEDDING_API_KEY` 保持空值，程序会自动复用 `OPENAI_BASE_URL` 与 `OPENAI_API_KEY`。
 
+LLM 网络连接支持两种模式：直连时设置 `LLM_PROXY_URL=` 与 `LLM_TRUST_ENV=false`；需要通过 Clash 等本地 HTTP/Mixed 代理时，将 `LLM_PROXY_URL` 设置为本地代理地址（例如 `http://127.0.0.1:7890`，端口以本机配置为准），并设置 `LLM_TRUST_ENV=false`。修改 `backend/.env` 后必须重启 FastAPI 进程，Uvicorn 不保证因 `.env` 变化自动重载。
+
 默认 Docker PostgreSQL 配置由 `docker-compose.yml` 提供，无需另外创建根目录 `.env`。本地连接使用 `localhost:5433`，容器内部仍使用 `5432`。
 
 本地文件作用：

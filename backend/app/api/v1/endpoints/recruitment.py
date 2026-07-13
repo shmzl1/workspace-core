@@ -1,6 +1,6 @@
 """Recruitment route boundary."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
@@ -34,6 +34,15 @@ def get_job(job_id: int, _=Depends(require_permission("recruitment.read")), serv
 @router.get("/candidates")
 def list_candidates(_=Depends(require_permission("candidate.read")), service: RecruitmentService = Depends(get_recruitment_service)) -> object:
     return ok(service.list_candidates())
+
+
+@router.post("/candidates/import")
+async def import_candidate_resumes(
+    files: list[UploadFile] = File(...),
+    current_user=Depends(require_permission("recruitment.manage")),
+    service: RecruitmentService = Depends(get_recruitment_service),
+) -> object:
+    return ok(await service.import_candidate_resumes(files, current_user.id))
 
 
 @router.get("/applications")

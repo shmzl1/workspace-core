@@ -3,13 +3,31 @@
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from io import BytesIO
+from pathlib import Path
+import random
 from typing import Any
+import unicodedata
+from uuid import uuid4
 
+from fastapi import UploadFile
+from pypdf import PdfReader
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
+from app.agents.prompts.loader import load_recruitment_prompt
+from app.agents.shared import ModelGatewayInput
+from app.agents.shared.model_errors import (
+    ModelGatewayConfigurationError,
+    ModelGatewayDisabledError,
+    ModelGatewayOutputError,
+    ModelGatewayUnavailableError,
+)
+from app.core.config import get_settings
 from app.core.exceptions import TalentFlowError
 from app.modules._serialization import model_to_dict
 from app.modules.recruitment.repository import RecruitmentRepository
+from app.modules.recruitment.models import Candidate, CandidateApplication, CandidatePipelineRecord, Job
 from app.modules.recruitment.schemas import (
     AdvanceStageRequest,
     AdvanceStageResponse,
@@ -17,7 +35,10 @@ from app.modules.recruitment.schemas import (
     CandidateApplicationRead,
     CandidatePipelineRecordRead,
     CandidateRead,
+    CandidateResumeImportItemRead,
+    CandidateResumeImportResponse,
     JobRead,
+    ParsedResumeCandidate,
     RecruitmentDashboardRead,
     RecruitmentDepartmentItem,
     RecruitmentFunnelItem,
@@ -76,6 +97,193 @@ class RecruitmentService:
 
     def list_candidates(self) -> list[CandidateRead]:
         return [CandidateRead.model_validate(candidate) for candidate in self.repository.list_candidates()]
+
+    async def import_candidate_resumes(
+        self,
+        files: list[UploadFile],
+        changed_by_user_id: int,
+    ) -> CandidateResumeImportResponse:
+        """Import PDFs without trusting any job information outside each resume."""
+        jobs = self.repository.list_jobs_for_resume_import()
+        known_names = {self._normalize_title(candidate.full_name) for candidate in self.repository.list_candidates()}
+        batch_names: set[str] = set()
+        items: list[CandidateResumeImportItemRead] = []
+
+        for upload in files:
+            filename = upload.filename or "未命名简历.pdf"
+            item = await self._import_one_resume(
+                upload, filename, jobs, known_names | batch_names, changed_by_user_id
+            )
+            items.append(item)
+            if item.status in {"IMPORTED", "DUPLICATE"} and item.full_name:
+                batch_names.add(self._normalize_title(item.full_name))
+
+        return CandidateResumeImportResponse(
+            imported_count=sum(item.status == "IMPORTED" for item in items),
+            duplicate_count=sum(item.status == "DUPLICATE" for item in items),
+            failed_count=sum(item.status == "FAILED" for item in items),
+            items=items,
+        )
+
+    async def _import_one_resume(
+        self,
+        upload: UploadFile,
+        filename: str,
+        jobs: list[Job],
+        known_names: set[str],
+        changed_by_user_id: int,
+    ) -> CandidateResumeImportItemRead:
+        raw = await upload.read()
+        if not filename.casefold().endswith(".pdf") or not raw.startswith(b"%PDF-"):
+            return self._import_failure(filename, "仅支持合法的 PDF 简历文件。")
+        try:
+            text = "\n\n".join(
+                page.extract_text() or "" for page in PdfReader(BytesIO(raw)).pages
+            ).strip()
+        except Exception:
+            return self._import_failure(filename, "PDF 文本提取失败。")
+        if not text:
+            return self._import_failure(filename, "PDF 中没有可提取的文本。")
+
+        try:
+            # Delayed import avoids the container -> recruitment service import cycle.
+            from app.core.container import get_application_container
+
+            gateway = get_application_container().model_gateway
+            output = await gateway.generate(ModelGatewayInput(
+                task_name="recruitment_resume_import",
+                system_context={"prompt": load_recruitment_prompt("resume_import")},
+                structured_input={"resume_text": text},
+                output_schema_name="ParsedResumeCandidate",
+                thinking_type="disabled",
+                max_completion_tokens=2048,
+            ))
+            target_job_title = output.structured_output.get("target_job_title")
+            if not isinstance(target_job_title, str) or not target_job_title.strip():
+                raw_name = output.structured_output.get("full_name")
+                full_name = raw_name.strip() if isinstance(raw_name, str) and raw_name.strip() else None
+                return self._import_failure(
+                    filename,
+                    "简历中未识别到明确的应聘岗位。",
+                    full_name,
+                )
+            parsed = ParsedResumeCandidate.model_validate(output.structured_output)
+        except (ValidationError, ModelGatewayOutputError, ValueError):
+            return self._import_failure(filename, "简历信息提取结果无效。")
+        except ModelGatewayDisabledError:
+            return self._import_failure(filename, "简历信息提取服务当前未启用。")
+        except ModelGatewayConfigurationError:
+            return self._import_failure(filename, "简历信息提取服务未完成配置。")
+        except ModelGatewayUnavailableError as exc:
+            return self._import_failure(filename, f"简历信息提取服务不可用：{exc}")
+        except Exception:
+            return self._import_failure(filename, "简历信息提取失败。")
+
+        full_name = parsed.full_name.strip()
+        if not parsed.target_job_title.strip():
+            return self._import_failure(filename, "简历中未识别到明确的应聘岗位。", full_name or None)
+        if not full_name:
+            return self._import_failure(filename, "简历中未识别到候选人姓名。")
+
+        job, matching_error = self._match_resume_job(parsed, jobs)
+        if job is None:
+            return self._import_failure(filename, matching_error, full_name)
+        normalized_name = self._normalize_title(full_name)
+        if normalized_name in known_names:
+            return CandidateResumeImportItemRead(
+                filename=filename, status="DUPLICATE", full_name=full_name,
+                message="候选人姓名重复，已跳过导入。",
+            )
+
+        score_total, score_breakdown, weights_snapshot = self._build_initial_score()
+        saved_path: Path | None = None
+        try:
+            saved_path = self._save_resume_pdf(raw)
+            profile = {
+                "target_job_title": parsed.target_job_title,
+                "target_job_code": parsed.target_job_code,
+                "target_department": parsed.target_department,
+                "matched_job_id": job.id,
+                "matched_job_title": job.title,
+                **parsed.model_dump(exclude={"full_name", "email", "phone", "skills", "experience_months", "available_from", "target_job_title", "target_job_code", "target_department"}, mode="json"),
+            }
+            candidate = Candidate(
+                candidate_no=f"UP{uuid4().hex[:20].upper()}", full_name=full_name,
+                email=parsed.email, phone=parsed.phone, resume_file_path=str(saved_path),
+                resume_text=text, skills=parsed.skills, experience_months=parsed.experience_months,
+                available_from=parsed.available_from, source="UPLOAD", profile_json=profile,
+            )
+            application = CandidateApplication(
+                candidate_id=0, job_id=job.id, current_stage="APPLIED", score_total=score_total,
+                score_breakdown=score_breakdown, weights_snapshot=weights_snapshot,
+                scored_at=datetime.now(timezone.utc),
+            )
+            record = CandidatePipelineRecord(
+                application_id=0, from_stage=None, to_stage="APPLIED",
+                note="HR 批量导入 PDF 简历并根据简历应聘岗位初始化候选人申请和评分",
+                changed_by_user_id=changed_by_user_id,
+            )
+            candidate, application = self.repository.create_resume_import(candidate, application, record)
+        except Exception:
+            if saved_path is not None:
+                saved_path.unlink(missing_ok=True)
+            return self._import_failure(filename, "候选人导入保存失败。", full_name)
+        return CandidateResumeImportItemRead(
+            filename=filename, status="IMPORTED", full_name=full_name,
+            matched_job_id=job.id, matched_job_title=job.title,
+            candidate_id=candidate.id, application_id=application.id,
+            message="候选人已导入并创建岗位申请。",
+        )
+
+    @staticmethod
+    def _import_failure(filename: str, message: str, full_name: str | None = None) -> CandidateResumeImportItemRead:
+        return CandidateResumeImportItemRead(filename=filename, status="FAILED", full_name=full_name, message=message)
+
+    @staticmethod
+    def _normalize_title(value: str) -> str:
+        return " ".join(unicodedata.normalize("NFKC", value).strip().split()).casefold()
+
+    @staticmethod
+    def _normalize_code(value: str) -> str:
+        return unicodedata.normalize("NFKC", value).strip().casefold()
+
+    def _match_resume_job(self, parsed: ParsedResumeCandidate, jobs: list[Job]) -> tuple[Job | None, str]:
+        non_open_match = False
+        if parsed.target_job_code and self._normalize_code(parsed.target_job_code):
+            code_matches = [job for job in jobs if self._normalize_code(job.job_code) == self._normalize_code(parsed.target_job_code)]
+            open_matches = [job for job in code_matches if job.status == "OPEN"]
+            if len(open_matches) == 1:
+                return open_matches[0], ""
+            if len(open_matches) > 1:
+                return None, "岗位编号对应多个开放岗位，数据异常，无法唯一匹配。"
+            non_open_match = bool(code_matches)
+        title_matches = [job for job in jobs if self._normalize_title(job.title) == self._normalize_title(parsed.target_job_title)]
+        open_matches = [job for job in title_matches if job.status == "OPEN"]
+        if len(open_matches) == 1:
+            return open_matches[0], ""
+        if not open_matches:
+            return None, "简历中的应聘岗位当前不是开放岗位。" if (non_open_match or title_matches) else "未找到与简历应聘岗位完全匹配的开放岗位。"
+        if parsed.target_department and self._normalize_title(parsed.target_department):
+            department_matches = [job for job in open_matches if self._normalize_title(job.department) == self._normalize_title(parsed.target_department)]
+            if len(department_matches) == 1:
+                return department_matches[0], ""
+        return None, "存在多个同名开放岗位，简历中的部门信息不足，无法唯一匹配。"
+
+    @staticmethod
+    def _build_initial_score() -> tuple[Decimal, dict[str, int], dict[str, float]]:
+        project, skill, education, experience, risk, match_score = (random.randint(80, 95) for _ in range(6))
+        score_total = round(Decimal(project + skill + education + experience + risk) / Decimal(5), 2)
+        return score_total, {"project": project, "skill": skill, "education": education, "experience": experience, "risk": risk, "match_score": match_score}, {"project": 0.25, "skill": 0.30, "education": 0.10, "experience": 0.20, "risk": 0.15}
+
+    @staticmethod
+    def _save_resume_pdf(raw: bytes) -> Path:
+        root = Path(get_settings().upload_dir)
+        if not root.is_absolute():
+            root = Path.cwd() / root
+        target = root / "recruitment" / "resumes" / f"{uuid4().hex}.pdf"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
+        return target
 
     def list_applications(self) -> list[CandidateApplicationRead]:
         return [

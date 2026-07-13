@@ -19,6 +19,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 os.chdir(BACKEND_DIR)
 
 from passlib.hash import bcrypt
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -452,6 +453,18 @@ def add_recruitment(db: Session, today: date) -> None:
         )
         for application_id, _candidate_id, _job_id, stage, _score, _breakdown in application_rows
     ])
+    db.commit()
+    sync_recruitment_sequences(db)
+
+
+def sync_recruitment_sequences(db: Session) -> None:
+    """Keep PostgreSQL identity sequences aligned after fixed-ID demo seeding."""
+
+    for table_name in ("candidates", "candidate_applications", "candidate_pipeline_records"):
+        db.execute(text(
+            f"SELECT setval(pg_get_serial_sequence('{table_name}', 'id'), "
+            f"COALESCE(MAX(id), 1), MAX(id) IS NOT NULL) FROM {table_name}"
+        ))
     db.commit()
 
 

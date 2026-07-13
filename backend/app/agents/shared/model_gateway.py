@@ -4,7 +4,7 @@ import asyncio
 import json
 import re
 from time import perf_counter
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 import httpx
 from pydantic import BaseModel, Field
@@ -23,6 +23,8 @@ class ModelGatewayInput(BaseModel):
     system_context: dict[str, Any] = Field(default_factory=dict)
     structured_input: dict[str, Any] = Field(default_factory=dict)
     output_schema_name: str
+    thinking_type: Literal["enabled", "disabled", "auto"] | None = None
+    max_completion_tokens: int | None = Field(default=None, gt=0)
 
 
 class ModelGatewayOutput(BaseModel):
@@ -122,6 +124,8 @@ class OpenAICompatibleModelGateway:
         timeout_seconds: float = 30,
         max_retries: int = 2,
         temperature: float = 0.2,
+        proxy_url: SecretStr | None = None,
+        trust_env: bool = True,
     ) -> None:
         self.provider = provider
         self.model_name = model_name
@@ -130,6 +134,8 @@ class OpenAICompatibleModelGateway:
         self._timeout_seconds = timeout_seconds
         self._max_retries = max_retries
         self._temperature = temperature
+        self._proxy_url = proxy_url.get_secret_value().strip() if proxy_url else ""
+        self._trust_env = trust_env
         self._client: httpx.AsyncClient | None = None
         self._ready = False
         self._last_error: str | None = None
@@ -153,6 +159,10 @@ class OpenAICompatibleModelGateway:
                 },
             ],
         }
+        if request.thinking_type is not None:
+            payload["thinking"] = {"type": request.thinking_type}
+        if request.max_completion_tokens is not None:
+            payload["max_completion_tokens"] = request.max_completion_tokens
         response: httpx.Response | None = None
         for attempt in range(self._max_retries + 1):
             try:
@@ -161,12 +171,20 @@ class OpenAICompatibleModelGateway:
                     headers={"Authorization": f"Bearer {self._api_key.get_secret_value()}"},
                     json=payload,
                 )
-            except (httpx.TimeoutException, httpx.ConnectError) as exc:
+            except httpx.TimeoutException as exc:
                 if attempt < self._max_retries:
                     await asyncio.sleep(min(0.25 * (2 ** attempt), 1.0))
                     continue
-                self._mark_degraded("MODEL_PROVIDER_UNREACHABLE")
-                raise ModelGatewayUnavailableError("模型服务连接失败或超时。") from exc
+                self._mark_degraded("MODEL_PROVIDER_TIMEOUT")
+                raise ModelGatewayUnavailableError("模型服务响应超时。") from exc
+            except (httpx.ConnectError, httpx.ProxyError) as exc:
+                if attempt < self._max_retries:
+                    await asyncio.sleep(min(0.25 * (2 ** attempt), 1.0))
+                    continue
+                self._mark_degraded("MODEL_PROVIDER_CONNECT_FAILED")
+                raise ModelGatewayUnavailableError(
+                    "模型服务连接失败，请检查 LLM_PROXY_URL 与 LLM_TRUST_ENV 配置。"
+                ) from exc
             if response.status_code == 429 or response.status_code >= 500:
                 if attempt < self._max_retries:
                     await asyncio.sleep(min(0.25 * (2 ** attempt), 1.0))
@@ -246,7 +264,11 @@ class OpenAICompatibleModelGateway:
 
     def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(timeout=self._timeout_seconds)
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(self._timeout_seconds),
+                proxy=self._proxy_url or None,
+                trust_env=self._trust_env,
+            )
         return self._client
 
     def _mark_degraded(self, error_code: str) -> None:
