@@ -25,6 +25,7 @@ from app.agents.workflows.recruitment_decision.contracts import (
 from app.agents.workflows.recruitment_decision.graph import RECRUITMENT_WORKFLOW_NODES
 from app.core.database import get_db_session
 from app.core.dependencies import require_permission
+from app.core.container import ApplicationContainer, get_application_container
 from app.modules.auth.models import User
 from app.modules.interview.service import InterviewService
 from app.modules.recruitment.service import RecruitmentService
@@ -40,6 +41,7 @@ async def create_recruitment_run(
     payload: RecruitmentRunRequest,
     current_user: User = Depends(require_permission("agent.hr.use")),
     session: Session = Depends(get_db_session),
+    container: ApplicationContainer = Depends(get_application_container),
 ) -> ApiResponse[RecruitmentRunSnapshot]:
     """Create an in-process Sprint 2.3 deterministic-intermediate Run."""
 
@@ -72,7 +74,12 @@ async def create_recruitment_run(
         updated_at=now,
     )
     await agent_run_store.create(current_user.id, state, snapshot)
-    schedule_recruitment_strategy_run(run_id, context, agent_run_store)
+    schedule_recruitment_strategy_run(
+        run_id,
+        context,
+        agent_run_store,
+        container.recruitment_runner_dependencies,
+    )
     return ok(snapshot, trace_id)
 
 

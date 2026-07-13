@@ -165,6 +165,7 @@ class EnterpriseKnowledgeSummary(BaseModel):
     risk_rules: list[str] = Field(default_factory=list)
     retrieval_mode: str = "LOCAL_HYBRID_FALLBACK"
     sources: list[KnowledgeSourceReference] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class JobMatchSummary(BaseModel):

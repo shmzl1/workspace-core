@@ -12,6 +12,21 @@ from app.agents.shared.contracts import (
     ToolContract,
 )
 from app.agents.shared.state import AgentState
+from app.agents.shared.model_errors import (
+    ModelGatewayConfigurationError,
+    ModelGatewayDisabledError,
+    ModelGatewayError,
+    ModelGatewayOutputError,
+    ModelGatewayUnavailableError,
+)
+from app.agents.shared.model_gateway import (
+    DisabledModelGateway,
+    ModelGateway,
+    ModelGatewayInput,
+    ModelGatewayOutput,
+    ModelGatewayStatus,
+    NotImplementedModelGateway,
+)
 
 __all__ = [
     "AgentErrorInfo",
@@ -24,5 +39,16 @@ __all__ = [
     "AgentState",
     "KnowledgeSourceReference",
     "ToolContract",
+    "DisabledModelGateway",
+    "ModelGateway",
+    "ModelGatewayConfigurationError",
+    "ModelGatewayDisabledError",
+    "ModelGatewayError",
+    "ModelGatewayInput",
+    "ModelGatewayOutput",
+    "ModelGatewayOutputError",
+    "ModelGatewayStatus",
+    "ModelGatewayUnavailableError",
+    "NotImplementedModelGateway",
 ]
 

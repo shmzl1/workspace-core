@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Mapping, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from app.agents.shared import ToolContract
 from app.agents.workflows.recruitment_decision.contracts import (
@@ -16,11 +16,14 @@ if TYPE_CHECKING:
 
 
 class KnowledgeServiceTool(Protocol):
-    def invoke(self, payload: Mapping[str, object]) -> Mapping[str, object]: ...
+    async def invoke(
+        self,
+        context: RecruitmentRunContext,
+    ) -> tuple[EnterpriseKnowledgeSummary, JobRubric]: ...
 
 
 class EnterpriseKnowledgeTool:
-    """Agent Tool for the truthful local-hybrid fallback Service."""
+    """Agent Tool delegating to the unified recruitment knowledge Service."""
 
     def __init__(self, service: RecruitmentKnowledgeService | None = None) -> None:
         if service is None:
@@ -31,8 +34,8 @@ class EnterpriseKnowledgeTool:
             service = RecruitmentKnowledgeService()
         self.service = service
 
-    def invoke(self, context: RecruitmentRunContext) -> tuple[EnterpriseKnowledgeSummary, JobRubric]:
-        return self.service.retrieve(context)
+    async def invoke(self, context: RecruitmentRunContext) -> tuple[EnterpriseKnowledgeSummary, JobRubric]:
+        return await self.service.retrieve(context)
 
 
 KNOWLEDGE_TOOL_CONTRACTS: tuple[ToolContract, ...] = (

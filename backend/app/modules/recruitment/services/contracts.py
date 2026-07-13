@@ -51,3 +51,10 @@ class RecruitmentReportServiceProtocol(Protocol):
         candidate_profiles: dict[int, CandidateProfile],
         interview_evaluations: dict[int, InterviewEvaluationSummary],
     ) -> HRReportSummary: ...
+
+
+class RecruitmentKnowledgeServiceProtocol(Protocol):
+    async def retrieve(
+        self,
+        context: RecruitmentRunContext,
+    ) -> tuple[EnterpriseKnowledgeSummary, JobRubric]: ...

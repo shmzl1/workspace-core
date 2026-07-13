@@ -51,3 +51,5 @@ class RetrievalResult(BaseModel):
     hits: list[RetrievalHit] = Field(default_factory=list)
     mode: str
     warnings: list[str] = Field(default_factory=list)
+    fallback_used: bool = False
+    provider: str | None = None

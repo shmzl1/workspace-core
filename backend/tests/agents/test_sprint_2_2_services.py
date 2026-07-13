@@ -1,5 +1,6 @@
 """Sprint 2.2 deterministic resume and enterprise-knowledge acceptance tests."""
 
+import asyncio
 from datetime import date
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -87,7 +88,7 @@ def test_local_knowledge_returns_sources_version_and_effective_date() -> None:
 
     context = build_context(1, "JOB-BE-001", "后端工程师", ["Python", "FastAPI"])
 
-    summary, rubric = RecruitmentKnowledgeService().retrieve(context)
+    summary, rubric = asyncio.run(RecruitmentKnowledgeService().retrieve(context))
 
     assert summary.retrieval_mode == "LOCAL_HYBRID_FALLBACK"
     assert summary.standard_version == "JOB-BE-001-v1"
@@ -103,12 +104,12 @@ def test_different_jobs_produce_different_standards() -> None:
         RecruitmentKnowledgeService,
     )
 
-    backend, _ = RecruitmentKnowledgeService().retrieve(
+    backend, _ = asyncio.run(RecruitmentKnowledgeService().retrieve(
         build_context(1, "JOB-BE-001", "后端工程师", ["Python", "FastAPI"])
-    )
-    frontend, _ = RecruitmentKnowledgeService().retrieve(
+    ))
+    frontend, _ = asyncio.run(RecruitmentKnowledgeService().retrieve(
         build_context(2, "JOB-FE-001", "前端工程师", ["Vue", "TypeScript"])
-    )
+    ))
 
     assert backend.job_code != frontend.job_code
     assert backend.required_skills != frontend.required_skills

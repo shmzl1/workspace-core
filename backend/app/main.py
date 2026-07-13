@@ -1,5 +1,7 @@
 """FastAPI application entry point for TalentFlow."""
 
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.container import get_application_container
 from app.core.dependencies import trace_context
 from app.core.exceptions import (
     TalentFlowError,
@@ -24,7 +27,18 @@ from app.shared.trace import TRACE_ID_HEADER, get_trace_id, set_trace_id
 configure_logging()
 settings = get_settings()
 
-app = FastAPI(title=settings.app_name, version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    container = get_application_container()
+    await container.startup()
+    try:
+        yield
+    finally:
+        await container.shutdown()
+
+
+app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 app.add_exception_handler(TalentFlowError, talentflow_error_handler)
 app.add_exception_handler(StarletteHTTPException, http_error_handler)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
@@ -47,8 +61,16 @@ async def trace_id_middleware(request: Request, call_next):
 
 
 @app.get("/health", dependencies=[Depends(trace_context)])
-def health() -> object:
-    return ok({"status": "ok"})
+async def health() -> object:
+    integrations = await get_application_container().get_integration_status()
+    return ok({
+        "status": "ok",
+        "overall_mode": integrations.overall_mode,
+        "integrations": {
+            "llm": integrations.llm.model_dump(exclude={"last_error"}),
+            "rag": integrations.rag.model_dump(exclude={"last_error", "document_count", "chunk_count"}),
+        },
+    })
 
 
 app.include_router(api_router, prefix=API_V1_PREFIX, dependencies=[Depends(trace_context)])

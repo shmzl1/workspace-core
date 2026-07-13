@@ -6,14 +6,8 @@ from time import perf_counter
 from uuid import uuid4
 
 from app.agents.runtime.run_store import InMemoryAgentRunStore, agent_run_store
+from app.agents.runtime.dependencies import RecruitmentRunnerDependencies
 from app.agents.shared import AgentErrorInfo, AgentEvent, AgentEventType, AgentNodeStatus, AgentRunStatus
-from app.agents.tools.knowledge_tools import EnterpriseKnowledgeTool
-from app.agents.tools.recruitment_tools import (
-    CandidateEvaluationTool,
-    CandidateProfileTool,
-    DecisionReviewTool,
-    RecruitmentReportTool,
-)
 from app.agents.workflows.recruitment_decision.contracts import (
     DecisionReviewSummary,
     RecruitmentRunContext,
@@ -45,8 +39,10 @@ def schedule_recruitment_strategy_run(
     run_id: str,
     context: RecruitmentRunContext,
     store: InMemoryAgentRunStore = agent_run_store,
+    dependencies: RecruitmentRunnerDependencies | None = None,
 ) -> None:
-    task = asyncio.create_task(run_recruitment_strategy(run_id, context, store))
+    resolved = dependencies or _default_dependencies()
+    task = asyncio.create_task(run_recruitment_strategy(run_id, context, store, resolved))
     _RUNNING_TASKS.add(task)
     task.add_done_callback(_RUNNING_TASKS.discard)
 
@@ -55,11 +51,14 @@ async def run_recruitment_strategy(
     run_id: str,
     context: RecruitmentRunContext,
     store: InMemoryAgentRunStore = agent_run_store,
+    dependencies: RecruitmentRunnerDependencies | None = None,
 ) -> None:
+    dependencies = dependencies or _default_dependencies()
     record = await store.get(run_id)
     snapshot = record.snapshot
     state = record.state
     started_at = perf_counter()
+    knowledge_fallback_used = False
     current_step = "initialize_run"
     current_node = STRATEGY_NODE
     try:
@@ -127,9 +126,9 @@ async def run_recruitment_strategy(
             "开始读取企业招聘知识",
             {"current_action": "按岗位编号、部门、文档类型和生效日期检索当前知识"},
             agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE, tool_name=KNOWLEDGE_TOOL_NAME,
-            fallback_used=True,
         ))
-        knowledge_summary, job_rubric = EnterpriseKnowledgeTool().invoke(context)
+        knowledge_summary, job_rubric = await dependencies.knowledge_tool.invoke(context)
+        knowledge_fallback_used = knowledge_summary.retrieval_mode == "LOCAL_HYBRID_FALLBACK"
         state.knowledge_summary = knowledge_summary
         state.job_rubric = job_rubric
         state.sources = knowledge_summary.sources
@@ -146,7 +145,7 @@ async def run_recruitment_strategy(
                 "source_count": len(knowledge_summary.sources),
             },
             agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE, tool_name=KNOWLEDGE_TOOL_NAME,
-            source_count=len(knowledge_summary.sources), fallback_used=True,
+            source_count=len(knowledge_summary.sources), fallback_used=knowledge_fallback_used,
         ))
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.KNOWLEDGE_RETRIEVED, AgentNodeStatus.RUNNING,
@@ -156,7 +155,7 @@ async def run_recruitment_strategy(
                 "job_rubric": job_rubric.model_dump(mode="json"),
             },
             agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE,
-            source_count=len(knowledge_summary.sources), fallback_used=True,
+            source_count=len(knowledge_summary.sources), fallback_used=knowledge_fallback_used,
         ))
 
         current_step = "complete_strategy_node"
@@ -173,7 +172,7 @@ async def run_recruitment_strategy(
                 "next_action": "执行简历解析 Agent",
             },
             agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE,
-            source_count=len(knowledge_summary.sources), duration_ms=_elapsed_ms(started_at), fallback_used=True,
+            source_count=len(knowledge_summary.sources), duration_ms=_elapsed_ms(started_at), fallback_used=knowledge_fallback_used,
         ))
 
         current_node = RESUME_NODE
@@ -204,7 +203,7 @@ async def run_recruitment_strategy(
             agent_name=RESUME_NODE, node_name=RESUME_NODE, fallback_used=True,
         ))
 
-        profile_tool = CandidateProfileTool()
+        profile_tool = dependencies.profile_tool
         for candidate in context.candidates:
             candidate_started_at = perf_counter()
             current_step = "extract_candidate_profile"
@@ -308,7 +307,7 @@ async def run_recruitment_strategy(
             agent_name=JOB_MATCH_NODE, node_name=JOB_MATCH_NODE,
         ))
 
-        evaluation_tool = CandidateEvaluationTool()
+        evaluation_tool = dependencies.candidate_evaluation_tool
         job_match_requires_review = False
         for candidate_id in context.candidate_ids:
             candidate_started_at = perf_counter()
@@ -431,7 +430,7 @@ async def run_recruitment_strategy(
             agent_name=DECISION_REVIEW_NODE, node_name=DECISION_REVIEW_NODE,
         ))
 
-        review_tool = DecisionReviewTool()
+        review_tool = dependencies.decision_review_tool
         decision_requires_review = False
         for candidate_id in context.candidate_ids:
             candidate_started_at = perf_counter()
@@ -534,7 +533,7 @@ async def run_recruitment_strategy(
             },
             agent_name=REPORT_NODE, node_name=REPORT_NODE,
         ))
-        report_tool = RecruitmentReportTool()
+        report_tool = dependencies.report_tool
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.TOOL_STARTED, AgentNodeStatus.RUNNING,
             "开始生成 HR 结构化报告",
@@ -620,7 +619,7 @@ async def run_recruitment_strategy(
                 "report_generated": snapshot.report is not None,
                 "next_phase": NEXT_PHASE,
             },
-            source_count=len(snapshot.sources), duration_ms=_elapsed_ms(started_at), fallback_used=True,
+            source_count=len(snapshot.sources), duration_ms=_elapsed_ms(started_at), fallback_used=knowledge_fallback_used,
         ))
     except Exception:
         error = AgentErrorInfo(
@@ -648,7 +647,7 @@ async def run_recruitment_strategy(
             "Sprint 2.3 确定性招聘工作流失败",
             {"failed_node": current_node, "failed_step": current_step, "current_scope": RUN_SCOPE},
             agent_name=current_node, node_name=current_node, candidate_id=snapshot.current_candidate_id,
-            duration_ms=_elapsed_ms(started_at), fallback_used=True, error=error,
+            duration_ms=_elapsed_ms(started_at), fallback_used=knowledge_fallback_used, error=error,
         ))
 
 
@@ -715,3 +714,9 @@ def _event(
 
 def _elapsed_ms(started_at: float) -> int:
     return max(0, int((perf_counter() - started_at) * 1000))
+
+
+def _default_dependencies() -> RecruitmentRunnerDependencies:
+    from app.core.container import get_application_container
+
+    return get_application_container().recruitment_runner_dependencies
