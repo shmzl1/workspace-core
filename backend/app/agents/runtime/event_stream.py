@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 from fastapi import Request
 from fastapi.responses import StreamingResponse
 
-from app.agents.runtime.run_store import InMemoryAgentRunStore
+from app.agents.runtime.run_store import AgentRunStore
 from app.agents.shared import AgentEvent, AgentEventType
 
 HEARTBEAT_SECONDS = 15.0
@@ -25,7 +25,7 @@ def create_agent_event_stream(
     request: Request,
     run_id: str,
     owner_user_id: int,
-    store: InMemoryAgentRunStore,
+    store: AgentRunStore,
 ) -> StreamingResponse:
     async def stream() -> AsyncIterator[str]:
         queue = await store.subscribe(run_id)

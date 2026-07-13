@@ -92,9 +92,19 @@ class RecruitmentExecutionPlan(BaseModel):
     interview_candidate_ids: list[int] = Field(default_factory=list)
     next_actions: list[str] = Field(default_factory=list)
     interview_evaluation_requires_real_data: bool = True
-    current_phase: str = "SPRINT_2_3_DETERMINISTIC_INTERMEDIATE"
-    next_phase: str = "LLM_RAG_INTEGRATION"
+    current_phase: str = "SPRINT_2_3_INTEGRATED"
+    next_phase: str = "END_TO_END_VALIDATION"
     plan_notes: list[str] = Field(default_factory=list)
+    strategy_summary: str | None = None
+    risk_reminders: list[str] = Field(default_factory=list)
+    missing_information: list[str] = Field(default_factory=list)
+    model_name: str | None = None
+    fallback_used: bool = False
+    generation_mode: str = "RULE_BASED"
+    model_duration_ms: int | None = Field(default=None, ge=0)
+    prompt_tokens: int | None = Field(default=None, ge=0)
+    completion_tokens: int | None = Field(default=None, ge=0)
+    total_tokens: int | None = Field(default=None, ge=0)
 
 
 class RecruitmentRunSnapshot(AgentRunSnapshot):
@@ -232,6 +242,15 @@ class HRReportSummary(BaseModel):
     next_actions: list[str] = Field(default_factory=list)
     requires_human_decision: bool = True
     generation_mode: str = "RULE_BASED_INTERMEDIATE"
+    executive_summary: str | None = None
+    risk_summary: list[str] = Field(default_factory=list)
+    missing_information: list[str] = Field(default_factory=list)
+    model_name: str | None = None
+    fallback_used: bool = False
+    model_duration_ms: int | None = Field(default=None, ge=0)
+    prompt_tokens: int | None = Field(default=None, ge=0)
+    completion_tokens: int | None = Field(default=None, ge=0)
+    total_tokens: int | None = Field(default=None, ge=0)
 
 
 class RecruitmentDecisionState(AgentState):

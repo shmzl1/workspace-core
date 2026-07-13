@@ -1,11 +1,11 @@
-"""Deterministic Sprint 2.3 recruitment decision runtime."""
+"""Auditable recruitment runtime with deterministic core and optional model enhancement."""
 
 import asyncio
 from datetime import datetime, timezone
 from time import perf_counter
 from uuid import uuid4
 
-from app.agents.runtime.run_store import InMemoryAgentRunStore, agent_run_store
+from app.agents.runtime.run_store import AgentRunStore
 from app.agents.runtime.dependencies import RecruitmentRunnerDependencies
 from app.agents.shared import AgentErrorInfo, AgentEvent, AgentEventType, AgentNodeStatus, AgentRunStatus
 from app.agents.workflows.recruitment_decision.contracts import (
@@ -15,8 +15,11 @@ from app.agents.workflows.recruitment_decision.contracts import (
 from app.agents.workflows.recruitment_decision.decision_review_agent import run_decision_review
 from app.agents.workflows.recruitment_decision.graph import RECRUITMENT_WORKFLOW_NODES
 from app.agents.workflows.recruitment_decision.job_match_agent import run_job_match
-from app.agents.workflows.recruitment_decision.report_agent import build_hr_report
-from app.agents.workflows.recruitment_decision.strategy_agent import build_recruitment_execution_plan
+from app.agents.workflows.recruitment_decision.report_agent import build_hr_report, enhance_hr_report
+from app.agents.workflows.recruitment_decision.strategy_agent import (
+    build_recruitment_execution_plan,
+    enhance_recruitment_execution_plan,
+)
 
 STRATEGY_NODE = "recruitment_strategy"
 RESUME_NODE = "resume_parser"
@@ -25,8 +28,8 @@ INTERVIEW_NODE = "interview_evaluation"
 DECISION_REVIEW_NODE = "decision_review"
 REPORT_NODE = "hr_report"
 INTERVIEW_SKIP_REASON = "STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE"
-RUN_SCOPE = "SPRINT_2_3_DETERMINISTIC_INTERMEDIATE"
-NEXT_PHASE = "LLM_RAG_INTEGRATION"
+RUN_SCOPE = "SPRINT_2_3_INTEGRATED"
+NEXT_PHASE = "END_TO_END_VALIDATION"
 KNOWLEDGE_TOOL_NAME = "retrieve_enterprise_knowledge"
 RESUME_TOOL_NAME = "extract_candidate_profile"
 JOB_MATCH_TOOL_NAME = "evaluate_candidate"
@@ -38,11 +41,12 @@ _RUNNING_TASKS: set[asyncio.Task[None]] = set()
 def schedule_recruitment_strategy_run(
     run_id: str,
     context: RecruitmentRunContext,
-    store: InMemoryAgentRunStore = agent_run_store,
+    store: AgentRunStore | None = None,
     dependencies: RecruitmentRunnerDependencies | None = None,
 ) -> None:
+    resolved_store = store or _default_store()
     resolved = dependencies or _default_dependencies()
-    task = asyncio.create_task(run_recruitment_strategy(run_id, context, store, resolved))
+    task = asyncio.create_task(run_recruitment_strategy(run_id, context, resolved_store, resolved))
     _RUNNING_TASKS.add(task)
     task.add_done_callback(_RUNNING_TASKS.discard)
 
@@ -50,9 +54,10 @@ def schedule_recruitment_strategy_run(
 async def run_recruitment_strategy(
     run_id: str,
     context: RecruitmentRunContext,
-    store: InMemoryAgentRunStore = agent_run_store,
+    store: AgentRunStore | None = None,
     dependencies: RecruitmentRunnerDependencies | None = None,
 ) -> None:
+    store = store or _default_store()
     dependencies = dependencies or _default_dependencies()
     record = await store.get(run_id)
     snapshot = record.snapshot
@@ -75,7 +80,7 @@ async def run_recruitment_strategy(
         current_step = "publish_workflow_started"
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.WORKFLOW_STARTED, AgentNodeStatus.RUNNING,
-            "Sprint 2.3 确定性招聘工作流已启动",
+            "招聘决策工作流已启动",
             {"current_scope": RUN_SCOPE, "job_id": context.job.job_id, "candidate_count": len(context.candidate_ids)},
             agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE,
         ))
@@ -109,6 +114,7 @@ async def run_recruitment_strategy(
             RECRUITMENT_WORKFLOW_NODES,
             context.interview_candidate_ids,
         )
+        plan = await enhance_recruitment_execution_plan(plan, context.job, dependencies.model_gateway)
         state.execution_plan = plan
         snapshot.execution_plan = plan
         await store.update_snapshot(run_id, snapshot, state)
@@ -116,8 +122,13 @@ async def run_recruitment_strategy(
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.PLAN_CREATED, AgentNodeStatus.RUNNING,
             "招聘策略执行计划已生成",
-            {"execution_plan": plan.model_dump(mode="json")},
+            {
+                "execution_plan": plan.model_dump(mode="json"),
+                "generation_mode": plan.generation_mode,
+                "model_name": plan.model_name,
+            },
             agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE,
+            duration_ms=plan.model_duration_ms, fallback_used=plan.fallback_used,
         ))
 
         current_step = "retrieve_enterprise_knowledge"
@@ -172,7 +183,8 @@ async def run_recruitment_strategy(
                 "next_action": "执行简历解析 Agent",
             },
             agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE,
-            source_count=len(knowledge_summary.sources), duration_ms=_elapsed_ms(started_at), fallback_used=knowledge_fallback_used,
+            source_count=len(knowledge_summary.sources), duration_ms=_elapsed_ms(started_at),
+            fallback_used=knowledge_fallback_used or plan.fallback_used,
         ))
 
         current_node = RESUME_NODE
@@ -193,11 +205,11 @@ async def run_recruitment_strategy(
         ))
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.AGENT_THINKING, AgentNodeStatus.RUNNING,
-            "简历解析 Agent 正在准备确定性回退提取",
+            "简历解析 Agent 正在准备确定性事实提取",
             {
                 "current_goal": "提取白名单事实、缺失项和可定位证据",
                 "candidate_count": len(context.candidates),
-                "missing_information": ["LLM 未接入，使用现有数据库字段进行确定性回退"],
+                "missing_information": ["简历解析节点不使用 LLM，仅读取现有白名单字段"],
                 "next_action": "逐名调用简历画像 Tool",
             },
             agent_name=RESUME_NODE, node_name=RESUME_NODE, fallback_used=True,
@@ -527,7 +539,7 @@ async def run_recruitment_strategy(
             run_id, snapshot.trace_id, AgentEventType.AGENT_THINKING, AgentNodeStatus.RUNNING,
             "HR 最终报告节点正在准备结构化汇总",
             {
-                "current_goal": "生成只包含建议与待复核状态的确定性报告",
+                "current_goal": "先生成确定性报告，再按配置增强允许的叙述字段",
                 "candidate_count": len(context.candidate_ids),
                 "next_action": "调用招聘报告 Tool",
             },
@@ -550,6 +562,7 @@ async def run_recruitment_strategy(
             state.interview_evaluations,
             report_tool,
         )
+        report = await enhance_hr_report(report, dependencies.model_gateway)
         state.report = report
         snapshot.report = report
         await store.update_snapshot(run_id, snapshot, state)
@@ -560,16 +573,20 @@ async def run_recruitment_strategy(
                 "candidate_count": len(report.candidate_rankings),
                 "knowledge_source_count": len(report.knowledge_sources),
                 "requires_human_decision": report.requires_human_decision,
+                "generation_mode": report.generation_mode,
+                "model_name": report.model_name,
             },
             agent_name=REPORT_NODE, node_name=REPORT_NODE, tool_name=REPORT_TOOL_NAME,
             source_count=len(report.knowledge_sources), duration_ms=_elapsed_ms(report_started_at),
+            fallback_used=report.fallback_used,
         ))
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.REPORT_GENERATED, AgentNodeStatus.RUNNING,
             "HR 最终报告已生成",
             {"report": report.model_dump(mode="json")},
             agent_name=REPORT_NODE, node_name=REPORT_NODE,
-            source_count=len(report.knowledge_sources),
+            source_count=len(report.knowledge_sources), duration_ms=report.model_duration_ms,
+            fallback_used=report.fallback_used,
         ))
         snapshot.nodes[REPORT_NODE] = AgentNodeStatus.COMPLETED
         state.node_statuses[REPORT_NODE] = AgentNodeStatus.COMPLETED
@@ -581,10 +598,13 @@ async def run_recruitment_strategy(
                 "completed_node": REPORT_NODE,
                 "report_generated": True,
                 "requires_human_decision": report.requires_human_decision,
+                "generation_mode": report.generation_mode,
+                "model_name": report.model_name,
                 "next_action": "由 HR 查看报告并完成人工决定",
             },
             agent_name=REPORT_NODE, node_name=REPORT_NODE,
             source_count=len(report.knowledge_sources), duration_ms=_elapsed_ms(report_started_at),
+            fallback_used=report.fallback_used,
         ))
 
         current_step = "complete_workflow"
@@ -603,7 +623,7 @@ async def run_recruitment_strategy(
         )
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.WORKFLOW_COMPLETED, AgentNodeStatus.COMPLETED,
-            "Sprint 2.3 确定性招聘决策中间版本已完成",
+            "招聘决策工作流已完成",
             {
                 "current_scope": RUN_SCOPE,
                 "executed_nodes": plan.executed_nodes,
@@ -619,12 +639,13 @@ async def run_recruitment_strategy(
                 "report_generated": snapshot.report is not None,
                 "next_phase": NEXT_PHASE,
             },
-            source_count=len(snapshot.sources), duration_ms=_elapsed_ms(started_at), fallback_used=knowledge_fallback_used,
+            source_count=len(snapshot.sources), duration_ms=_elapsed_ms(started_at),
+            fallback_used=knowledge_fallback_used or plan.fallback_used or report.fallback_used,
         ))
     except Exception:
         error = AgentErrorInfo(
             code="RECRUITMENT_WORKFLOW_FAILED",
-            message="Sprint 2.3 确定性招聘工作流执行失败。",
+            message="招聘决策工作流执行失败。",
             details={
                 "failed_node": current_node,
                 "failed_step": current_step,
@@ -644,7 +665,7 @@ async def run_recruitment_strategy(
         await store.update_snapshot(run_id, snapshot, state)
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.WORKFLOW_FAILED, AgentNodeStatus.FAILED,
-            "Sprint 2.3 确定性招聘工作流失败",
+            "招聘决策工作流失败",
             {"failed_node": current_node, "failed_step": current_step, "current_scope": RUN_SCOPE},
             agent_name=current_node, node_name=current_node, candidate_id=snapshot.current_candidate_id,
             duration_ms=_elapsed_ms(started_at), fallback_used=knowledge_fallback_used, error=error,
@@ -671,7 +692,7 @@ def _decision_requires_review(
     )
 
 
-async def _publish(store: InMemoryAgentRunStore, event: AgentEvent) -> None:
+async def _publish(store: AgentRunStore, event: AgentEvent) -> None:
     await store.append_event(event.run_id, event)
 
 
@@ -720,3 +741,9 @@ def _default_dependencies() -> RecruitmentRunnerDependencies:
     from app.core.container import get_application_container
 
     return get_application_container().recruitment_runner_dependencies
+
+
+def _default_store() -> AgentRunStore:
+    from app.core.container import get_application_container
+
+    return get_application_container().agent_run_store

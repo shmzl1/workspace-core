@@ -1,8 +1,9 @@
 # Agent Runtime
 
-本目录保存当前进程内 Agent Run 生命周期、事件存储、招聘策略 Runner 与 SSE 分发代码。代码存在，待本地人工验收。
+本目录保存 Agent Run 契约、招聘 Runner 与 SSE 分发代码。PostgreSQL 持久化实现位于 `app/modules/agent_runtime/`，代码存在，待本地人工验收。
 
-- `run_store.py`：有界进程内 Run 与事件存储；不是持久化任务系统，后端重启后记录丢失。
+- `run_store.py`：Store Protocol、旧测试兼容内存 Store 和容器管理的 PostgreSQL Store 兼容入口。
+- SSE Subscriber Queue 只保存在当前进程；历史 Run、节点、事件和 Tool 调用从 PostgreSQL 恢复。
 - `recruitment_runner.py`：当前执行规则式招聘策略、企业知识本地回退与确定性简历解析；岗位匹配及后续四个节点保持 `SKIPPED`。
 - `event_stream.py`：重放历史 `AgentEvent`、订阅新增事件并发送心跳。
 

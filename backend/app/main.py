@@ -62,14 +62,16 @@ async def trace_id_middleware(request: Request, call_next):
 
 @app.get("/health", dependencies=[Depends(trace_context)])
 async def health() -> object:
-    integrations = await get_application_container().get_integration_status()
+    container = get_application_container()
+    integrations = await container.get_integration_status()
     return ok({
         "status": "ok",
         "overall_mode": integrations.overall_mode,
         "integrations": {
             "llm": integrations.llm.model_dump(exclude={"last_error"}),
-            "rag": integrations.rag.model_dump(exclude={"last_error", "document_count", "chunk_count"}),
+            "rag": integrations.rag.model_dump(exclude={"last_error"}),
         },
+        "run_store": {"mode": container.agent_run_store.mode},
     })
 
 

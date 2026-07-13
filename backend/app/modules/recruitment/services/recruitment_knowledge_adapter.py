@@ -33,7 +33,10 @@ class RecruitmentKnowledgeAdapter:
         interview_criteria = self._strings(attributes, "interview_criteria")
         risk_rules = self._strings(attributes, "risk_rules")
         min_experience = self._minimum_experience(attributes)
-        sources = [self._source(hit) for hit in result.hits]
+        sources = list({
+            source.source_id: source
+            for source in (self._source(hit) for hit in reversed(result.hits))
+        }.values())
         source_ids = [source.source_id for source in sources]
         requirements = [
             JobRequirementItem(
@@ -73,6 +76,7 @@ class RecruitmentKnowledgeAdapter:
                 risk_rules=risk_rules,
                 retrieval_mode=result.mode,
                 sources=sources,
+                warnings=result.warnings,
             ),
             JobRubric(job_id=context.job.job_id, version=context.job.source_version, requirements=requirements),
         )

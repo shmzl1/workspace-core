@@ -26,6 +26,7 @@ from app.agents.shared.model_gateway import (
     ModelGatewayOutput,
     ModelGatewayStatus,
     NotImplementedModelGateway,
+    OpenAICompatibleModelGateway,
 )
 
 __all__ = [
@@ -50,5 +51,6 @@ __all__ = [
     "ModelGatewayStatus",
     "ModelGatewayUnavailableError",
     "NotImplementedModelGateway",
+    "OpenAICompatibleModelGateway",
 ]
 

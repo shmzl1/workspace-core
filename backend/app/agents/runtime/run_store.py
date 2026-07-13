@@ -1,9 +1,10 @@
-"""Bounded in-process storage for Agent runs."""
+"""Agent Run Store contract, test fallback and application compatibility proxy."""
 
 import asyncio
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from typing import Protocol
 
 from app.agents.shared import AgentEvent, AgentEventType
 from app.agents.workflows.recruitment_decision.contracts import (
@@ -18,7 +19,7 @@ TERMINAL_EVENT_TYPES = {AgentEventType.WORKFLOW_COMPLETED, AgentEventType.WORKFL
 @dataclass
 class RecruitmentRunRecord:
     run_id: str
-    owner_user_id: int
+    owner_user_id: int | None
     state: RecruitmentDecisionState
     snapshot: RecruitmentRunSnapshot
     events: list[AgentEvent] = field(default_factory=list)
@@ -28,7 +29,46 @@ class RecruitmentRunRecord:
     terminal: bool = False
 
 
+class AgentRunStore(Protocol):
+    mode: str
+
+    async def create(
+        self,
+        owner_user_id: int,
+        state: RecruitmentDecisionState,
+        snapshot: RecruitmentRunSnapshot,
+    ) -> RecruitmentRunRecord: ...
+
+    async def get(self, run_id: str) -> RecruitmentRunRecord: ...
+
+    async def get_owned(self, run_id: str, owner_user_id: int) -> RecruitmentRunRecord: ...
+
+    async def update_snapshot(
+        self,
+        run_id: str,
+        snapshot: RecruitmentRunSnapshot,
+        state: RecruitmentDecisionState | None = None,
+        terminal: bool | None = None,
+    ) -> RecruitmentRunRecord: ...
+
+    async def append_event(self, run_id: str, event: AgentEvent) -> None: ...
+
+    async def history(self, run_id: str) -> list[AgentEvent]: ...
+
+    async def subscribe(self, run_id: str) -> asyncio.Queue[AgentEvent | None]: ...
+
+    async def unsubscribe(self, run_id: str, queue: asyncio.Queue[AgentEvent | None]) -> None: ...
+
+    async def cleanup_expired(self) -> int: ...
+
+    async def recover_interrupted_runs(self) -> int: ...
+
+    async def aclose(self) -> None: ...
+
+
 class InMemoryAgentRunStore:
+    mode = "IN_MEMORY"
+
     def __init__(
         self,
         max_runs: int = 100,
@@ -156,6 +196,16 @@ class InMemoryAgentRunStore:
         async with self._lock:
             return self._cleanup_expired_locked(datetime.now(timezone.utc))
 
+    async def recover_interrupted_runs(self) -> int:
+        return 0
+
+    async def aclose(self) -> None:
+        async with self._lock:
+            for record in self._runs.values():
+                for queue in record.subscribers:
+                    self._put_bounded(queue, None)
+                record.subscribers.clear()
+
     def _cleanup_expired_locked(self, now: datetime) -> int:
         expired = [
             run_id
@@ -194,4 +244,49 @@ class InMemoryAgentRunStore:
         return TalentFlowError("AGENT_RUN_NOT_FOUND", "Agent Run 不存在或不可访问。", 404)
 
 
-agent_run_store = InMemoryAgentRunStore()
+class ApplicationAgentRunStore:
+    """Compatibility entry that resolves the container-managed production Store lazily."""
+
+    mode = "POSTGRESQL"
+
+    @staticmethod
+    def _store() -> AgentRunStore:
+        from app.core.container import get_application_container
+
+        return get_application_container().agent_run_store
+
+    async def create(self, *args, **kwargs):
+        return await self._store().create(*args, **kwargs)
+
+    async def get(self, *args, **kwargs):
+        return await self._store().get(*args, **kwargs)
+
+    async def get_owned(self, *args, **kwargs):
+        return await self._store().get_owned(*args, **kwargs)
+
+    async def update_snapshot(self, *args, **kwargs):
+        return await self._store().update_snapshot(*args, **kwargs)
+
+    async def append_event(self, *args, **kwargs):
+        return await self._store().append_event(*args, **kwargs)
+
+    async def history(self, *args, **kwargs):
+        return await self._store().history(*args, **kwargs)
+
+    async def subscribe(self, *args, **kwargs):
+        return await self._store().subscribe(*args, **kwargs)
+
+    async def unsubscribe(self, *args, **kwargs):
+        return await self._store().unsubscribe(*args, **kwargs)
+
+    async def cleanup_expired(self) -> int:
+        return await self._store().cleanup_expired()
+
+    async def recover_interrupted_runs(self) -> int:
+        return await self._store().recover_interrupted_runs()
+
+    async def aclose(self) -> None:
+        await self._store().aclose()
+
+
+agent_run_store: AgentRunStore = ApplicationAgentRunStore()

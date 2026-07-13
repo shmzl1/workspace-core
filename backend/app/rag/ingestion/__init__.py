@@ -7,5 +7,23 @@ from app.rag.ingestion.contracts import (
     KnowledgeSplitter,
     LoadedKnowledgeDocument,
 )
+from app.rag.ingestion.loader import (
+    LocalKnowledgeLoader,
+    ManifestDiscoveryResult,
+    ManifestEntry,
+    discover_manifests,
+)
+from app.rag.ingestion.splitter import StructuredKnowledgeSplitter
 
-__all__ = ["IngestionResult", "KnowledgeIndexer", "KnowledgeLoader", "KnowledgeSplitter", "LoadedKnowledgeDocument"]
+__all__ = [
+    "IngestionResult",
+    "KnowledgeIndexer",
+    "KnowledgeLoader",
+    "KnowledgeSplitter",
+    "LoadedKnowledgeDocument",
+    "LocalKnowledgeLoader",
+    "ManifestDiscoveryResult",
+    "ManifestEntry",
+    "StructuredKnowledgeSplitter",
+    "discover_manifests",
+]

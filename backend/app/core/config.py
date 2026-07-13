@@ -37,7 +37,10 @@ class Settings(BaseSettings):
     chroma_persist_dir: str = "../data/runtime/chroma"
     chroma_collection_name: str = "talentflow_policies"
     embedding_provider: str = "openai_compatible"
+    embedding_base_url: str = ""
+    embedding_api_key: SecretStr = Field(default_factory=lambda: SecretStr(""))
     embedding_model: str = ""
+    embedding_batch_size: int = Field(default=32, gt=0, le=256)
     rag_top_k: int = Field(default=6, gt=0)
     rag_score_threshold: float = Field(default=0.2, ge=0, le=1)
     rag_chunk_size: int = Field(default=800, gt=0)
@@ -67,6 +70,7 @@ class Settings(BaseSettings):
     def llm_configured(self) -> bool:
         return bool(
             self.llm_enabled
+            and self.llm_provider.strip().casefold() == "openai_compatible"
             and self.openai_base_url.strip()
             and self.openai_api_key.get_secret_value().strip()
             and self.openai_model.strip()
@@ -78,9 +82,21 @@ class Settings(BaseSettings):
             self.rag_enabled
             and self.chroma_persist_dir.strip()
             and self.policy_data_dir.strip()
-            and self.embedding_provider.strip()
+            and self.embedding_provider.strip().casefold() == "openai_compatible"
+            and self.effective_embedding_base_url
+            and self.effective_embedding_api_key.get_secret_value().strip()
             and self.embedding_model.strip()
         )
+
+    @property
+    def effective_embedding_base_url(self) -> str:
+        return self.embedding_base_url.strip() or self.openai_base_url.strip()
+
+    @property
+    def effective_embedding_api_key(self) -> SecretStr:
+        if self.embedding_api_key.get_secret_value().strip():
+            return self.embedding_api_key
+        return self.openai_api_key
 
 
 @lru_cache

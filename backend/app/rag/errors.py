@@ -19,3 +19,11 @@ class KnowledgeBaseUnavailableError(KnowledgeBaseError):
 
 class KnowledgeMappingError(KnowledgeBaseError):
     """Raised when retrieved knowledge cannot satisfy a domain contract."""
+
+
+class KnowledgeDocumentError(KnowledgeBaseError):
+    """Raised when a configured knowledge document cannot be loaded safely."""
+
+
+class EmbeddingProviderError(KnowledgeBaseError):
+    """Raised when the configured Embedding provider is unavailable or invalid."""

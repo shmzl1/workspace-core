@@ -1,6 +1,7 @@
 """Import ORM model modules so Alembic can discover metadata."""
 
 from app.modules.attendance import models as attendance_models
+from app.modules.agent_runtime import models as agent_runtime_models
 from app.modules.audit import models as audit_models
 from app.modules.auth import models as auth_models
 from app.modules.employee import models as employee_models
@@ -11,6 +12,7 @@ from app.modules.policy import models as policy_models
 from app.modules.recruitment import models as recruitment_models
 
 __all__ = [
+    "agent_runtime_models",
     "attendance_models",
     "audit_models",
     "auth_models",

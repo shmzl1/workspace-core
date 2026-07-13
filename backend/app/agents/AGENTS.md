@@ -2,7 +2,7 @@
 
 ## 覆盖范围
 
-本文件约束当前进程内 Runtime、Agent 契约、未来 LangGraph 编排、Tools、Prompts、Trace 与 Guardrails。
+本文件约束持久化 Runtime、Agent 契约、未来 LangGraph 编排、Tools、Prompts、Trace 与 Guardrails。
 
 ## 正式 Agent 类型
 
@@ -12,7 +12,7 @@
 
 ## 目录职责
 
-- `runtime/`：当前进程内 RunStore、规则式 Runner 与 SSE。
+- `runtime/`：Store 契约、Runner 与 SSE；PostgreSQL Store 实现在业务模块中，当前进程只保存 SSE Subscriber Queue。
 - `shared/`：公共 Enum、Pydantic、Protocol、State、Event、Trace 与 Guardrail。
 - `workflows/`：领域契约和静态节点元数据，不创建假可执行 Graph。
 - `tools/`：ToolContract 与兼容入口；新 Agent 代码只通过 Service 工作。

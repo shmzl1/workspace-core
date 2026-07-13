@@ -1,7 +1,7 @@
 """Future document loading, splitting and indexing contracts."""
 
 from collections.abc import Sequence
-from typing import Protocol
+from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,7 @@ from app.rag.schemas import KnowledgeChunk, PolicyDocumentMetadata
 class LoadedKnowledgeDocument(BaseModel):
     metadata: PolicyDocumentMetadata
     content: str
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 class IngestionResult(BaseModel):

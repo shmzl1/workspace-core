@@ -152,7 +152,7 @@ def test_building_container_does_not_create_runtime_directories(tmp_path: Path) 
     assert not policy_path.exists()
 
 
-def test_enabled_but_unimplemented_integrations_report_truthful_modes() -> None:
+def test_enabled_integrations_start_degraded_until_runtime_validation() -> None:
     async def scenario() -> None:
         settings = Settings(
             _env_file=None,
@@ -166,8 +166,8 @@ def test_enabled_but_unimplemented_integrations_report_truthful_modes() -> None:
         )
         container = _build_application_container(settings)
         status = await container.get_integration_status()
-        assert status.llm.mode == "NOT_IMPLEMENTED"
-        assert status.rag.mode == "NOT_IMPLEMENTED"
+        assert status.llm.mode == "DEGRADED"
+        assert status.rag.mode == "DEGRADED"
         assert status.overall_mode == "DEGRADED"
         assert "secret-value" not in status.model_dump_json()
 
@@ -206,4 +206,5 @@ def test_health_status_does_not_expose_credentials(monkeypatch: pytest.MonkeyPat
 
     assert "api-secret" not in serialized
     assert "database-secret" not in serialized
-    assert "NOT_IMPLEMENTED" in serialized
+    assert "DEGRADED" in serialized
+    assert "POSTGRESQL" in serialized

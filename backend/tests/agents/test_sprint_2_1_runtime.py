@@ -206,7 +206,7 @@ def test_sprint_2_3_runner_executes_deterministic_intermediate_workflow() -> Non
             AgentEventType.AGENT_COMPLETED,
         ]
         workflow_summary = record.events[-1].summary
-        assert workflow_summary["current_scope"] == "SPRINT_2_3_DETERMINISTIC_INTERMEDIATE"
+        assert workflow_summary["current_scope"] == "SPRINT_2_3_INTEGRATED"
         assert workflow_summary["skip_reasons"] == {
             "interview_evaluation": "STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE"
         }
