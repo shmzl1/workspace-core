@@ -232,7 +232,7 @@ Copy-Item ".env.example" ".env"
 OPENAI_API_KEY=自己的真实APIKey
 ```
 
-模板已包含本地 PostgreSQL、JWT、CORS、LLM、RAG、ChromaDB、模型和检索参数，无需逐项修改。`EMBEDDING_BASE_URL` 与 `EMBEDDING_API_KEY` 保持空值，程序会自动复用 `OPENAI_BASE_URL` 与 `OPENAI_API_KEY`。
+模板已包含本地 PostgreSQL、JWT、CORS、LLM、RAG、ChromaDB、模型和检索参数，无需逐项修改。Embedding 默认使用 `volcengine_multimodal` 与 `doubao-embedding-vision-251215`；`EMBEDDING_BASE_URL` 与 `EMBEDDING_API_KEY` 保持空值，程序会自动复用 `OPENAI_BASE_URL` 与 `OPENAI_API_KEY`。
 
 默认 Docker PostgreSQL 配置由 `docker-compose.yml` 提供，无需另外创建根目录 `.env`。本地连接使用 `localhost:5433`，容器内部仍使用 `5432`。
 
@@ -722,6 +722,6 @@ Copy-Item ".env.example" ".env"
 OPENAI_API_KEY=自己的真实APIKey
 ```
 
-`OPENAI_BASE_URL`、对话模型、Embedding 模型、数据库连接、ChromaDB 路径和 RAG 参数均已在模板中统一配置。`EMBEDDING_BASE_URL` 与 `EMBEDDING_API_KEY` 留空时自动复用对应的 OpenAI 配置。不要提交 `backend/.env` 或任何真实 API Key。
+`OPENAI_BASE_URL`、对话模型、Embedding 模型、数据库连接、ChromaDB 路径和 RAG 参数均已在模板中统一配置。`volcengine_multimodal` 会对每个知识 Chunk 单独调用火山方舟专用接口；`EMBEDDING_BASE_URL` 与 `EMBEDDING_API_KEY` 留空时自动复用对应的 OpenAI 配置。不要提交 `backend/.env` 或任何真实 API Key。
 如设置 `VITE_API_BASE_URL=http://localhost:8000/api/v1`，则浏览器直接访问该地址。
 候选人池和面试日历会先检查 `/health`，后端不可用时退出加载状态并提供重新加载入口。

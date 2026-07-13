@@ -4,6 +4,7 @@ import re
 from typing import Protocol
 
 from app.rag.errors import (
+    EmbeddingProviderError,
     KnowledgeBaseError,
     KnowledgeBaseConfigurationError,
     KnowledgeBaseDisabledError,
@@ -11,7 +12,7 @@ from app.rag.errors import (
 )
 from app.rag.schemas import RetrievalQuery, RetrievalResult
 from app.rag.status import KnowledgeBaseRuntimeState, KnowledgeBaseStatus
-from app.rag.embedding import OpenAICompatibleEmbeddingClient
+from app.rag.embedding import EmbeddingClient
 from app.rag.vector_store import ChromaVectorStore
 
 
@@ -71,7 +72,7 @@ class NotImplementedRetrievalGateway:
 class ChromaRetrievalGateway:
     def __init__(
         self,
-        embedding_client: OpenAICompatibleEmbeddingClient,
+        embedding_client: EmbeddingClient,
         vector_store: ChromaVectorStore,
         runtime_state: KnowledgeBaseRuntimeState,
         *,
@@ -102,6 +103,9 @@ class ChromaRetrievalGateway:
             selected = [hit for hit in ranked if hit.relevance >= self.score_threshold][
                 : min(query.limit, self.top_k)
             ]
+        except EmbeddingProviderError as exc:
+            self.runtime_state.set(mode="DEGRADED", last_error=exc.code)
+            raise
         except KnowledgeBaseError:
             self.runtime_state.set(mode="DEGRADED", last_error="RAG_RETRIEVAL_FAILED")
             raise

@@ -41,7 +41,9 @@ from app.rag import (
     NotImplementedRetrievalGateway,
     RetrievalGateway,
     KnowledgeBaseRuntimeState,
+    EmbeddingClient,
     OpenAICompatibleEmbeddingClient,
+    VolcengineMultimodalEmbeddingClient,
 )
 from app.rag.ingestion import LocalKnowledgeLoader, StructuredKnowledgeSplitter
 
@@ -123,7 +125,13 @@ def _build_application_container(settings: Settings) -> ApplicationContainer:
                 collection_name=settings.chroma_collection_name,
                 last_error="RAG_NOT_INITIALIZED",
             ))
-            embedding_client = OpenAICompatibleEmbeddingClient(
+            embedding_client: EmbeddingClient
+            embedding_client_class = (
+                VolcengineMultimodalEmbeddingClient
+                if settings.embedding_provider.strip().casefold() == "volcengine_multimodal"
+                else OpenAICompatibleEmbeddingClient
+            )
+            embedding_client = embedding_client_class(
                 base_url=settings.effective_embedding_base_url,
                 api_key=settings.effective_embedding_api_key,
                 model_name=settings.embedding_model,

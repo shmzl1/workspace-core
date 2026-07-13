@@ -9,7 +9,11 @@ from app.modules.recruitment.services.local_fallback_knowledge_service import (
     LocalFallbackRecruitmentKnowledgeService,
 )
 from app.modules.recruitment.services.recruitment_knowledge_adapter import RecruitmentKnowledgeAdapter
-from app.rag.errors import KnowledgeBaseError, KnowledgeMappingError
+from app.rag.errors import (
+    EmbeddingProviderError,
+    KnowledgeBaseError,
+    KnowledgeMappingError,
+)
 from app.rag.retrieval.gateway import DisabledRetrievalGateway, RetrievalGateway
 from app.rag.schemas import RetrievalFilter, RetrievalQuery
 
@@ -48,6 +52,8 @@ class RecruitmentKnowledgeService:
             return self.knowledge_adapter.to_domain(context, result)
         except KnowledgeMappingError:
             warning = "RAG_MAPPING_FAILED_LOCAL_FALLBACK"
+        except EmbeddingProviderError as exc:
+            warning = exc.code
         except KnowledgeBaseError:
             warning = "RAG_UNAVAILABLE_LOCAL_FALLBACK"
         except (ValueError, TypeError):

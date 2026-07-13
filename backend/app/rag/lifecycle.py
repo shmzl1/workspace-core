@@ -4,8 +4,9 @@ import asyncio
 from pathlib import Path
 from typing import Protocol
 
-from app.rag.embedding import OpenAICompatibleEmbeddingClient
+from app.rag.embedding import EmbeddingClient
 from app.rag.errors import (
+    EmbeddingProviderError,
     KnowledgeBaseConfigurationError,
     KnowledgeBaseDisabledError,
     KnowledgeBaseError,
@@ -71,7 +72,7 @@ class ChromaKnowledgeBaseLifecycle:
         policy_data_dir: str,
         loader: LocalKnowledgeLoader,
         splitter: StructuredKnowledgeSplitter,
-        embedding_client: OpenAICompatibleEmbeddingClient,
+        embedding_client: EmbeddingClient,
         vector_store: ChromaVectorStore,
         runtime_state: KnowledgeBaseRuntimeState,
     ) -> None:
@@ -104,6 +105,8 @@ class ChromaKnowledgeBaseLifecycle:
                     await asyncio.to_thread(self.vector_store.delete_by_source, entry.source_id)
                     await asyncio.to_thread(self.vector_store.upsert, chunks, embeddings)
                     indexed_documents += 1
+                except EmbeddingProviderError as exc:
+                    warnings.append(exc.code)
                 except (KnowledgeBaseError, OSError, ValueError, TypeError):
                     warnings.append(f"DOCUMENT_INDEX_FAILED:{entry.source_id}")
             health = await asyncio.to_thread(self.vector_store.health)

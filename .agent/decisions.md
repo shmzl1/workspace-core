@@ -150,6 +150,6 @@
 ## ADR-022：持久化 Agent Runtime 并接入 OpenAI-compatible LLM 与 ChromaDB
 
 - 状态：已接受，代码存在，待本地人工验收
-- 决策：Agent Run、节点、事件和 Tool 调用保存到 PostgreSQL，SSE Queue 继续保留在当前进程；招聘策略与 HR 报告仅在确定性结果生成后使用 OpenAI-compatible Gateway 增强白名单叙述字段；企业知识使用自定义 Embedding Client、ChromaDB Persistent Collection、Metadata 过滤和关键词重排。
+- 决策：Agent Run、节点、事件和 Tool 调用保存到 PostgreSQL，SSE Queue 继续保留在当前进程；招聘策略与 HR 报告仅在确定性结果生成后使用 OpenAI-compatible Gateway 增强白名单叙述字段；企业知识按配置选择标准 OpenAI-compatible Embedding 或火山方舟多模态 Embedding Client，并使用 ChromaDB Persistent Collection、Metadata 过滤和关键词重排。
 - 原因：支持后端重启后按 `run_id` 恢复审计结果，同时让模型和知识库成为可关闭、可降级的增强能力，不改变人工算法和 HR 最终决定权。
 - 影响：新增 `0004_agent_runtime` 迁移；LLM/RAG 失败时分别使用 `RULE_BASED_FALLBACK` 和 `LOCAL_HYBRID_FALLBACK`；健康接口返回安全状态和知识库计数，不返回密钥、连接串、文档全文或模型原始响应。

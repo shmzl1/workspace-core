@@ -82,7 +82,8 @@ class Settings(BaseSettings):
             self.rag_enabled
             and self.chroma_persist_dir.strip()
             and self.policy_data_dir.strip()
-            and self.embedding_provider.strip().casefold() == "openai_compatible"
+            and self.embedding_provider.strip().casefold()
+            in {"openai_compatible", "volcengine_multimodal"}
             and self.effective_embedding_base_url
             and self.effective_embedding_api_key.get_secret_value().strip()
             and self.embedding_model.strip()

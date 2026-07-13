@@ -67,7 +67,7 @@ Agent 核心算法调用链为 `Agent -> Tool -> Service -> human_only`，纯规
 
 ## 15. RAG 与来源
 
-本地 Loader、结构化 Splitter、OpenAI-compatible Embedding Client、ChromaDB Persistent Collection、Metadata 过滤、语义检索和关键词重排代码存在，待本地人工验收。真实命中返回 `CHROMA_HYBRID`，来源统一包含 `source_id`、标题、文档类型、部门、岗位编号、版本、生效区间、真实有限摘录和相关度；禁用、初始化失败、检索失败或领域映射不足时明确回退为 `LOCAL_HYBRID_FALLBACK`。
+本地 Loader、结构化 Splitter、Provider-selected Embedding Client、ChromaDB Persistent Collection、Metadata 过滤、语义检索和关键词重排代码存在，待本地人工验收。`volcengine_multimodal` 使用火山方舟 `/embeddings/multimodal`，每个 Chunk 单独请求并保持返回顺序；禁用、初始化失败、检索失败或领域映射不足时明确回退，不记录密钥、完整文本或完整向量。
 
 ## 16. 可信度
 
@@ -179,7 +179,7 @@ HR 提交真实岗位、候选人与企业招聘目标
 ### Tool、RAG 与模型边界
 
 - Tool 保存 Service 边界、权限、敏感性和输入输出元数据；Sprint 2.3 的知识、简历、岗位匹配、决策审查和报告 Tool 只调用对应招聘 Service。
-- RAG 包实现本地文档加载、稳定分块、自定义 Embedding、ChromaDB 持久化、Metadata 过滤与关键词重排；命中来源返回 `source_id`、标题、版本/生效时间、有限摘录和相关度，无命中时不伪造来源。
+- RAG 包实现本地文档加载、稳定分块、可选择 Provider 的 Embedding、ChromaDB 持久化、Metadata 过滤与关键词重排；标准模型使用 `/embeddings`，`doubao-embedding-vision-251215` 使用 `/embeddings/multimodal`，HTTP 与响应错误只保留脱敏代码。
 - 模型网关使用 `httpx.AsyncClient` 调用 OpenAI-compatible Chat Completions，只接入招聘策略和 HR 报告叙述增强，不改变确定性分数、排序、审查 findings 或最终人工决定。
 
 ### 可信度、隐私与降级

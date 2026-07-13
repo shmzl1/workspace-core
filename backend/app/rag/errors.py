@@ -27,3 +27,7 @@ class KnowledgeDocumentError(KnowledgeBaseError):
 
 class EmbeddingProviderError(KnowledgeBaseError):
     """Raised when the configured Embedding provider is unavailable or invalid."""
+
+    def __init__(self, message: str, *, code: str = "EMBEDDING_PROVIDER_ERROR") -> None:
+        super().__init__(message)
+        self.code = code

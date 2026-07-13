@@ -30,7 +30,12 @@ from app.rag.retrieval.gateway import (
     RetrievalGateway,
 )
 from app.rag.status import KnowledgeBaseRuntimeState, KnowledgeBaseStatus
-from app.rag.embedding import OpenAICompatibleEmbeddingClient
+from app.rag.embedding import (
+    EmbeddingClient,
+    OpenAICompatibleEmbeddingClient,
+    VolcengineMultimodalEmbeddingClient,
+    parse_volcengine_multimodal_embedding_response,
+)
 from app.rag.vector_store import ChromaVectorStore
 
 __all__ = [
@@ -40,6 +45,7 @@ __all__ = [
     "DisabledKnowledgeBaseLifecycle",
     "DisabledRetrievalGateway",
     "EmbeddingProviderError",
+    "EmbeddingClient",
     "KnowledgeChunk",
     "KnowledgeBaseConfigurationError",
     "KnowledgeBaseDisabledError",
@@ -53,6 +59,8 @@ __all__ = [
     "NotImplementedKnowledgeBaseLifecycle",
     "NotImplementedRetrievalGateway",
     "OpenAICompatibleEmbeddingClient",
+    "VolcengineMultimodalEmbeddingClient",
+    "parse_volcengine_multimodal_embedding_response",
     "PolicyDocumentMetadata",
     "RetrievalFilter",
     "RetrievalGateway",
