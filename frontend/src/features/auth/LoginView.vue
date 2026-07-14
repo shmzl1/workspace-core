@@ -60,15 +60,24 @@ async function submitLogin() {
 
 <style scoped>
 .login-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f4f7fb; }
-.login-panel { width: min(100%, 420px); padding: 36px; border: 1px solid #dce3ef; border-radius: 8px; background: #fff; box-shadow: 0 16px 40px rgba(25, 50, 90, .1); }
+.login-panel { width: min(100%, 420px); padding: 36px; border: 1px solid var(--color-line); border-radius: 8px; background: var(--color-surface); box-shadow: 0 16px 40px rgba(25, 50, 90, .1); }
 .brand-mark { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 8px; background: #2455f5; color: #fff; font-weight: 800; }
 .eyebrow { margin: 20px 0 6px; color: #2455f5; font-size: 13px; font-weight: 800; }
-h1 { margin: 0; color: #172033; font-size: 26px; } .intro { color: #64748b; line-height: 1.6; }
-label { display: grid; gap: 7px; margin-top: 16px; color: #334155; font-size: 14px; font-weight: 700; }
+h1 { margin: 0; color: #172033; font-size: 26px; } .intro { color: var(--color-muted); line-height: 1.6; }
+label { display: grid; gap: 7px; margin-top: 16px; color: var(--color-muted); font-size: 14px; font-weight: 700; }
 input { width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; }
 .password-field { display: flex; gap: 8px; } .password-field button { min-width: 52px; border: 0; background: #eef2ff; color: #2455f5; font-weight: 700; }
 .login-button { width: 100%; margin-top: 22px; padding: 12px; border: 0; border-radius: 6px; background: #2455f5; color: #fff; font-weight: 800; }
-.login-button:disabled { opacity: .65; } .error-message { margin: 14px 0 0; color: #b91c1c; font-size: 14px; }
+.login-button:disabled { opacity: .65; } .error-message { margin: 14px 0 0; color: var(--color-status-error-text); font-size: 14px; }
 .demo-accounts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 26px; padding-top: 18px; border-top: 1px solid #e2e8f0; }
-.demo-accounts p { grid-column: 1 / -1; margin: 0 0 3px; color: #64748b; font-size: 12px; } .demo-accounts button { padding: 8px; border: 1px solid #dbe4f5; border-radius: 6px; background: #fff; color: #334155; font-size: 12px; }
+.demo-accounts p { grid-column: 1 / -1; margin: 0 0 3px; color: var(--color-muted); font-size: 12px; } .demo-accounts button { padding: 8px; border: 1px solid var(--color-line); border-radius: 6px; background: var(--color-surface); color: var(--color-muted); font-size: 12px; }
+
+/* 深色模式适配 */
+[data-theme="dark"] .login-page { background: #0f172a; }
+[data-theme="dark"] .password-field button { background: #1e3a5f; color: #60a5fa; }
+[data-theme="dark"] h1 { color: #e2e8f0; }
+[data-theme="dark"] input { background: #1e293b; border-color: #475569; color: #e2e8f0; }
+[data-theme="dark"] .demo-accounts { border-top-color: #334155; }
+[data-theme="dark"] .brand-mark { background: #3b82f6; }
+[data-theme="dark"] .eyebrow { color: #60a5fa; }
 </style>

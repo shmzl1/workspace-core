@@ -117,8 +117,79 @@ body {
     font-family: var(--font-body-md);
 }
 
+/* ═══════════════════════════════════════════
+   深色模式 — Tailwind 令牌覆盖
+   ═══════════════════════════════════════════ */
+[data-theme="dark"] {
+  /* ── 表面层级（最暗 → 最亮） ── */
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-container-lowest: #111827;
+  --color-surface-container-low: #1a2332;
+  --color-surface-container: #1e293b;
+  --color-surface-container-high: #263348;
+  --color-surface-container-highest: #2d3a54;
+  --color-surface-bright: #334155;
+  --color-surface-dim: #0c1525;
+  --color-surface-variant: #1e293b;
+
+  /* ── 文字色 ── */
+  --color-on-background: #e2e8f0;
+  --color-on-surface: #e2e8f0;
+  --color-on-surface-variant: #94a3b8;
+
+  /* ── 主色 ── */
+  --color-primary: #3b82f6;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #1e3a5f;
+  --color-on-primary-container: #dde0ff;
+  --color-primary-fixed: #1e3a5f;
+  --color-primary-fixed-dim: #3b82f6;
+  --color-on-primary-fixed: #e2e8f0;
+  --color-on-primary-fixed-variant: #94a3b8;
+  --color-inverse-primary: #3b82f6;
+  --color-surface-tint: #3b82f6;
+
+  /* ── 次要色 ── */
+  --color-secondary: #22c55e;
+  --color-on-secondary: #052e16;
+  --color-secondary-container: #052e16;
+  --color-on-secondary-container: #86efac;
+  --color-secondary-fixed: #052e16;
+  --color-secondary-fixed-dim: #22c55e;
+  --color-on-secondary-fixed: #86efac;
+  --color-on-secondary-fixed-variant: #4ade80;
+
+  /* ── 第三色 ── */
+  --color-tertiary: #818cf8;
+  --color-on-tertiary: #1e1b4b;
+  --color-tertiary-container: #312e81;
+  --color-on-tertiary-container: #c7d2fe;
+  --color-tertiary-fixed: #312e81;
+  --color-tertiary-fixed-dim: #818cf8;
+  --color-on-tertiary-fixed: #c7d2fe;
+  --color-on-tertiary-fixed-variant: #a5b4fc;
+
+  /* ── 错误色 ── */
+  --color-error: #ef4444;
+  --color-on-error: #ffffff;
+  --color-error-container: #450a0a;
+  --color-on-error-container: #fca5a5;
+
+  /* ── 边框 / 轮廓 ── */
+  --color-outline: #64748b;
+  --color-outline-variant: #334155;
+
+  /* ── 反转色 ── */
+  --color-inverse-on-surface: #191c1e;
+  --color-inverse-surface: #e2e8f0;
+}
+
 .ai-glow {
     box-shadow: 0 0 15px rgba(27, 77, 255, 0.1);
+}
+[data-theme="dark"] .ai-glow {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
 }
 
 .glass-card {
@@ -127,6 +198,10 @@ body {
     border: 1px solid var(--color-outline-variant);
     box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
+[data-theme="dark"] .glass-card {
+    background: rgba(30, 41, 59, 0.90);
+    box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.35);
+}
 
 .ai-gradient-border {
     position: relative;
@@ -134,6 +209,9 @@ body {
     background-clip: padding-box;
     border: 2px solid transparent;
     border-radius: 0.5rem;
+}
+[data-theme="dark"] .ai-gradient-border {
+    background: #1e293b;
 }
 .ai-gradient-border::before {
     content: '';

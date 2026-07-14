@@ -115,7 +115,7 @@ defineProps<{ pipelineStages: PipelineStage[] }>();
   margin-top: 18px;
   overflow: hidden;
   border-radius: 999px;
-  background: #e6eeff;
+  background: var(--color-primary-soft);
 }
 
 .pipeline-stage__progress i {
@@ -146,8 +146,8 @@ defineProps<{ pipelineStages: PipelineStage[] }>();
 .pipeline-stage__tags span {
   padding: 5px 8px;
   border-radius: 999px;
-  background: #f1f5f9;
-  color: #475467;
+  background: var(--color-surface-soft);
+  color: var(--color-muted);
   font-size: 12px;
 }
 
@@ -200,5 +200,10 @@ defineProps<{ pipelineStages: PipelineStage[] }>();
     width: 2px;
     height: 100%;
   }
+}
+
+/* 深色模式适配 */
+[data-theme="dark"] .pipeline-stage {
+  background: rgba(30, 41, 59, 0.92);
 }
 </style>

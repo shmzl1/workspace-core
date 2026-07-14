@@ -25,13 +25,13 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
         <div>
           <span class="block text-xs font-medium text-on-surface-variant mb-1">当前访问角色</span>
-          <p class="rounded-lg border border-outline-variant bg-white px-3 py-2.5 text-sm font-semibold text-on-surface">
+          <p class="rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2.5 text-sm font-semibold text-on-surface">
             {{ currentRoleLabel }}
           </p>
         </div>
         <div v-if="canSelectTarget">
           <label class="block text-xs font-medium text-on-surface-variant mb-1">查询目标员工 ID</label>
-          <select v-model.number="targetEmployeeId" class="w-full bg-white border border-outline-variant rounded-lg p-2.5 text-sm outline-none focus:border-primary">
+          <select v-model.number="targetEmployeeId" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 text-sm outline-none focus:border-primary">
             <option v-for="employee in employees" :key="employee.id" :value="employee.id">{{ employee.full_name }} · {{ employee.department }}</option>
           </select>
         </div>
@@ -95,10 +95,10 @@
             </div>
             <!-- Year/Month selectors -->
             <div class="flex items-center gap-2 bg-surface-container-low p-2 rounded-xl border border-outline-variant/30">
-              <select v-model="selectedYear" @change="loadMonthlyAttendance" class="bg-white border border-outline-variant rounded-lg px-2.5 py-1 text-xs outline-none focus:border-primary">
+              <select v-model="selectedYear" @change="loadMonthlyAttendance" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-2.5 py-1 text-xs outline-none focus:border-primary">
                 <option v-for="y in [2025, 2026, 2027]" :key="y" :value="y">{{ y }}年</option>
               </select>
-              <select v-model="selectedMonth" @change="loadMonthlyAttendance" class="bg-white border border-outline-variant rounded-lg px-2.5 py-1 text-xs outline-none focus:border-primary">
+              <select v-model="selectedMonth" @change="loadMonthlyAttendance" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-2.5 py-1 text-xs outline-none focus:border-primary">
                 <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
               </select>
             </div>
@@ -505,3 +505,11 @@ onMounted(async () => {
   }
 });
 </script>
+
+<style scoped>
+/* 深色模式适配 */
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e16 !important; }
+[data-theme="dark"] .text-emerald-700 { color: #86efac !important; }
+[data-theme="dark"] .bg-rose-50 { background-color: #450a0a !important; }
+[data-theme="dark"] .text-rose-700 { color: #fca5a5 !important; }
+</style>

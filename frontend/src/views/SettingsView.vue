@@ -10,7 +10,7 @@
       <!-- Left Column: Settings Categories -->
       <div class="lg:col-span-8 space-y-6">
         <!-- Intelligent capability configuration -->
-        <div class="bg-white rounded-xl border border-outline-variant/30 shadow-sm p-6">
+        <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm p-6">
           <h3 class="font-title-lg text-title-lg font-semibold text-on-surface mb-6 flex items-center gap-2">
             <span class="material-symbols-outlined text-primary">smart_toy</span> 智能招聘设置
           </h3>
@@ -78,7 +78,7 @@
         </div>
 
         <!-- Security Settings -->
-        <div class="bg-white rounded-xl border border-outline-variant/30 shadow-sm p-6">
+        <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm p-6">
           <h3 class="font-title-lg text-title-lg font-semibold text-on-surface mb-6 flex items-center gap-2">
             <span class="material-symbols-outlined text-primary">security</span> 安全机制与敏感权限策略
           </h3>
@@ -120,7 +120,7 @@
       <!-- Right Column: Status & Save -->
       <div class="lg:col-span-4 space-y-6">
         <!-- Integration Status -->
-        <div class="bg-white rounded-xl border border-outline-variant/30 shadow-sm p-6">
+        <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm p-6">
           <h3 class="font-title-lg text-title-lg font-semibold text-on-surface mb-4">系统集成状态</h3>
           <div class="space-y-4">
             <!-- LLM -->
@@ -160,7 +160,7 @@
         </div>
 
         <!-- Slack & Webhook -->
-        <div class="bg-white rounded-xl border border-outline-variant/30 shadow-sm p-6">
+        <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm p-6">
           <h3 class="font-title-lg text-title-lg font-semibold text-on-surface mb-3">企业应用推送 Webhook</h3>
           <p class="text-xs text-on-surface-variant mb-4">当 AI 触发权限审计拦截或者新候选人进入面试时，自动向该 Webhook 接口推送通知。</p>
           <div class="space-y-3">
@@ -197,3 +197,9 @@ const strictnessThreshold = computed(() => {
   return Math.round(50 + (strictness.value / 100) * 50);
 });
 </script>
+
+<style scoped>
+/* 深色模式适配 */
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e16 !important; }
+[data-theme="dark"] .text-emerald-700 { color: #86efac !important; }
+</style>

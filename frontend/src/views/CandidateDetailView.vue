@@ -760,24 +760,24 @@ function riskClass(level: Candidate['riskLevel']) {
 .candidate-pool__hero h2 { margin: 0; color: var(--color-text); font-size: 30px; line-height: 1.15; }
 .candidate-pool__hero p { margin: 8px 0 0; color: var(--color-muted); }
 .candidate-pool__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
-.notice { padding: 12px 14px; border: 1px solid #fde68a; border-radius: var(--radius-md); background: #fffbeb; color: #92400e; font-weight: 700; }
-.service-error { max-width: 1440px; width: 100%; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid #fecaca; border-radius: var(--radius-md); background: #fff7f7; color: #991b1b; }
+.notice { padding: 12px 14px; border: 1px solid var(--color-node-skipped-border); border-radius: var(--radius-md); background: var(--color-status-warning-bg); color: var(--color-status-warning-text); font-weight: 700; }
+.service-error { max-width: 1440px; width: 100%; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid var(--color-node-failed-border); border-radius: var(--radius-md); background: var(--color-status-error-bg); color: var(--color-status-error-text); }
 .service-error strong, .service-error span { display: block; }
-.service-error span { margin-top: 3px; color: #b91c1c; font-size: 13px; }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 14px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-text); font-weight: 800; cursor: pointer; transition: 0.2s ease; }
+.service-error span { margin-top: 3px; color: var(--color-status-error-text); font-size: 13px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 14px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); font-weight: 800; cursor: pointer; transition: 0.2s ease; }
 .btn:hover, .btn--active { border-color: rgba(36,85,245,0.35); background: var(--color-primary-soft); color: var(--color-primary); }
 .btn--primary { border-color: var(--color-primary); background: var(--color-primary); color: #fff; }
 .btn--primary:hover { background: #173fd1; color: #fff; }
 .btn:disabled { opacity: 0.55; cursor: wait; }
 .candidate-pool__summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.metric-card { display: flex; align-items: center; gap: 12px; padding: 18px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: #fff; box-shadow: var(--shadow-card); }
+.metric-card { display: flex; align-items: center; gap: 12px; padding: 18px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); }
 .metric-card > span { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 12px; background: var(--color-primary-soft); color: var(--color-primary); }
 .metric-card strong, .metric-card small { display: block; }
 .metric-card strong { color: var(--color-text); font-size: 26px; }
 .metric-card small { color: var(--color-muted); font-weight: 700; }
 .candidate-pool__content { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.9fr); gap: 18px; align-items: start; }
 .candidate-pool__left { display: flex; flex-direction: column; gap: 18px; }
-.candidate-table-card, .candidate-detail-card { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: #fff; box-shadow: var(--shadow-card); }
+.candidate-table-card, .candidate-detail-card { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); }
 .candidate-table-card { overflow: hidden; }
 .candidate-table-card__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--color-line); }
 .candidate-table-card__header h3, .candidate-detail-card__header h3 { margin: 0; color: var(--color-text); }
@@ -795,10 +795,10 @@ function riskClass(level: Candidate['riskLevel']) {
 .match-bar { display: block; height: 8px; margin-bottom: 5px; overflow: hidden; border-radius: 999px; background: var(--color-surface-soft); }
 .match-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2455f5, #16a34a); }
 .tag { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-style: normal; font-weight: 800; }
-.tag--blue { background: #eaf0ff; color: #2455f5; }
+.tag--blue { background: var(--color-primary-soft); color: #2455f5; }
 .tag--green { background: #dcfce7; color: #15803d; }
-.tag--amber { background: #fff7ed; color: #c2410c; }
-.tag--red { background: #fee2e2; color: #b91c1c; }
+.tag--amber { background: var(--color-status-warning-bg); color: var(--color-status-warning-text); }
+.tag--red { background: var(--color-status-error-bg); color: var(--color-status-error-text); }
 .candidate-detail-card { position: sticky; top: 92px; display: grid; gap: 14px; padding: 16px; }
 .candidate-detail-card__header { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--color-line); }
 .candidate-detail-card__score { display: grid; min-width: 92px; place-items: center; padding: 12px; border-radius: 16px; background: var(--color-primary-soft); color: var(--color-primary); }
@@ -822,15 +822,15 @@ function riskClass(level: Candidate['riskLevel']) {
 .candidate-detail-card__footer { display: flex; flex-wrap: wrap; gap: 10px; }
 .stage-management { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--color-line); border-radius: 12px; background: var(--color-surface-soft); }
 .stage-management p { margin: 0; color: var(--color-muted); font-size: 13px; }
-.stage-select { min-height: 40px; max-width: 180px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-text); padding: 0 10px; font-weight: 700; }
-.stage-note { min-height: 40px; padding: 0 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-text); }
+.stage-select { min-height: 40px; max-width: 180px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); padding: 0 10px; font-weight: 700; }
+.stage-note { min-height: 40px; padding: 0 10px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); }
 .terminal-stage { color: var(--color-muted); font-size: 13px; }
-.weight-sandbox { max-width: 1440px; margin: 0 auto 22px; padding: 20px 24px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: #fff; box-shadow: var(--shadow-card); }
+.weight-sandbox { max-width: 1440px; margin: 0 auto 22px; padding: 20px 24px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); }
 .weight-sandbox--inline { max-width: none; margin: 0; }
 .weight-sandbox__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .weight-sandbox__header h3, .weight-sandbox__reset { display: flex; align-items: center; gap: 8px; }
 .weight-sandbox__header h3 { margin: 0; font-size: 16px; font-weight: 800; color: var(--color-text); }
-.weight-sandbox__reset { padding: 6px 14px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+.weight-sandbox__reset { padding: 6px 14px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-muted); font-size: 12px; font-weight: 700; cursor: pointer; }
 .weight-sandbox__sliders { display: flex; flex-direction: column; gap: 0; }
 .weight-slider { padding: 14px 0; border-bottom: 1px solid var(--color-line); }
 .weight-slider:last-child { border-bottom: 0; padding-bottom: 0; }
@@ -849,7 +849,7 @@ function riskClass(level: Candidate['riskLevel']) {
   padding: 12px 18px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-card);
 }
 .job-filter-bar label {
@@ -868,7 +868,7 @@ function riskClass(level: Candidate['riskLevel']) {
   padding: 8px 12px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-text);
   font-size: 14px;
   font-weight: 600;
@@ -882,4 +882,9 @@ function riskClass(level: Candidate['riskLevel']) {
 }
 @media (max-width: 1180px) { .candidate-pool__content { grid-template-columns: 1fr; } .candidate-detail-card { position: static; } }
 @media (max-width: 860px) { .candidate-pool__hero { align-items: stretch; flex-direction: column; } .candidate-pool__summary, .detail-grid { grid-template-columns: 1fr; } .candidate-row { grid-template-columns: 1fr; } }
+
+/* 深色模式适配 */
+[data-theme="dark"] .candidate-row:hover,
+[data-theme="dark"] .candidate-row--selected { background: #1e293b; }
+[data-theme="dark"] .tag--green { background: #052e16; color: #86efac; }
 </style>

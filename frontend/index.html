@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TalentFlow AI 智聘中枢</title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+      /* 防 FOUC：在 Vue 挂载前同步读取 localStorage，立即设置 data-theme */
+      (function(){try{var t=localStorage.getItem('app-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -240,7 +240,7 @@ defineEmits<{
   padding: 18px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-soft);
 }
 

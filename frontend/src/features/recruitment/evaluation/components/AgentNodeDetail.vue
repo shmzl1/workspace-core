@@ -1,47 +1,55 @@
 <template>
-  <section class="node-detail">
-    <header><div><span>运行详情</span><h2>{{ metadata.label }}</h2></div><strong>{{ nodeStatus }}</strong></header>
-    <dl v-if="snapshot" class="node-detail__ids">
-      <div><dt>run_id</dt><dd>{{ snapshot.run_id }}</dd></div><div><dt>trace_id</dt><dd>{{ snapshot.trace_id }}</dd></div>
-      <div><dt>节点事件</dt><dd>{{ nodeEvents.length }}</dd></div><div><dt>执行 / 回退模式</dt><dd>{{ modeSummary }}</dd></div>
-    </dl>
-    <div class="node-detail__grid">
-      <article><h3>Agent 任务</h3><p>{{ metadata.task }}</p></article>
-      <article><h3>输入摘要</h3><pre>{{ inputSummary }}</pre></article>
-      <article><h3>当前动作</h3><p>{{ currentAction }}</p></article>
-      <article><h3>Tool 调用</h3><p>{{ toolSummary }}</p></article>
-      <article><h3>检索来源</h3><p>{{ sourceSummary }}</p></article>
-      <article><h3>结构化中间结果</h3><pre>{{ intermediateSummary }}</pre></article>
-      <article><h3>最终结论</h3><pre>{{ finalSummary }}</pre></article>
-      <article><h3>错误定位</h3><p>{{ errorSummary }}</p></article>
-      <article class="node-detail__events">
-        <h3>节点事件</h3>
-        <ul v-if="nodeEvents.length">
-          <li v-for="event in nodeEvents" :key="event.event_id">
-            <time>{{ formatTime(event.created_at) }}</time><strong>{{ event.event_type }}</strong><span>{{ event.status }} · {{ event.display_name }}</span>
-          </li>
-        </ul>
-        <p v-else>尚未收到当前节点的真实事件。</p>
-      </article>
-    </div>
-    <div v-if="strategyPlan" class="node-detail__plan">
-      <h3>招聘策略执行计划</h3>
-      <p><b>generation_mode</b>{{ strategyPlan.generation_mode }}</p>
-      <p><b>model_name</b>{{ strategyPlan.model_name || '未使用模型' }}</p>
-      <p><b>fallback_used</b>{{ strategyPlan.fallback_used }}</p>
-      <p><b>required_nodes</b>{{ strategyPlan.required_nodes.join(' → ') }}</p>
-      <p><b>executed_nodes</b>{{ strategyPlan.executed_nodes.join('、') }}</p>
-      <p><b>skipped_nodes</b>{{ strategyPlan.skipped_nodes.join('、') }}</p>
-      <ul><li v-for="note in strategyPlan.plan_notes" :key="note">{{ note }}</li></ul>
-    </div>
-    <div v-else-if="nodeStatus === AgentNodeStatus.SKIPPED" class="node-detail__empty">
-      {{ skippedSummary }}
+  <section class="node-detail" :class="{ 'node-detail--collapsed': collapsed }">
+    <button type="button" class="node-detail__toggle" @click="collapsed = !collapsed">
+      <div><span>运行详情</span><h2>{{ metadata.label }}</h2></div>
+      <div class="node-detail__toggle-meta">
+        <strong>{{ nodeStatus }}</strong>
+        <svg class="node-detail__chevron" :class="{ 'node-detail__chevron--collapsed': collapsed }" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+      </div>
+    </button>
+    <div v-if="!collapsed" class="node-detail__body">
+      <dl v-if="snapshot" class="node-detail__ids">
+        <div><dt>run_id</dt><dd>{{ snapshot.run_id }}</dd></div><div><dt>trace_id</dt><dd>{{ snapshot.trace_id }}</dd></div>
+        <div><dt>节点事件</dt><dd>{{ nodeEvents.length }}</dd></div><div><dt>执行 / 回退模式</dt><dd>{{ modeSummary }}</dd></div>
+      </dl>
+      <div class="node-detail__grid">
+        <article><h3>Agent 任务</h3><p>{{ metadata.task }}</p></article>
+        <article><h3>输入摘要</h3><pre>{{ inputSummary }}</pre></article>
+        <article><h3>当前动作</h3><p>{{ currentAction }}</p></article>
+        <article><h3>Tool 调用</h3><p>{{ toolSummary }}</p></article>
+        <article><h3>检索来源</h3><p>{{ sourceSummary }}</p></article>
+        <article><h3>结构化中间结果</h3><pre>{{ intermediateSummary }}</pre></article>
+        <article><h3>最终结论</h3><pre>{{ finalSummary }}</pre></article>
+        <article><h3>错误定位</h3><p>{{ errorSummary }}</p></article>
+        <article class="node-detail__events">
+          <h3>节点事件</h3>
+          <ul v-if="nodeEvents.length">
+            <li v-for="event in nodeEvents" :key="event.event_id">
+              <time>{{ formatTime(event.created_at) }}</time><strong>{{ event.event_type }}</strong><span>{{ event.status }} · {{ event.display_name }}</span>
+            </li>
+          </ul>
+          <p v-else>尚未收到当前节点的真实事件。</p>
+        </article>
+      </div>
+      <div v-if="strategyPlan" class="node-detail__plan">
+        <h3>招聘策略执行计划</h3>
+        <p><b>generation_mode</b>{{ strategyPlan.generation_mode }}</p>
+        <p><b>model_name</b>{{ strategyPlan.model_name || '未使用模型' }}</p>
+        <p><b>fallback_used</b>{{ strategyPlan.fallback_used }}</p>
+        <p><b>required_nodes</b>{{ strategyPlan.required_nodes.join(' → ') }}</p>
+        <p><b>executed_nodes</b>{{ strategyPlan.executed_nodes.join('、') }}</p>
+        <p><b>skipped_nodes</b>{{ strategyPlan.skipped_nodes.join('、') }}</p>
+        <ul><li v-for="note in strategyPlan.plan_notes" :key="note">{{ note }}</li></ul>
+      </div>
+      <div v-else-if="nodeStatus === AgentNodeStatus.SKIPPED" class="node-detail__empty">
+        {{ skippedSummary }}
+      </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import {
   AgentEventType,
   AgentNodeStatus,
@@ -50,6 +58,7 @@ import {
 } from '../../../../shared/agent/contracts';
 
 const props=defineProps<{ snapshot:RecruitmentRunSnapshot|null; nodeName:string }>();
+const collapsed = ref(false);
 const definitions:Record<string,{label:string;task:string}>={
   recruitment_strategy:{label:'招聘策略 Agent',task:'读取已校验招聘目标与工作流元数据，生成当前阶段结构化执行计划。'},
   resume_parser:{label:'简历解析 Agent',task:'从白名单结构化字段和安全简历片段提取事实、缺失项与可定位证据。'},
@@ -147,6 +156,15 @@ function safeDetail(value:unknown):string { return typeof value==='string' ? val
 </script>
 
 <style scoped>
-.node-detail { display:grid; gap:16px; padding:22px; border:1px solid var(--color-line); border-radius:var(--radius-md); background:#fff; box-shadow:var(--shadow-card); }.node-detail header { display:flex; align-items:flex-end; justify-content:space-between; }.node-detail header span { color:var(--color-primary); font-size:12px; font-weight:800; }.node-detail h2 { margin:5px 0 0; }.node-detail header strong { color:var(--color-muted); }.node-detail__ids { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:0; }.node-detail__ids div { min-width:0; padding:11px; border-radius:10px; background:var(--color-surface-soft); }.node-detail dt { color:var(--color-subtle); font-size:11px; }.node-detail dd { overflow:hidden; margin:5px 0 0; color:var(--color-text); font-size:12px; font-weight:800; text-overflow:ellipsis; }.node-detail__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }.node-detail article,.node-detail__plan { min-width:0; padding:14px; border:1px solid var(--color-line); border-radius:12px; }.node-detail article h3,.node-detail__plan h3 { margin:0 0 10px; font-size:13px; }.node-detail article p { margin:0; color:var(--color-muted); font-size:12px; line-height:1.6; }.node-detail article pre { overflow:auto; max-height:180px; margin:0; color:#334155; font:11px/1.5 ui-monospace,monospace; white-space:pre-wrap; }.node-detail__events { grid-column:span 2; }.node-detail__events ul { display:grid; gap:6px; margin:0; padding:0; list-style:none; }.node-detail__events li { display:grid; grid-template-columns:72px 160px 1fr; gap:8px; padding:8px; border-radius:8px; background:var(--color-surface-soft); font-size:11px; }.node-detail__events time { color:var(--color-subtle); }.node-detail__events span { color:var(--color-muted); }.node-detail__plan p { display:grid; grid-template-columns:130px 1fr; margin:7px 0; color:var(--color-muted); font-size:13px; }.node-detail__plan b { color:var(--color-text); }.node-detail__plan ul { margin:12px 0 0; color:var(--color-muted); }.node-detail__empty { color:var(--color-muted); }
+.node-detail { border:1px solid var(--color-line); border-radius:var(--radius-md); background:var(--color-surface); box-shadow:var(--shadow-card); }
+.node-detail__toggle { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; width:100%; padding:12px; border:none; background:none; color:inherit; cursor:pointer; }
+.node-detail__toggle span { color:var(--color-primary); font-size:12px; font-weight:800; display:block; text-align:left; }
+.node-detail h2 { margin:5px 0 0; text-align:left; }
+.node-detail__toggle-meta { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.node-detail__toggle-meta strong { color:var(--color-muted); font-size:12px; white-space:nowrap; }
+.node-detail__chevron { color:var(--color-subtle); transition:transform 0.25s ease; }
+.node-detail__chevron--collapsed { transform:rotate(-90deg); }
+.node-detail__body { display:grid; gap:16px; padding:0 22px 22px; }
+.node-detail--collapsed { /* collapsed — toggle padding handles the height */ }.node-detail__ids { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:0; }.node-detail__ids div { min-width:0; padding:11px; border-radius:10px; background:var(--color-surface-soft); }.node-detail dt { color:var(--color-subtle); font-size:11px; }.node-detail dd { overflow:hidden; margin:5px 0 0; color:var(--color-text); font-size:12px; font-weight:800; text-overflow:ellipsis; }.node-detail__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }.node-detail article,.node-detail__plan { min-width:0; padding:14px; border:1px solid var(--color-line); border-radius:12px; }.node-detail article h3,.node-detail__plan h3 { margin:0 0 10px; font-size:13px; }.node-detail article p { margin:0; color:var(--color-muted); font-size:12px; line-height:1.6; }.node-detail article pre { overflow:auto; max-height:180px; margin:0; color:var(--color-muted); font:11px/1.5 ui-monospace,monospace; white-space:pre-wrap; }.node-detail__events { grid-column:span 2; }.node-detail__events ul { display:grid; gap:6px; margin:0; padding:0; list-style:none; }.node-detail__events li { display:grid; grid-template-columns:72px 160px 1fr; gap:8px; padding:8px; border-radius:8px; background:var(--color-surface-soft); font-size:11px; }.node-detail__events time { color:var(--color-subtle); }.node-detail__events span { color:var(--color-muted); }.node-detail__plan p { display:grid; grid-template-columns:130px 1fr; margin:7px 0; color:var(--color-muted); font-size:13px; }.node-detail__plan b { color:var(--color-text); }.node-detail__plan ul { margin:12px 0 0; color:var(--color-muted); }.node-detail__empty { color:var(--color-muted); }
 @media(max-width:850px){.node-detail__ids,.node-detail__grid{grid-template-columns:1fr 1fr}} @media(max-width:560px){.node-detail__ids,.node-detail__grid{grid-template-columns:1fr}.node-detail__events{grid-column:auto}.node-detail__events li{grid-template-columns:1fr}.node-detail__plan p{grid-template-columns:1fr}}
 </style>

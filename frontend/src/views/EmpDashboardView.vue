@@ -250,3 +250,11 @@ onMounted(async () => {
   await fetchDashboardData();
 });
 </script>
+
+<style scoped>
+/* 深色模式适配 */
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e16 !important; }
+[data-theme="dark"] .text-emerald-700 { color: #86efac !important; }
+[data-theme="dark"] .bg-amber-50 { background-color: #451a03 !important; }
+[data-theme="dark"] .text-amber-700 { color: #fdba74 !important; }
+</style>
