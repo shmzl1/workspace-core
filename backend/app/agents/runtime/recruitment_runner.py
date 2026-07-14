@@ -522,20 +522,118 @@ async def run_recruitment_strategy(
                 "deterministic_scores_preserved": all(
                     review.deterministic_score_preserved for review in state.decision_reviews.values()
                 ),
-                "next_action": "生成 HR 结构化最终报告",
+                "next_action": "等待 HR 审查通过后生成 HR 最终报告"
+                if job_match_status is AgentNodeStatus.NEEDS_REVIEW
+                or review_status is AgentNodeStatus.NEEDS_REVIEW
+                else "生成 HR 结构化最终报告",
             },
             agent_name=DECISION_REVIEW_NODE, node_name=DECISION_REVIEW_NODE,
             duration_ms=_elapsed_ms(review_started_at),
         ))
 
-        current_node = REPORT_NODE
+        if (
+            job_match_status is AgentNodeStatus.NEEDS_REVIEW
+            or review_status is AgentNodeStatus.NEEDS_REVIEW
+        ):
+            snapshot.status = AgentRunStatus.RUNNING
+            snapshot.current_agent = None
+            snapshot.current_node = None
+            snapshot.current_candidate_id = None
+            state.status = AgentRunStatus.RUNNING
+            state.current_agent = None
+            state.current_node = None
+            state.current_candidate_id = None
+            await store.update_snapshot(run_id, snapshot, state)
+            return
+
+        await run_hr_report_stage(run_id, store, dependencies)
+    except Exception:
+        error = AgentErrorInfo(
+            code="RECRUITMENT_WORKFLOW_FAILED",
+            message="招聘决策工作流执行失败。",
+            details={
+                "failed_node": current_node,
+                "failed_step": current_step,
+                "candidate_id": snapshot.current_candidate_id,
+            },
+        )
+        snapshot.status = AgentRunStatus.FAILED
+        snapshot.current_agent = current_node
+        snapshot.current_node = current_node
+        snapshot.nodes[current_node] = AgentNodeStatus.FAILED
+        snapshot.error = error
+        state.status = AgentRunStatus.FAILED
+        state.current_agent = current_node
+        state.current_node = current_node
+        state.node_statuses[current_node] = AgentNodeStatus.FAILED
+        state.error = error
+        await store.update_snapshot(run_id, snapshot, state)
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.WORKFLOW_FAILED, AgentNodeStatus.FAILED,
+            "招聘决策工作流失败",
+            {"failed_node": current_node, "failed_step": current_step, "current_scope": RUN_SCOPE},
+            agent_name=current_node, node_name=current_node, candidate_id=snapshot.current_candidate_id,
+            duration_ms=_elapsed_ms(started_at), fallback_used=knowledge_fallback_used, error=error,
+        ))
+
+
+def schedule_hr_report_stage(
+    run_id: str,
+    store: AgentRunStore | None = None,
+    dependencies: RecruitmentRunnerDependencies | None = None,
+) -> None:
+    """Schedule one persisted Run's HR report stage after HR approval."""
+
+    resolved_store = store or _default_store()
+    resolved_dependencies = dependencies or _default_dependencies()
+    task = asyncio.create_task(run_hr_report_stage(run_id, resolved_store, resolved_dependencies))
+    _RUNNING_TASKS.add(task)
+    task.add_done_callback(_RUNNING_TASKS.discard)
+
+
+async def run_hr_report_stage(
+    run_id: str,
+    store: AgentRunStore | None = None,
+    dependencies: RecruitmentRunnerDependencies | None = None,
+) -> None:
+    """Generate the report from the newest persisted state exactly once per stage start."""
+
+    store = store or _default_store()
+    dependencies = dependencies or _default_dependencies()
+    record = await store.get(run_id)
+    snapshot = record.snapshot
+    state = record.state
+    context = state.context
+    plan = state.execution_plan
+    started_at = perf_counter()
+    current_node = REPORT_NODE
+    current_step = "validate_hr_report_stage"
+    knowledge_fallback_used = (
+        state.knowledge_summary is not None
+        and state.knowledge_summary.retrieval_mode == "LOCAL_HYBRID_FALLBACK"
+    )
+    try:
+        if (
+            snapshot.status is not AgentRunStatus.RUNNING
+            or snapshot.report is not None
+            or snapshot.nodes.get(REPORT_NODE) is not AgentNodeStatus.WAITING
+            or snapshot.nodes.get(JOB_MATCH_NODE) is AgentNodeStatus.NEEDS_REVIEW
+            or snapshot.nodes.get(DECISION_REVIEW_NODE) is AgentNodeStatus.NEEDS_REVIEW
+        ):
+            return
+        if plan is None or state.knowledge_summary is None:
+            raise RuntimeError("recruitment report context is unavailable")
+
         current_step = "start_hr_report"
-        report_started_at = perf_counter()
+        snapshot.status = AgentRunStatus.RUNNING
         snapshot.current_agent = REPORT_NODE
         snapshot.current_node = REPORT_NODE
+        snapshot.current_candidate_id = None
         snapshot.nodes[REPORT_NODE] = AgentNodeStatus.RUNNING
+        state.status = AgentRunStatus.RUNNING
         state.current_agent = REPORT_NODE
         state.current_node = REPORT_NODE
+        state.current_candidate_id = None
         state.node_statuses[REPORT_NODE] = AgentNodeStatus.RUNNING
         await store.update_snapshot(run_id, snapshot, state)
         await _publish(store, _event(
@@ -591,7 +689,7 @@ async def run_recruitment_strategy(
                 "model_name": report.model_name,
             },
             agent_name=REPORT_NODE, node_name=REPORT_NODE, tool_name=REPORT_TOOL_NAME,
-            source_count=len(report.knowledge_sources), duration_ms=_elapsed_ms(report_started_at),
+            source_count=len(report.knowledge_sources), duration_ms=_elapsed_ms(started_at),
             fallback_used=report.fallback_used,
         ))
         await _publish(store, _event(
@@ -617,7 +715,7 @@ async def run_recruitment_strategy(
                 "next_action": "由 HR 查看报告并完成人工决定",
             },
             agent_name=REPORT_NODE, node_name=REPORT_NODE,
-            source_count=len(report.knowledge_sources), duration_ms=_elapsed_ms(report_started_at),
+            source_count=len(report.knowledge_sources), duration_ms=_elapsed_ms(started_at),
             fallback_used=report.fallback_used,
         ))
 
@@ -660,11 +758,7 @@ async def run_recruitment_strategy(
         error = AgentErrorInfo(
             code="RECRUITMENT_WORKFLOW_FAILED",
             message="招聘决策工作流执行失败。",
-            details={
-                "failed_node": current_node,
-                "failed_step": current_step,
-                "candidate_id": snapshot.current_candidate_id,
-            },
+            details={"failed_node": current_node, "failed_step": current_step},
         )
         snapshot.status = AgentRunStatus.FAILED
         snapshot.current_agent = current_node
@@ -681,7 +775,7 @@ async def run_recruitment_strategy(
             run_id, snapshot.trace_id, AgentEventType.WORKFLOW_FAILED, AgentNodeStatus.FAILED,
             "招聘决策工作流失败",
             {"failed_node": current_node, "failed_step": current_step, "current_scope": RUN_SCOPE},
-            agent_name=current_node, node_name=current_node, candidate_id=snapshot.current_candidate_id,
+            agent_name=current_node, node_name=current_node,
             duration_ms=_elapsed_ms(started_at), fallback_used=knowledge_fallback_used, error=error,
         ))
 

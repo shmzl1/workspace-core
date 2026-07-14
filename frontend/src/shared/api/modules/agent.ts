@@ -27,6 +27,24 @@ export async function getRecruitmentRun(runId: string): Promise<RecruitmentRunSn
   return response.data;
 }
 
+export async function approveJobMatchReview(
+  runId: string,
+): Promise<RecruitmentRunSnapshot> {
+  const response = await apiClient.post<RecruitmentRunSnapshot>(
+    `/agent/recruitment/runs/${encodeURIComponent(runId)}/approve-job-match-review`,
+  );
+  return response.data;
+}
+
+export async function approveDecisionReview(
+  runId: string,
+): Promise<RecruitmentRunSnapshot> {
+  const response = await apiClient.post<RecruitmentRunSnapshot>(
+    `/agent/recruitment/runs/${encodeURIComponent(runId)}/approve-decision-review`,
+  );
+  return response.data;
+}
+
 export async function subscribeRecruitmentRunEvents(
   runId: string,
   callbacks: AgentEventStreamCallbacks,

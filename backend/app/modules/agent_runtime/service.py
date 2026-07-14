@@ -203,6 +203,20 @@ class PostgreSQLAgentRunStore:
             for run in repository.list_interrupted_runs():
                 state = RecruitmentDecisionState.model_validate(run.state_json)
                 snapshot = RecruitmentRunSnapshot.model_validate(run.snapshot_json)
+                if (
+                    snapshot.status is AgentRunStatus.RUNNING
+                    and snapshot.report is None
+                    and snapshot.nodes.get("hr_report") is AgentNodeStatus.WAITING
+                    and (
+                        snapshot.nodes.get("job_match") is AgentNodeStatus.NEEDS_REVIEW
+                        or snapshot.nodes.get("decision_review") is AgentNodeStatus.NEEDS_REVIEW
+                    )
+                    and snapshot.current_agent is None
+                    and snapshot.current_node is None
+                    and state.current_agent is None
+                    and state.current_node is None
+                ):
+                    continue
                 failed_node = snapshot.current_node or state.current_node or "recruitment_strategy"
                 error = AgentErrorInfo(
                     code="AGENT_RUN_INTERRUPTED_BY_RESTART",

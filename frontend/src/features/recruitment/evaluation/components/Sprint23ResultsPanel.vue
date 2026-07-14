@@ -14,8 +14,8 @@
         <article v-for="match in jobMatches" :key="match.candidate_id" class="result-card">
           <header class="result-card__heading">
             <div><span>候选人</span><h4>{{ candidateLabel(match.candidate_id) }}</h4></div>
-            <span :class="['status-chip', matchNeedsReview(match) ? 'status-chip--review' : 'status-chip--complete']">
-              {{ matchNeedsReview(match) ? '需要人工复核' : '评分结果已返回' }}
+            <span :class="['status-chip', jobMatchReviewPending(match) ? 'status-chip--review' : 'status-chip--complete']">
+              {{ jobMatchReviewPending(match) ? '需要人工复核' : jobMatchReviewApproved(match) ? '已通过 HR 审查' : '评分结果已返回' }}
             </span>
           </header>
 
@@ -70,6 +70,15 @@
         </article>
       </div>
       <p v-else class="empty-state">运行到岗位匹配节点后显示真实确定性结果，不使用静态样例。</p>
+      <div v-if="jobMatchApprovalPending || jobMatchApprovalSubmitted || jobMatchApprovalError" class="review-approval">
+        <button v-if="jobMatchApprovalPending && !jobMatchApprovalSubmitted" type="button" :disabled="jobMatchApproving" @click="approveJobMatch">
+          审查通过
+        </button>
+        <p v-if="jobMatchApprovalSubmitted">
+          {{ decisionReviewApprovalPending ? '岗位匹配审查已通过，请继续审查决策审查结果。' : '岗位匹配审查已通过，正在生成 HR 最终报告…' }}
+        </p>
+        <p v-else-if="jobMatchApprovalError" class="review-approval__error">{{ jobMatchApprovalError }}</p>
+      </div>
     </section>
 
     <section class="result-section">
@@ -81,8 +90,8 @@
         <article v-for="review in decisionReviews" :key="review.candidate_id" class="result-card">
           <header class="result-card__heading">
             <div><span>候选人</span><h4>{{ candidateLabel(review.candidate_id) }}</h4></div>
-            <span :class="['status-chip', reviewNeedsHuman(review) ? 'status-chip--review' : 'status-chip--complete']">
-              {{ reviewNeedsHuman(review) ? '需要人工复核' : '审查结果已返回' }}
+            <span :class="['status-chip', decisionReviewPending(review) ? 'status-chip--review' : 'status-chip--complete']">
+              {{ decisionReviewPending(review) ? '需要人工复核' : decisionReviewApproved(review) ? '已通过 HR 审查' : '审查结果已返回' }}
             </span>
           </header>
           <dl class="metric-grid metric-grid--review">
@@ -122,6 +131,15 @@
         </article>
       </div>
       <p v-else class="empty-state">运行到决策审查节点后显示真实规则审查结果，不使用静态样例。</p>
+      <div v-if="decisionReviewApprovalPending || decisionReviewApprovalSubmitted || decisionReviewApprovalError" class="review-approval">
+        <button v-if="decisionReviewApprovalPending && !decisionReviewApprovalSubmitted" type="button" :disabled="decisionReviewApproving" @click="approveDecisionReview">
+          审查通过
+        </button>
+        <p v-if="decisionReviewApprovalSubmitted">
+          {{ jobMatchApprovalPending ? '决策审查已通过，请继续审查岗位匹配结果。' : '决策审查已通过，正在生成 HR 最终报告…' }}
+        </p>
+        <p v-else-if="decisionReviewApprovalError" class="review-approval__error">{{ decisionReviewApprovalError }}</p>
+      </div>
     </section>
 
     <section class="result-section">
@@ -208,12 +226,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import {
+  approveDecisionReview as submitDecisionReviewApproval,
+  approveJobMatchReview as submitJobMatchReviewApproval,
+} from '../../../../shared/api/modules/agent';
 import type {
   DecisionReviewSummary,
   JobMatchSummary,
   RecruitmentRunSnapshot,
 } from '../../../../shared/agent/contracts';
+import { AgentNodeStatus } from '../../../../shared/agent/contracts';
 
 const props = withDefaults(defineProps<{
   snapshot: RecruitmentRunSnapshot | null;
@@ -241,6 +264,63 @@ const jobMatches = computed(() => Object.values(props.snapshot?.job_matches || {
 const decisionReviews = computed(() => Object.values(props.snapshot?.decision_reviews || {})
   .sort((left, right) => left.candidate_id - right.candidate_id));
 const report = computed(() => props.snapshot?.report || null);
+const jobMatchApproving = ref(false);
+const jobMatchApprovalSubmitted = ref(false);
+const jobMatchApprovalError = ref('');
+const decisionReviewApproving = ref(false);
+const decisionReviewApprovalSubmitted = ref(false);
+const decisionReviewApprovalError = ref('');
+const jobMatchApprovalPending = computed(() => {
+  const snapshot = props.snapshot;
+  if (!snapshot || snapshot.report !== null) return false;
+  if (snapshot.nodes.hr_report !== AgentNodeStatus.WAITING) return false;
+  return snapshot.nodes.job_match === AgentNodeStatus.NEEDS_REVIEW;
+});
+const decisionReviewApprovalPending = computed(() => {
+  const snapshot = props.snapshot;
+  if (!snapshot || snapshot.report !== null) return false;
+  if (snapshot.nodes.hr_report !== AgentNodeStatus.WAITING) return false;
+  return snapshot.nodes.decision_review === AgentNodeStatus.NEEDS_REVIEW;
+});
+
+watch(() => props.snapshot?.run_id, () => {
+  jobMatchApproving.value = false;
+  jobMatchApprovalSubmitted.value = false;
+  jobMatchApprovalError.value = '';
+  decisionReviewApproving.value = false;
+  decisionReviewApprovalSubmitted.value = false;
+  decisionReviewApprovalError.value = '';
+});
+
+async function approveJobMatch(): Promise<void> {
+  if (!props.snapshot || jobMatchApproving.value) return;
+  jobMatchApproving.value = true;
+  jobMatchApprovalSubmitted.value = false;
+  jobMatchApprovalError.value = '';
+  try {
+    await submitJobMatchReviewApproval(props.snapshot.run_id);
+    jobMatchApprovalSubmitted.value = true;
+  } catch (error) {
+    jobMatchApprovalError.value = error instanceof Error ? error.message : '岗位匹配审查提交失败，请稍后重试。';
+  } finally {
+    jobMatchApproving.value = false;
+  }
+}
+
+async function approveDecisionReview(): Promise<void> {
+  if (!props.snapshot || decisionReviewApproving.value) return;
+  decisionReviewApproving.value = true;
+  decisionReviewApprovalSubmitted.value = false;
+  decisionReviewApprovalError.value = '';
+  try {
+    await submitDecisionReviewApproval(props.snapshot.run_id);
+    decisionReviewApprovalSubmitted.value = true;
+  } catch (error) {
+    decisionReviewApprovalError.value = error instanceof Error ? error.message : '决策审查提交失败，请稍后重试。';
+  } finally {
+    decisionReviewApproving.value = false;
+  }
+}
 
 function candidateLabel(candidateId: number): string {
   return props.candidateNames[candidateId] || `候选人 #${candidateId}`;
@@ -271,8 +351,28 @@ function matchNeedsReview(match: JobMatchSummary): boolean {
   return match.requires_review || match.overall_score === null || match.job_match_score === null;
 }
 
+function jobMatchReviewPending(match: JobMatchSummary): boolean {
+  return matchNeedsReview(match)
+    && props.snapshot?.nodes.job_match === AgentNodeStatus.NEEDS_REVIEW;
+}
+
+function jobMatchReviewApproved(match: JobMatchSummary): boolean {
+  return matchNeedsReview(match)
+    && props.snapshot?.nodes.job_match === AgentNodeStatus.COMPLETED;
+}
+
 function reviewNeedsHuman(review: DecisionReviewSummary): boolean {
   return review.findings.some((finding) => finding.requires_human_review);
+}
+
+function decisionReviewPending(review: DecisionReviewSummary): boolean {
+  return reviewNeedsHuman(review)
+    && props.snapshot?.nodes.decision_review === AgentNodeStatus.NEEDS_REVIEW;
+}
+
+function decisionReviewApproved(review: DecisionReviewSummary): boolean {
+  return reviewNeedsHuman(review)
+    && props.snapshot?.nodes.decision_review === AgentNodeStatus.COMPLETED;
 }
 
 function rankingScore(candidateId: number): string {
@@ -305,6 +405,7 @@ function findingCodes(review: DecisionReviewSummary): string {
 .compact-list { display:grid; gap:6px; margin:0; padding-left:18px; color:var(--color-muted); font-size:12px; line-height:1.55; }.empty-inline,.empty-state { margin:0; color:var(--color-muted); font-size:12px; }.empty-state { padding:18px; border:1px dashed var(--color-line); border-radius:10px; background:#fff; text-align:center; }
 .recommendation,.contract-line { display:grid; grid-template-columns:90px 1fr; gap:8px; margin:0; color:var(--color-muted); font-size:12px; line-height:1.6; }.recommendation b,.contract-line b { color:var(--color-text); }.contract-line { padding-top:9px; border-top:1px solid var(--color-line); font-family:ui-monospace,monospace; }
 .finding-list { display:grid; gap:7px; margin:0; padding:0; list-style:none; }.finding-list li { display:grid; grid-template-columns:auto 1fr; gap:9px; padding:9px; border-radius:9px; background:#f8fafc; }.finding-list strong { font-size:11px; }.finding-list p { margin:3px 0; color:var(--color-muted); font-size:11px; line-height:1.5; }.finding-list small { color:var(--color-subtle); font-size:10px; }.severity-chip { align-self:start; padding:4px 6px; background:#e2e8f0; color:#475569; }.severity-chip--high { background:#fee2e2; color:#b91c1c; }.severity-chip--medium { background:#ffedd5; color:#9a3412; }.severity-chip--low { background:#e0f2fe; color:#0369a1; }
+.review-approval { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; }.review-approval button { padding:8px 12px; border:0; border-radius:8px; background:var(--color-primary); color:#fff; font-size:12px; font-weight:800; cursor:pointer; }.review-approval button:disabled { cursor:wait; opacity:.65; }.review-approval p { margin:0; color:#1e3a8a; font-size:12px; font-weight:700; }.review-approval .review-approval__error { color:#b91c1c; }
 .report-card { display:grid; align-content:start; gap:10px; }.report-card--wide { grid-column:span 2; }.ranking-list { display:grid; gap:7px; margin:0; padding:0; list-style:none; }.ranking-list li { display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:8px; padding:8px; border-radius:9px; background:var(--color-surface-soft); }.ranking-list li>span { display:grid; width:24px; height:24px; place-items:center; border-radius:50%; background:var(--color-primary-soft); color:var(--color-primary); font-size:10px; font-weight:900; }.ranking-list strong { font-size:12px; }.ranking-list small { color:var(--color-muted); font-size:10px; }
 .review-summary-list { display:grid; gap:8px; }.review-summary-list>div { padding:9px; border-radius:9px; background:var(--color-surface-soft); }.review-summary-list strong,.review-summary-list span,.review-summary-list small { display:block; }.review-summary-list strong { font-size:12px; }.review-summary-list span,.review-summary-list small { margin-top:3px; color:var(--color-subtle); font-size:10px; }.review-summary-list p,.report-card>p { margin:5px 0 0; color:var(--color-muted); font-size:11px; line-height:1.5; }.source-count { color:var(--color-primary); font-size:30px; }.report-card>small { color:var(--color-subtle); font-size:10px; }
 .human-decision { grid-column:span 2; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:15px; border:1px solid #bfdbfe; border-radius:12px; background:#eff6ff; }.human-decision span,.human-decision strong { display:block; }.human-decision span { color:var(--color-primary); font-size:10px; font-weight:900; }.human-decision strong { margin-top:4px; color:#1e3a8a; }.human-decision p { margin:0; color:#475569; font-size:12px; }
