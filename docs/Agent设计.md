@@ -181,6 +181,7 @@ HR 提交真实岗位、候选人与企业招聘目标
 - Tool 保存 Service 边界、权限、敏感性和输入输出元数据；Sprint 2.3 的知识、简历、岗位匹配、决策审查和报告 Tool 只调用对应招聘 Service。
 - RAG 包实现本地文档加载、稳定分块、可选择 Provider 的 Embedding、ChromaDB 持久化、Metadata 过滤与关键词重排；标准模型使用 `/embeddings`，`doubao-embedding-vision-251215` 使用 `/embeddings/multimodal`，HTTP 与响应错误只保留脱敏代码。
 - 模型网关使用 `httpx.AsyncClient` 调用 OpenAI-compatible Chat Completions，只接入招聘策略和 HR 报告叙述增强，不改变确定性分数、排序、审查 findings 或最终人工决定。
+- 招聘策略叙述增强与企业知识检索并行执行；两处叙述增强均关闭深度思考并限制输出 token。默认模型预算为招聘策略 25 秒、HR 最终报告 35 秒，超时后保留确定性基线并标记 `RULE_BASED_FALLBACK`；预算可通过 `AGENT_STRATEGY_MODEL_TIMEOUT_SECONDS` 和 `AGENT_REPORT_MODEL_TIMEOUT_SECONDS` 调整，相关代码存在，待本地人工验收。
 
 ### 可信度、隐私与降级
 

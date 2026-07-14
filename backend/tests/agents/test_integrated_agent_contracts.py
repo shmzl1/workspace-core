@@ -24,8 +24,10 @@ from app.rag.schemas import PolicyDocumentMetadata
 class StaticModelGateway:
     def __init__(self, output: dict) -> None:
         self.output = output
+        self.requests: list[ModelGatewayInput] = []
 
     async def generate(self, request: ModelGatewayInput) -> ModelGatewayOutput:
+        self.requests.append(request)
         return ModelGatewayOutput(
             structured_output=self.output,
             provider="test",
@@ -69,20 +71,23 @@ def test_strategy_model_enhancement_cannot_change_deterministic_plan() -> None:
         source_version="v1",
         effective_date=date(2026, 1, 1),
     )
+    gateway = StaticModelGateway({
+        "strategy_summary": "建议优先核查项目证据。",
+        "next_actions": ["建议安排人工复核"],
+        "risk_reminders": ["建议关注证据完整性"],
+    })
     enhanced = asyncio.run(enhance_recruitment_execution_plan(
         plan,
         job,
-        StaticModelGateway({
-            "strategy_summary": "建议优先核查项目证据。",
-            "next_actions": ["建议安排人工复核"],
-            "risk_reminders": ["建议关注证据完整性"],
-        }),
+        gateway,
     ))
     assert enhanced.candidate_ids == [10, 11]
     assert enhanced.required_nodes == plan.required_nodes
     assert enhanced.skipped_nodes == ["interview_evaluation"]
     assert enhanced.generation_mode == "LLM_ENHANCED"
     assert enhanced.model_name == "test-model"
+    assert gateway.requests[0].thinking_type == "disabled"
+    assert gateway.requests[0].max_completion_tokens == 512
 
 
 def test_report_model_enhancement_preserves_rankings_reviews_and_sources() -> None:
@@ -92,19 +97,62 @@ def test_report_model_enhancement_preserves_rankings_reviews_and_sources() -> No
         candidate_reviews=[DecisionReviewSummary(candidate_id=10)],
         requires_human_decision=True,
     )
+    gateway = StaticModelGateway({
+        "executive_summary": "建议由 HR 结合证据完成人工决定。",
+        "talent_gaps": ["项目证据仍需补充"],
+        "next_actions": ["建议复核结构化面试资料"],
+    })
     enhanced = asyncio.run(enhance_hr_report(
         report,
-        StaticModelGateway({
-            "executive_summary": "建议由 HR 结合证据完成人工决定。",
-            "talent_gaps": ["项目证据仍需补充"],
-            "next_actions": ["建议复核结构化面试资料"],
-        }),
+        gateway,
     ))
     assert enhanced.candidate_rankings == [10, 11]
     assert enhanced.candidate_reviews == report.candidate_reviews
     assert enhanced.knowledge_sources == report.knowledge_sources
     assert enhanced.requires_human_decision is True
     assert enhanced.generation_mode == "LLM_ENHANCED"
+    assert gateway.requests[0].thinking_type == "disabled"
+    assert gateway.requests[0].max_completion_tokens == 768
+
+
+def test_slow_model_enhancements_fall_back_within_node_budget() -> None:
+    class SlowModelGateway(StaticModelGateway):
+        async def generate(self, request: ModelGatewayInput) -> ModelGatewayOutput:
+            await asyncio.sleep(0.05)
+            return await super().generate(request)
+
+    goal = RecruitmentGoal(job_id=1, target_headcount=1)
+    plan = RecruitmentExecutionPlan(goal=goal, candidate_count=0)
+    job = RecruitmentJobContext(
+        job_id=1,
+        job_code="JOB-JAVA-INTERN-001",
+        job_title="Java 后端开发实习生",
+        department="研发部",
+        status="OPEN",
+        source_version="v1",
+        effective_date=date(2026, 1, 1),
+    )
+    report = HRReportSummary(goal=goal)
+
+    async def scenario() -> tuple[RecruitmentExecutionPlan, HRReportSummary]:
+        strategy = await enhance_recruitment_execution_plan(
+            plan,
+            job,
+            SlowModelGateway({}),
+            timeout_seconds=0.001,
+        )
+        hr_report = await enhance_hr_report(
+            report,
+            SlowModelGateway({}),
+            timeout_seconds=0.001,
+        )
+        return strategy, hr_report
+
+    strategy, hr_report = asyncio.run(scenario())
+    assert strategy.generation_mode == "RULE_BASED_FALLBACK"
+    assert strategy.fallback_used is True
+    assert hr_report.generation_mode == "RULE_BASED_FALLBACK"
+    assert hr_report.fallback_used is True
 
 
 def test_openai_compatible_gateway_normalizes_endpoint_and_parses_json_fence() -> None:

@@ -153,3 +153,10 @@
 - 决策：Agent Run、节点、事件和 Tool 调用保存到 PostgreSQL，SSE Queue 继续保留在当前进程；招聘策略与 HR 报告仅在确定性结果生成后使用 OpenAI-compatible Gateway 增强白名单叙述字段；企业知识按配置选择标准 OpenAI-compatible Embedding 或火山方舟多模态 Embedding Client，并使用 ChromaDB Persistent Collection、Metadata 过滤和关键词重排。
 - 原因：支持后端重启后按 `run_id` 恢复审计结果，同时让模型和知识库成为可关闭、可降级的增强能力，不改变人工算法和 HR 最终决定权。
 - 影响：新增 `0004_agent_runtime` 迁移；LLM/RAG 失败时分别使用 `RULE_BASED_FALLBACK` 和 `LOCAL_HYBRID_FALLBACK`；健康接口返回安全状态和知识库计数，不返回密钥、连接串、文档全文或模型原始响应。
+
+## ADR-023：招聘模型叙述增强采用独立延迟预算
+
+- 状态：已接受，代码存在，待本地人工验收
+- 决策：招聘策略叙述增强与企业知识检索并行执行；招聘策略与 HR 最终报告的模型请求关闭深度思考、限制输出 token，并分别使用默认 25 秒和 35 秒的节点内模型预算。超过预算时取消本次模型增强，继续使用已生成的确定性计划或报告。
+- 原因：叙述增强是可选能力，不应因模型慢响应或网关重试将确定性招聘工作流阻塞到分钟级；并行执行互不依赖的知识检索可减少策略节点关键路径。
+- 影响：新增 `AGENT_STRATEGY_MODEL_TIMEOUT_SECONDS`、`AGENT_STRATEGY_MAX_COMPLETION_TOKENS`、`AGENT_REPORT_MODEL_TIMEOUT_SECONDS`、`AGENT_REPORT_MAX_COMPLETION_TOKENS` 配置；超时结果明确标记 `RULE_BASED_FALLBACK`，不改变评分、排序、审查 findings、来源或 HR 最终决定权。

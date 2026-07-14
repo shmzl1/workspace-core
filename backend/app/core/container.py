@@ -188,6 +188,10 @@ def _build_application_container(settings: Settings) -> ApplicationContainer:
         decision_review_tool=DecisionReviewTool(),
         report_tool=RecruitmentReportTool(),
         model_gateway=model_gateway,
+        strategy_model_timeout_seconds=settings.agent_strategy_model_timeout_seconds,
+        strategy_max_completion_tokens=settings.agent_strategy_max_completion_tokens,
+        report_model_timeout_seconds=settings.agent_report_model_timeout_seconds,
+        report_max_completion_tokens=settings.agent_report_max_completion_tokens,
     )
     agent_store = PostgreSQLAgentRunStore(SessionLocal)
     return ApplicationContainer(

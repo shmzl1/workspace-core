@@ -20,3 +20,7 @@ class RecruitmentRunnerDependencies:
     decision_review_tool: DecisionReviewTool
     report_tool: RecruitmentReportTool
     model_gateway: ModelGateway
+    strategy_model_timeout_seconds: float = 25.0
+    strategy_max_completion_tokens: int = 512
+    report_model_timeout_seconds: float = 35.0
+    report_max_completion_tokens: int = 768

@@ -114,9 +114,34 @@ async def run_recruitment_strategy(
             RECRUITMENT_WORKFLOW_NODES,
             context.interview_candidate_ids,
         )
-        plan = await enhance_recruitment_execution_plan(plan, context.job, dependencies.model_gateway)
+        current_step = "retrieve_enterprise_knowledge"
+        await _publish(store, _event(
+            run_id, snapshot.trace_id, AgentEventType.TOOL_STARTED, AgentNodeStatus.RUNNING,
+            "开始读取企业招聘知识",
+            {"current_action": "与招聘策略叙述增强并行检索当前岗位知识"},
+            agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE, tool_name=KNOWLEDGE_TOOL_NAME,
+        ))
+        current_step = "enhance_strategy_and_retrieve_enterprise_knowledge"
+        plan, knowledge_result = await asyncio.gather(
+            enhance_recruitment_execution_plan(
+                plan,
+                context.job,
+                dependencies.model_gateway,
+                timeout_seconds=dependencies.strategy_model_timeout_seconds,
+                max_completion_tokens=dependencies.strategy_max_completion_tokens,
+            ),
+            dependencies.knowledge_tool.invoke(context),
+        )
+        knowledge_summary, job_rubric = knowledge_result
+        knowledge_fallback_used = knowledge_summary.retrieval_mode == "LOCAL_HYBRID_FALLBACK"
         state.execution_plan = plan
         snapshot.execution_plan = plan
+        state.knowledge_summary = knowledge_summary
+        state.job_rubric = job_rubric
+        state.sources = knowledge_summary.sources
+        snapshot.knowledge_summary = knowledge_summary
+        snapshot.job_rubric = job_rubric
+        snapshot.sources = knowledge_summary.sources
         await store.update_snapshot(run_id, snapshot, state)
         current_step = "publish_plan_created"
         await _publish(store, _event(
@@ -130,23 +155,7 @@ async def run_recruitment_strategy(
             agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE,
             duration_ms=plan.model_duration_ms, fallback_used=plan.fallback_used,
         ))
-
-        current_step = "retrieve_enterprise_knowledge"
-        await _publish(store, _event(
-            run_id, snapshot.trace_id, AgentEventType.TOOL_STARTED, AgentNodeStatus.RUNNING,
-            "开始读取企业招聘知识",
-            {"current_action": "按岗位编号、部门、文档类型和生效日期检索当前知识"},
-            agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE, tool_name=KNOWLEDGE_TOOL_NAME,
-        ))
-        knowledge_summary, job_rubric = await dependencies.knowledge_tool.invoke(context)
-        knowledge_fallback_used = knowledge_summary.retrieval_mode == "LOCAL_HYBRID_FALLBACK"
-        state.knowledge_summary = knowledge_summary
-        state.job_rubric = job_rubric
-        state.sources = knowledge_summary.sources
-        snapshot.knowledge_summary = knowledge_summary
-        snapshot.job_rubric = job_rubric
-        snapshot.sources = knowledge_summary.sources
-        await store.update_snapshot(run_id, snapshot, state)
+        current_step = "publish_enterprise_knowledge"
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.TOOL_COMPLETED, AgentNodeStatus.RUNNING,
             "企业招聘知识读取完成",
@@ -562,7 +571,12 @@ async def run_recruitment_strategy(
             state.interview_evaluations,
             report_tool,
         )
-        report = await enhance_hr_report(report, dependencies.model_gateway)
+        report = await enhance_hr_report(
+            report,
+            dependencies.model_gateway,
+            timeout_seconds=dependencies.report_model_timeout_seconds,
+            max_completion_tokens=dependencies.report_max_completion_tokens,
+        )
         state.report = report
         snapshot.report = report
         await store.update_snapshot(run_id, snapshot, state)

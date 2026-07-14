@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = Field(default=30, gt=0)
     llm_max_retries: int = Field(default=2, ge=0)
     llm_temperature: float = Field(default=0.2, ge=0, le=2)
+    agent_strategy_model_timeout_seconds: float = Field(default=25, gt=0)
+    agent_strategy_max_completion_tokens: int = Field(default=512, gt=0)
+    agent_report_model_timeout_seconds: float = Field(default=35, gt=0)
+    agent_report_max_completion_tokens: int = Field(default=768, gt=0)
     llm_proxy_url: SecretStr = Field(default_factory=lambda: SecretStr(""))
     llm_trust_env: bool = True
     openai_base_url: str = ""

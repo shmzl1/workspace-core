@@ -1,5 +1,6 @@
 """Static strategy node metadata and deterministic plan construction."""
 
+import asyncio
 from collections.abc import Sequence
 
 from pydantic import BaseModel, Field, ValidationError
@@ -93,37 +94,43 @@ async def enhance_recruitment_execution_plan(
     plan: RecruitmentExecutionPlan,
     job_context: RecruitmentJobContext,
     model_gateway: ModelGateway,
+    *,
+    timeout_seconds: float = 25.0,
+    max_completion_tokens: int = 512,
 ) -> RecruitmentExecutionPlan:
     """Enhance only narrative strategy fields after deterministic planning."""
 
     try:
-        output = await model_gateway.generate(ModelGatewayInput(
-            task_name="recruitment_strategy_enhancement",
-            system_context={"prompt": load_recruitment_prompt("strategy")},
-            structured_input={
-                "goal": plan.goal.model_dump(mode="json", exclude={"optional_salary_budget"}),
-                "job": {
-                    "job_id": job_context.job_id,
-                    "job_code": job_context.job_code,
-                    "job_title": job_context.job_title,
-                    "department": job_context.department,
+        output = await asyncio.wait_for(
+            model_gateway.generate(ModelGatewayInput(
+                task_name="recruitment_strategy_enhancement",
+                system_context={"prompt": load_recruitment_prompt("strategy")},
+                structured_input={
+                    "goal": plan.goal.model_dump(mode="json", exclude={"optional_salary_budget"}),
+                    "job": {
+                        "job_id": job_context.job_id,
+                        "job_code": job_context.job_code,
+                        "job_title": job_context.job_title,
+                        "department": job_context.department,
+                    },
+                    "candidate_count": plan.candidate_count,
+                    "executed_nodes": plan.executed_nodes,
+                    "skipped_nodes": plan.skipped_nodes,
+                    "deterministic_plan_notes": plan.plan_notes,
+                    "deterministic_next_actions": plan.next_actions,
                 },
-                "candidate_ids": plan.candidate_ids,
-                "candidate_count": plan.candidate_count,
-                "required_nodes": plan.required_nodes,
-                "executed_nodes": plan.executed_nodes,
-                "skipped_nodes": plan.skipped_nodes,
-                "deterministic_plan_notes": plan.plan_notes,
-                "deterministic_next_actions": plan.next_actions,
-            },
-            output_schema_name="StrategyEnhancement",
-        ))
+                output_schema_name="StrategyEnhancement",
+                thinking_type="disabled",
+                max_completion_tokens=max_completion_tokens,
+            )),
+            timeout=timeout_seconds,
+        )
         try:
             enhancement = StrategyEnhancement.model_validate(output.structured_output)
         except ValidationError as exc:
             _mark_output_error(model_gateway)
             raise ModelGatewayOutputError("招聘策略模型输出未通过结构校验。") from exc
-    except (ModelGatewayError, OSError, ValueError):
+    except (ModelGatewayError, OSError, TimeoutError, ValueError):
         return plan.model_copy(update={
             "generation_mode": "RULE_BASED_FALLBACK",
             "fallback_used": True,
