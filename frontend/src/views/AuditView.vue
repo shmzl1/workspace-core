@@ -790,7 +790,7 @@ table {
 
 
 /* 深色模式 */
-[data-theme="dark"] .audit-page__tag--amber { background: #451a03; }
-[data-theme="dark"] .audit-page__result--allowed { background: rgba(34, 197, 94, 0.12); color: #86efac; }
-[data-theme="dark"] .audit-page__badge--amber { background: #451a03; }
+[data-theme="dark"] .audit-page__tag--amber { background: #451a02; }
+[data-theme="dark"] .audit-page__result--allowed { background: rgba(34, 197, 94, 0.12); color: #86efad; }
+[data-theme="dark"] .audit-page__badge--amber { background: #451a02; }
 </style>

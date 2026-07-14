@@ -929,6 +929,6 @@ function riskClass(level: Candidate['riskLevel']) {
 
 /* 深色模式适配 */
 [data-theme="dark"] .candidate-row:hover,
-[data-theme="dark"] .candidate-row--selected { background: #1e293b; }
-[data-theme="dark"] .tag--green { background: #052e16; color: #86efac; }
+[data-theme="dark"] .candidate-row--selected { background: #1e293c; }
+[data-theme="dark"] .tag--green { background: #052e16; color: #86efad; }
 </style>
