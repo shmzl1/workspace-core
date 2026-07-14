@@ -1,32 +1,154 @@
 <template>
-  <section class="evaluation-page">
-    <header class="evaluation-page__hero">
-      <div><span>招聘决策中心</span><h1>多 Agent 招聘评估</h1><p>围绕招聘目标生成策略、企业知识、候选人画像、岗位匹配、决策审查与 HR 建议，确定性评分和最终决定始终保留人工边界。</p></div>
-      <div class="phase-badge">PostgreSQL Run · 实时 SSE</div>
+  <section class="min-h-screen text-slate-800 space-y-8 pb-20">
+    <!-- Local Dashboard Header -->
+    <header class="bg-white rounded-3xl border border-slate-200 px-8 py-6 flex items-center justify-between shadow-sm">
+      <div>
+        <h1 class="text-2xl font-black text-slate-900 tracking-tight">AI 招聘中心</h1>
+        <p class="text-sm text-slate-500 mt-1">围绕招聘目标生成策略、画像匹配、最终决定始终保留人工边界。</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-xs font-bold uppercase tracking-wider">
+          PostgreSQL Run · 实时 SSE
+        </span>
+      </div>
     </header>
-
-    <IntegrationStatusPanel
-      :health="integrationHealth"
-      :loading="healthLoading"
-      :error="healthError"
-      @refresh="loadIntegrationStatus"
-    />
 
     <PermissionDenied v-if="permissionDenied" description="当前账号缺少 agent.hr.use 权限。" />
     <LoadingState v-else-if="contextLoading" message="正在读取真实岗位与候选人…" />
     <ErrorState v-else-if="contextError" title="招聘上下文加载失败" :message="contextError" retry-label="重新加载" @retry="loadContext" />
+    
     <template v-else>
-      <RecruitmentGoalForm :jobs="jobs" :applications="applications" :disabled="runBusy" @submit="start" />
-      <div v-if="error" class="evaluation-page__error"><strong>运行提示</strong><span>{{ error }}</span></div>
-      <RecruitmentRunOverview :snapshot="snapshot" />
-      <div class="evaluation-page__workspace">
-        <MultiAgentWorkflowBoard :snapshot="snapshot" :selected-node="selectedNode" @select="selectedNode = $event" />
-        <AgentEventFeed :events="events" :streaming="streaming" :status="snapshot?.status" />
+      <!-- Section 1: Goal Configuration Form -->
+      <RecruitmentGoalForm 
+        :jobs="jobs" 
+        :applications="applications" 
+        :disabled="runBusy" 
+        @submit="start" 
+      />
+
+      <!-- Node/Workflow Run Errors -->
+      <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl text-sm flex items-center gap-3 shadow-sm">
+        <svg class="w-5 h-5 text-red-500 flex-shrink-0 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <div>
+          <strong class="font-bold">运行提示：</strong>
+          <span>{{ error }}</span>
+        </div>
       </div>
-      <AgentNodeDetail :snapshot="snapshot" :node-name="selectedNode" />
-      <Sprint22ResultsPanel :snapshot="snapshot" />
-      <Sprint23ResultsPanel :snapshot="snapshot" :candidate-names="candidateNames" />
+
+      <!-- Section 2: Top-Level Workflow Path (Horizontal Canvas) -->
+      <MultiAgentWorkflowBoard 
+        :snapshot="snapshot" 
+        :selected-node="selectedNode" 
+        @select="handleNodeSelect" 
+      />
+
+      <!-- Section 3: Position Match & AI Review Unified Card (Collapsible) -->
+      <Sprint23ResultsPanel 
+        :snapshot="snapshot" 
+        :candidate-names="candidateNames"
+        v-model:expanded-id="activeReportId"
+      />
+
+      <!-- Section 4: Checkable Candidate applications list -->
+      <section class="bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
+          <h2 class="text-lg font-bold flex items-center gap-2 text-slate-900">
+            <div class="w-1.5 h-6 bg-purple-500 rounded-full"></div>
+            候选人列表
+          </h2>
+          <span class="text-xs text-slate-400 font-medium">勾选候选人可以批量标记为初筛通过</span>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200">
+                <th class="py-4 px-4 w-12">
+                  <input 
+                    type="checkbox" 
+                    class="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer" 
+                    @change="toggleSelectAll"
+                    :checked="isAllSelected"
+                  />
+                </th>
+                <th class="py-4 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">候选人</th>
+                <th class="py-4 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">当前状态</th>
+                <th class="py-4 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">综合得分</th>
+                <th class="py-4 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr 
+                v-for="candidate in candidatesList" 
+                :key="candidate.id" 
+                class="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+              >
+                <td class="py-4 px-4">
+                  <input 
+                    type="checkbox" 
+                    class="w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    :checked="selectedCandidates.includes(candidate.id)"
+                    @change="toggleCandidate(candidate.id)"
+                  />
+                </td>
+                <td class="py-4 px-4 font-bold text-slate-800">{{ candidate.name }}</td>
+                <td class="py-4 px-4">
+                  <span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-bold uppercase tracking-wider">
+                    {{ candidate.status }}
+                  </span>
+                </td>
+                <td class="py-4 px-4 font-bold text-indigo-600">
+                  {{ candidate.score ? candidate.score.toFixed(2) + '分' : '—' }}
+                </td>
+                <td class="py-4 px-4 text-right">
+                  <button 
+                    @click="scrollToReport(candidate.id)"
+                    class="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                  >
+                    查看画像
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="candidatesList.length === 0">
+                <td colspan="5" class="py-8 text-center text-slate-400 text-sm font-medium">
+                  当前暂无候选人评估数据
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </template>
+
+    <!-- Floating Action Bar at the Bottom -->
+    <div v-if="selectedCandidates.length > 0" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-[translateY_0.2s_ease-out]">
+      <div class="bg-slate-900 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-6">
+        <span class="text-sm font-medium">已选择 {{ selectedCandidates.length }} 名候选人</span>
+        <div class="w-px h-4 bg-slate-700"></div>
+        <button 
+          @click="handleImport"
+          :disabled="advancingCandidates"
+          class="bg-indigo-500 hover:bg-indigo-400 disabled:bg-indigo-300 text-white px-5 py-2 rounded-full text-sm font-bold transition-colors cursor-pointer"
+        >
+          {{ advancingCandidates ? '正在处理…' : '初筛通过' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Success Toast Notification -->
+    <div 
+      v-if="toastVisible" 
+      class="fixed top-20 left-1/2 -translate-x-1/2 z-50 transition-all duration-300"
+    >
+      <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3">
+        <svg class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        <span class="font-bold text-sm">已成功导入候选人池</span>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -34,19 +156,18 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { ApiClientError } from '../../../shared/api/apiClient';
-import { fetchApplications, fetchJobs, type CandidateApplicationListItem } from '../../../shared/api/modules/recruitment';
-import { getBackendHealth, type BackendHealth } from '../../../shared/api/modules/health';
+import { 
+  fetchApplications, 
+  fetchJobs, 
+  advanceCandidateStage,
+  type CandidateApplicationListItem 
+} from '../../../shared/api/modules/recruitment';
 import type { Job } from '../../../shared/api/types';
 import ErrorState from '../../../shared/components/feedback/ErrorState.vue';
 import LoadingState from '../../../shared/components/feedback/LoadingState.vue';
 import PermissionDenied from '../../../shared/components/feedback/PermissionDenied.vue';
-import AgentEventFeed from './components/AgentEventFeed.vue';
-import AgentNodeDetail from './components/AgentNodeDetail.vue';
-import IntegrationStatusPanel from './components/IntegrationStatusPanel.vue';
 import MultiAgentWorkflowBoard from './components/MultiAgentWorkflowBoard.vue';
 import RecruitmentGoalForm from './components/RecruitmentGoalForm.vue';
-import RecruitmentRunOverview from './components/RecruitmentRunOverview.vue';
-import Sprint22ResultsPanel from './components/Sprint22ResultsPanel.vue';
 import Sprint23ResultsPanel from './components/Sprint23ResultsPanel.vue';
 import { useRecruitmentAgentRun } from './composables/useRecruitmentAgentRun';
 
@@ -57,15 +178,134 @@ const contextLoading = ref(true);
 const contextError = ref('');
 const permissionDenied = ref(false);
 const selectedNode = ref('recruitment_strategy');
-const integrationHealth = ref<BackendHealth | null>(null);
-const healthLoading = ref(false);
-const healthError = ref('');
+
+const selectedCandidates = ref<number[]>([]);
+const activeReportId = ref<number | null>(null);
+const toastVisible = ref(false);
+const advancingCandidates = ref(false);
+
 const { snapshot, events, loading, streaming, error, isTerminal, start, restore } = useRecruitmentAgentRun();
 const runBusy = computed(() => loading.value || Boolean(snapshot.value && !isTerminal.value));
+
 const candidateNames = computed(() => applications.value.reduce<Record<number, string>>((names, application) => {
   if (application.candidate_name) names[application.candidate_id] = application.candidate_name;
   return names;
 }, {}));
+
+// Dynamic candidates table mapping real run or mock context
+const candidatesList = computed(() => {
+  if (!snapshot.value) {
+    return [
+      { id: 1, name: '陈晨', status: 'INTERVIEW_PENDING', score: 60.81, applicationId: null },
+      { id: 2, name: '吴桐', status: 'AI_SCREENED', score: 45.40, applicationId: null },
+    ];
+  }
+  
+  const jobMatches = snapshot.value.job_matches || {};
+  return Object.values(jobMatches).map((match) => {
+    const candidateId = match.candidate_id;
+    const app = applications.value.find(
+      (a) => a.candidate_id === candidateId && a.job_id === snapshot.value!.goal.job_id
+    );
+    return {
+      id: candidateId,
+      name: candidateNames.value[candidateId] || `候选人 #${candidateId}`,
+      status: app ? app.current_stage : 'INTERVIEW_PENDING',
+      score: match.overall_score || 0,
+      applicationId: app?.id || null,
+    };
+  }).sort((a, b) => b.score - a.score);
+});
+
+// Selection logic
+const isAllSelected = computed(() => {
+  return candidatesList.value.length > 0 && selectedCandidates.value.length === candidatesList.value.length;
+});
+
+function toggleSelectAll(e: Event) {
+  const target = e.target as HTMLInputElement;
+  if (target.checked) {
+    selectedCandidates.value = candidatesList.value.map((c) => c.id);
+  } else {
+    selectedCandidates.value = [];
+  }
+}
+
+function toggleCandidate(id: number) {
+  if (selectedCandidates.value.includes(id)) {
+    selectedCandidates.value = selectedCandidates.value.filter((cid) => cid !== id);
+  } else {
+    selectedCandidates.value.push(id);
+  }
+}
+
+function scrollToReport(id: number) {
+  activeReportId.value = id;
+  // Scroll dynamically to result panel
+  setTimeout(() => {
+    const element = document.querySelector('.bg-teal-500');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 100);
+}
+
+// Bulk advance candidate applications to candidate pool
+async function handleImport() {
+  if (selectedCandidates.value.length === 0) return;
+  
+  advancingCandidates.value = true;
+  try {
+    if (snapshot.value) {
+      // Real database integration
+      const jobMatches = snapshot.value.job_matches || {};
+      for (const candidateId of selectedCandidates.value) {
+        const item = candidatesList.value.find(c => c.id === candidateId);
+        if (item && item.applicationId) {
+          // Extract scores if present in snapshot
+          const match = jobMatches[String(candidateId)] || jobMatches[candidateId];
+          const score_total = match?.overall_score ?? null;
+          const score_breakdown = match ? {
+            project: match.dimension_scores?.project || match.dimension_scores?.projects || 0,
+            skill: match.dimension_scores?.skill || match.dimension_scores?.skills || match.dimension_scores?.skill_match || 0,
+            education: match.dimension_scores?.education || match.dimension_scores?.edu || 0,
+            experience: match.dimension_scores?.experience || match.dimension_scores?.exp || 0,
+            risk: match.dimension_scores?.risk || 0,
+            match_score: match.job_match_score || score_total || 0,
+            overall_score: score_total || 0
+          } : null;
+
+          // Determine next stage
+          // APPLIED -> AI_SCREENED to enter candidate pool
+          // If already AI_SCREENED or beyond, do not change stage (use item.status) but update scores
+          const targetStage = item.status === 'APPLIED' ? 'AI_SCREENED' : item.status;
+
+          await advanceCandidateStage(item.applicationId, {
+            to_stage: targetStage as any,
+            note: '多 Agent 招聘决策评估完成，HR 批量审查导入候选人池并同步评分。',
+            score_total,
+            score_breakdown
+          });
+        }
+      }
+      await loadContext(); // Reload to refresh stages
+    }
+    
+    // Show success toast
+    toastVisible.value = true;
+    setTimeout(() => { toastVisible.value = false; }, 3000);
+    selectedCandidates.value = [];
+  } catch (err) {
+    console.error('Failed to bulk import candidate stage:', err);
+    alert('部分候选人阶段更新失败，请稍后重试。');
+  } finally {
+    advancingCandidates.value = false;
+  }
+}
+
+function handleNodeSelect(nodeName: string) {
+  selectedNode.value = nodeName;
+}
 
 async function loadContext(): Promise<void> {
   contextLoading.value = true;
@@ -81,32 +321,10 @@ async function loadContext(): Promise<void> {
   }
 }
 
-async function loadIntegrationStatus(): Promise<void> {
-  healthLoading.value = true;
-  healthError.value = '';
-  try {
-    integrationHealth.value = await getBackendHealth();
-  } catch (cause) {
-    integrationHealth.value = null;
-    healthError.value = cause instanceof Error ? cause.message : '集成状态暂时无法获取';
-  } finally {
-    healthLoading.value = false;
-  }
-}
-
 onMounted(async () => {
-  await Promise.all([loadContext(), loadIntegrationStatus()]);
+  await loadContext();
   const queryRunId = route.query.run_id;
   const runId = Array.isArray(queryRunId) ? queryRunId[0] : queryRunId;
   if (typeof runId === 'string' && runId) await restore(runId);
 });
-
-watch(() => snapshot.value?.status, (status, previous) => {
-  if (status && status !== previous && isTerminal.value) void loadIntegrationStatus();
-});
 </script>
-
-<style scoped>
-.evaluation-page { display:grid; max-width:1600px; margin:0 auto; gap:20px; }.evaluation-page__hero { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; }.evaluation-page__hero span { color:var(--color-primary); font-size:12px; font-weight:900; }.evaluation-page__hero h1 { margin:7px 0; color:var(--color-text); font-size:30px; }.evaluation-page__hero p { margin:0; color:var(--color-muted); }.phase-badge { padding:10px 14px; border:1px solid var(--color-line); border-radius:999px; background:var(--color-surface); color:var(--color-primary); font-weight:800; }.evaluation-page__workspace { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(420px,.8fr); gap:18px; align-items:start; }.evaluation-page__error { display:flex; gap:12px; padding:13px 16px; border:1px solid var(--color-node-failed-border); border-radius:var(--radius-sm); background:var(--color-status-error-bg); color:var(--color-status-error-text); }.evaluation-page__error span { color:var(--color-status-error-text); } @media(max-width:1100px){.evaluation-page__workspace{grid-template-columns:1fr}.evaluation-page__hero{align-items:flex-start;flex-direction:column}} 
-</style>
-

@@ -145,11 +145,13 @@ class CandidateApplicationDetailRead(BaseModel):
 class AdvanceStageRequest(BaseModel):
     to_stage: str = Field(min_length=1, max_length=32)
     note: str | None = Field(default=None, max_length=2000)
+    score_total: Decimal | None = Field(default=None)
+    score_breakdown: dict[str, Any] | None = Field(default=None)
 
 
 class AdvanceStageResponse(BaseModel):
     application: CandidateApplicationRead
-    pipeline_record: CandidatePipelineRecordRead
+    pipeline_record: CandidatePipelineRecordRead | None = None
 
 
 class RecruitmentDashboardRead(BaseModel):

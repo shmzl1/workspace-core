@@ -11,5 +11,7 @@
     "python.analysis.venvPath": "C:\\Users\\Y9000P AI\\.conda\\envs",
     "python.analysis.venv": "talentflow",
     "pyright.venvPath": "C:\\Users\\Y9000P AI\\.conda\\envs",
-    "pyright.venv": "talentflow"
+    "pyright.venv": "talentflow",
+    "python.analysis.autoSearchPaths": false,
+    "python.analysis.includeExtraPathSymbolsInSymbolSearch": false
 }

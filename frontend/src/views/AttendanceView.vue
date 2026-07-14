@@ -434,7 +434,7 @@ onUnmounted(() => {
 
 <style scoped>
 /* 深色模式适配 */
-[data-theme="dark"] .bg-amber-50 { background-color: #451a03 !important; }
-[data-theme="dark"] .text-amber-600 { color: #fdba74 !important; }
+[data-theme="dark"] .bg-amber-50 { background-color: #451a02 !important; }
+[data-theme="dark"] .text-amber-600 { color: #fdba75 !important; }
 [data-theme="dark"] .bg-amber-500\/20 { background-color: rgba(245, 158, 11, 0.15) !important; }
 </style>

@@ -1,4 +1,4 @@
-﻿import apiClient from '../apiClient';
+import apiClient from '../apiClient';
 import type {
   Candidate,
   CandidateApplication,
@@ -69,7 +69,12 @@ export async function fetchApplication(applicationId: number): Promise<Candidate
 
 export async function advanceCandidateStage(
   applicationId: number,
-  payload: { to_stage: PipelineStage; note?: string },
+  payload: { 
+    to_stage: PipelineStage; 
+    note?: string; 
+    score_total?: number | null; 
+    score_breakdown?: Record<string, any> | null;
+  },
 ): Promise<AdvanceStageResponse> {
   const response = await apiClient.post<AdvanceStageResponse>(
     `/recruitment/applications/${applicationId}/advance`,
