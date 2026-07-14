@@ -60,7 +60,6 @@ ENDPOINTS = [
     (15, "GET", "/api/v1/recruitment/dashboard"),
     # 中频业务类
     (10, "GET", "/api/v1/recruitment/candidates"),
-    (10, "GET", "/api/v1/attendance/today"),
     (10, "GET", "/api/v1/interviews"),
     # 低频查询类
     (5,  "GET", "/api/v1/policies"),
