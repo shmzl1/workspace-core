@@ -36,3 +36,6 @@ zip/
 # 数据库与缓存
 *.db
 .npm-cache/
+
+docs/测试说明.md
+docs/测试异常路径与缺陷注入记录.md

@@ -34,6 +34,9 @@ FORBIDDEN_DIRECT_IMPORTS = (
 def assert_agent_boundary(import_path: str) -> None:
     """Validate imports made by Agent runtime/nodes, not normal API dependencies."""
 
-    if import_path.startswith(FORBIDDEN_DIRECT_IMPORTS):
+    if any(
+        import_path == forbidden or import_path.startswith(f"{forbidden}.")
+        for forbidden in FORBIDDEN_DIRECT_IMPORTS
+    ):
         raise ValueError("Agent must call Tool -> Service instead of a restricted boundary.")
 
