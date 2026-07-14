@@ -392,8 +392,26 @@ class RecruitmentService:
         if detail is None:
             raise TalentFlowError("APPLICATION_NOT_FOUND", "候选人申请不存在。")
         application, candidate, job = detail
+
+        # Save scores if provided in the payload
+        if payload.score_total is not None or payload.score_breakdown is not None:
+            score_val = payload.score_total if payload.score_total is not None else application.score_total
+            breakdown_val = payload.score_breakdown if payload.score_breakdown is not None else application.score_breakdown or {}
+            self.repository.save_application_score(
+                application,
+                score_val,
+                breakdown_val,
+                application.weights_snapshot or {}
+            )
+
         if application.current_stage == target_stage:
+            if payload.score_total is not None or payload.score_breakdown is not None:
+                return AdvanceStageResponse(
+                    application=self._application_read(application, candidate.full_name, job.title),
+                    pipeline_record=None,
+                )
             raise TalentFlowError("PIPELINE_STAGE_UNCHANGED", "候选人已处于该阶段，无需重复推进。")
+
         if not self._is_allowed_transition(application.current_stage, target_stage):
             raise TalentFlowError(
                 "INVALID_PIPELINE_TRANSITION",

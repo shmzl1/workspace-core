@@ -1,233 +1,356 @@
 <template>
-  <section class="sprint23-results" :class="{ 'sprint23-results--collapsed': collapsed }">
-    <button type="button" class="sprint23-results__toggle" @click="collapsed = !collapsed">
-      <div><span>招聘决策</span><h2>岗位匹配、决策审查与 HR 报告</h2></div>
-      <div class="sprint23-results__toggle-meta">
-        <strong>确定性结果与智能叙述</strong>
-        <svg class="sprint23-results__chevron" :class="{ 'sprint23-results__chevron--collapsed': collapsed }" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-      </div>
-    </button>
-    <div v-if="!collapsed" class="sprint23-results__body">
+  <div class="space-y-6">
+    <!-- Header -->
+    <h2 class="text-lg font-bold flex items-center gap-2 px-2 text-slate-800">
+      <div class="w-1.5 h-6 bg-teal-500 rounded-full"></div>
+      岗位匹配与 AI 分析报告
+    </h2>
 
-    <section class="result-section">
-      <header class="result-section__heading">
-        <div><span>01</span><h3>岗位匹配结果</h3></div>
-        <strong>{{ jobMatches.length }} 名候选人</strong>
-      </header>
-      <div v-if="jobMatches.length" class="result-grid">
-        <article v-for="match in jobMatches" :key="match.candidate_id" class="result-card">
-          <header class="result-card__heading">
-            <div><span>候选人</span><h4>{{ candidateLabel(match.candidate_id) }}</h4></div>
-            <span :class="['status-chip', jobMatchReviewPending(match) ? 'status-chip--review' : 'status-chip--complete']">
-              {{ jobMatchReviewPending(match) ? '需要人工复核' : jobMatchReviewApproved(match) ? '已通过 HR 审查' : '评分结果已返回' }}
-            </span>
-          </header>
-
-          <p v-if="match.overall_score === null || match.job_match_score === null" class="score-unavailable">
-            确定性评分暂不可用，请人工复核
-          </p>
-          <dl class="metric-grid">
-            <div><dt>综合分</dt><dd>{{ formatScore(match.overall_score) }}</dd></div>
-            <div><dt>岗位匹配分</dt><dd>{{ formatScore(match.job_match_score) }}</dd></div>
-            <div><dt>必备条件</dt><dd>{{ booleanLabel(match.must_have_passed, '通过', '未通过') }}</dd></div>
-            <div><dt>证据数量</dt><dd>{{ match.evidence_ids.length }}</dd></div>
-            <div><dt>知识来源</dt><dd>{{ match.knowledge_sources.length }}</dd></div>
-            <div><dt>评分模式</dt><dd>{{ match.scoring_mode }}</dd></div>
-          </dl>
-
-          <div class="detail-block">
-            <h5>五维分数</h5>
-            <div v-if="dimensionEntries(match).length" class="dimension-grid">
-              <div v-for="[dimension, score] in dimensionEntries(match)" :key="dimension">
-                <span>{{ dimensionLabel(dimension) }}</span><strong>{{ formatScore(score) }}</strong>
-              </div>
-            </div>
-            <p v-else class="empty-inline">后端未返回维度分数。</p>
+    <!-- Candidate List Reports (Collapsible) -->
+    <div v-for="candidate in displayCandidates" :key="candidate.id" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+      <!-- Collapse Toggle Header -->
+      <div 
+        class="px-6 py-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none"
+        @click="toggleReport(candidate.id)"
+      >
+        <div class="flex items-center gap-4">
+          <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg">
+            {{ candidate.name.charAt(0) }}
           </div>
-
-          <div class="detail-columns">
-            <div class="detail-block">
-              <h5>已匹配技能</h5>
-              <div v-if="match.matched_skills.length" class="tag-list tag-list--matched">
-                <span v-for="skill in match.matched_skills" :key="skill">{{ skill }}</span>
-              </div>
-              <p v-else class="empty-inline">暂无有证据支持的匹配技能。</p>
-            </div>
-            <div class="detail-block">
-              <h5>缺失技能</h5>
-              <div v-if="match.missing_skills.length" class="tag-list tag-list--missing">
-                <span v-for="skill in match.missing_skills" :key="skill">{{ skill }}</span>
-              </div>
-              <p v-else class="empty-inline">未标记缺失技能。</p>
+          <div>
+            <span class="text-base font-bold text-slate-800">{{ candidate.name }}</span>
+            <div class="text-sm font-medium text-slate-500 mt-0.5">
+              综合分: <span class="text-indigo-600 font-black">{{ formatNum(candidate.score) }}分</span>
             </div>
           </div>
-
-          <div class="detail-block">
-            <h5>建议面试问题</h5>
-            <ul v-if="match.suggested_interview_questions.length" class="compact-list">
-              <li v-for="question in match.suggested_interview_questions" :key="question">{{ question }}</li>
-            </ul>
-            <p v-else class="empty-inline">当前真实结果未生成建议问题。</p>
+        </div>
+        
+        <div class="flex items-center gap-6">
+          <span 
+            v-if="candidate.riskLevel === 'HIGH'" 
+            class="px-3 py-1 bg-red-50 text-red-600 rounded-md text-xs font-bold border border-red-100"
+          >
+            高风险项
+          </span>
+          <span 
+            v-else 
+            class="px-3 py-1 bg-amber-50 text-amber-600 rounded-md text-xs font-bold border border-amber-100"
+          >
+            需人工复核
+          </span>
+          
+          <div :class="['transform transition-transform duration-300 text-slate-400', expandedReportId === candidate.id ? 'rotate-180' : '']">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
           </div>
-          <p class="recommendation"><b>建议动作</b>{{ match.recommended_action || '等待后端建议' }}</p>
-          <p class="contract-line"><b>requires_review</b>{{ match.requires_review ? 'true' : 'false' }}</p>
-        </article>
-      </div>
-      <p v-else class="empty-state">运行到岗位匹配节点后显示真实确定性结果，不使用静态样例。</p>
-      <div v-if="jobMatchApprovalPending || jobMatchApprovalSubmitted || jobMatchApprovalError" class="review-approval">
-        <button v-if="jobMatchApprovalPending && !jobMatchApprovalSubmitted" type="button" :disabled="jobMatchApproving" @click="approveJobMatch">
-          审查通过
-        </button>
-        <p v-if="jobMatchApprovalSubmitted">
-          {{ decisionReviewApprovalPending ? '岗位匹配审查已通过，请继续审查决策审查结果。' : '岗位匹配审查已通过，正在生成 HR 最终报告…' }}
-        </p>
-        <p v-else-if="jobMatchApprovalError" class="review-approval__error">{{ jobMatchApprovalError }}</p>
-      </div>
-    </section>
-
-    <section class="result-section">
-      <header class="result-section__heading">
-        <div><span>02</span><h3>决策审查结果</h3></div>
-        <strong>{{ decisionReviews.length }} 名候选人</strong>
-      </header>
-      <div v-if="decisionReviews.length" class="result-grid">
-        <article v-for="review in decisionReviews" :key="review.candidate_id" class="result-card">
-          <header class="result-card__heading">
-            <div><span>候选人</span><h4>{{ candidateLabel(review.candidate_id) }}</h4></div>
-            <span :class="['status-chip', decisionReviewPending(review) ? 'status-chip--review' : 'status-chip--complete']">
-              {{ decisionReviewPending(review) ? '需要人工复核' : decisionReviewApproved(review) ? '已通过 HR 审查' : '审查结果已返回' }}
-            </span>
-          </header>
-          <dl class="metric-grid metric-grid--review">
-            <div><dt>可信度</dt><dd>{{ formatConfidence(review.confidence) }}</dd></div>
-            <div><dt>审查模式</dt><dd>{{ review.review_mode }}</dd></div>
-            <div><dt>确定性评分保留</dt><dd>{{ review.deterministic_score_preserved ? '是' : '否，请核对' }}</dd></div>
-          </dl>
-
-          <div class="detail-block">
-            <h5>审查发现</h5>
-            <ul v-if="review.findings.length" class="finding-list">
-              <li v-for="(finding, index) in review.findings" :key="`${finding.code}-${index}`">
-                <span :class="['severity-chip', `severity-chip--${finding.severity.toLowerCase()}`]">{{ finding.severity }}</span>
-                <div><strong>{{ finding.code }}</strong><p>{{ finding.summary }}</p><small>证据 {{ finding.evidence_ids.length }} 条</small></div>
-              </li>
-            </ul>
-            <p v-else class="empty-inline">后端未返回审查发现。</p>
-          </div>
-
-          <div class="detail-columns">
-            <div class="detail-block">
-              <h5>风险标签</h5>
-              <div v-if="review.risk_tags.length" class="tag-list tag-list--missing">
-                <span v-for="tag in review.risk_tags" :key="tag">{{ tag }}</span>
-              </div>
-              <p v-else class="empty-inline">未标记风险标签。</p>
-            </div>
-            <div class="detail-block">
-              <h5>Agent 分歧</h5>
-              <ul v-if="review.agent_disagreements.length" class="compact-list">
-                <li v-for="item in review.agent_disagreements" :key="item">{{ item }}</li>
-              </ul>
-              <p v-else class="empty-inline">未记录 Agent 分歧。</p>
-            </div>
-          </div>
-          <p class="recommendation"><b>建议动作</b>{{ review.recommended_action || '等待后端建议' }}</p>
-        </article>
-      </div>
-      <p v-else class="empty-state">运行到决策审查节点后显示真实规则审查结果，不使用静态样例。</p>
-      <div v-if="decisionReviewApprovalPending || decisionReviewApprovalSubmitted || decisionReviewApprovalError" class="review-approval">
-        <button v-if="decisionReviewApprovalPending && !decisionReviewApprovalSubmitted" type="button" :disabled="decisionReviewApproving" @click="approveDecisionReview">
-          审查通过
-        </button>
-        <p v-if="decisionReviewApprovalSubmitted">
-          {{ jobMatchApprovalPending ? '决策审查已通过，请继续审查岗位匹配结果。' : '决策审查已通过，正在生成 HR 最终报告…' }}
-        </p>
-        <p v-else-if="decisionReviewApprovalError" class="review-approval__error">{{ decisionReviewApprovalError }}</p>
-      </div>
-    </section>
-
-    <section class="result-section">
-      <header class="result-section__heading">
-        <div><span>03</span><h3>HR 最终报告</h3></div>
-        <strong>{{ report?.generation_mode || '等待生成' }}</strong>
-      </header>
-      <div v-if="report" class="report-grid">
-        <article class="report-card report-card--wide">
-          <h4>报告摘要</h4>
-          <p>{{ report.executive_summary || '当前使用确定性报告摘要。' }}</p>
-          <small>模型：{{ report.model_name || '未使用模型' }} · fallback_used：{{ report.fallback_used }}</small>
-        </article>
-        <article class="report-card">
-          <h4>候选人排序</h4>
-          <ol v-if="report.candidate_rankings.length" class="ranking-list">
-            <li v-for="(candidateId, index) in report.candidate_rankings" :key="candidateId">
-              <span>{{ index + 1 }}</span><strong>{{ candidateLabel(candidateId) }}</strong><small>{{ rankingScore(candidateId) }}</small>
-            </li>
-          </ol>
-          <p v-else class="empty-inline">报告未返回候选人排序。</p>
-        </article>
-
-        <article class="report-card">
-          <h4>候选人审查摘要</h4>
-          <div v-if="report.candidate_reviews.length" class="review-summary-list">
-            <div v-for="review in report.candidate_reviews" :key="review.candidate_id">
-              <strong>{{ candidateLabel(review.candidate_id) }}</strong>
-              <span>可信度：{{ formatConfidence(review.confidence) }}</span>
-              <p>{{ review.recommended_action || '等待后端建议' }}</p>
-              <small>{{ findingCodes(review) }}</small>
-            </div>
-          </div>
-          <p v-else class="empty-inline">报告未返回候选人审查摘要。</p>
-        </article>
-
-        <article class="report-card">
-          <h4>企业知识</h4>
-          <strong class="source-count">{{ report.knowledge_sources.length }}</strong>
-          <p>个真实来源进入本次结构化报告。</p>
-          <small>generation_mode：{{ report.generation_mode }}</small>
-        </article>
-
-        <article class="report-card">
-          <h4>人才缺口</h4>
-          <ul v-if="report.talent_gaps.length" class="compact-list">
-            <li v-for="gap in report.talent_gaps" :key="gap">{{ gap }}</li>
-          </ul>
-          <p v-else class="empty-inline">当前报告未标记人才缺口。</p>
-        </article>
-
-        <article class="report-card report-card--wide">
-          <h4>下一步动作</h4>
-          <ul v-if="report.next_actions.length" class="compact-list">
-            <li v-for="action in report.next_actions" :key="action">{{ action }}</li>
-          </ul>
-          <p v-else class="empty-inline">当前报告未返回下一步动作。</p>
-        </article>
-
-        <article class="report-card">
-          <h4>风险摘要</h4>
-          <ul v-if="report.risk_summary.length" class="compact-list">
-            <li v-for="risk in report.risk_summary" :key="risk">{{ risk }}</li>
-          </ul>
-          <p v-else class="empty-inline">当前没有模型增强风险摘要。</p>
-        </article>
-
-        <article class="report-card">
-          <h4>缺失信息</h4>
-          <ul v-if="report.missing_information.length" class="compact-list">
-            <li v-for="item in report.missing_information" :key="item">{{ item }}</li>
-          </ul>
-          <p v-else class="empty-inline">未标记额外缺失信息。</p>
-        </article>
-
-        <div class="human-decision">
-          <div><span>人工决策边界</span><strong>最终决定由 HR 完成</strong></div>
-          <p>{{ report.requires_human_decision ? '本报告仅提供建议与待复核信息，不代表已录用或已淘汰。' : '报告未标记人工决定，请核对后端结果。' }}</p>
         </div>
       </div>
-      <p v-else class="empty-state">HR 报告尚未生成；此处只显示真实 Run 返回的报告，不使用静态样例。</p>
-    </section>
+
+      <!-- Expanded Content details -->
+      <div 
+        v-show="expandedReportId === candidate.id" 
+        class="border-t border-slate-100 transition-all duration-300"
+      >
+        <div class="p-6 space-y-6 bg-slate-50/30">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left: Quantitative Dimensions & Questions -->
+            <div class="space-y-4">
+              <div>
+                <h3 class="text-xs font-bold text-slate-800 mb-3 border-l-4 border-blue-500 pl-2 uppercase tracking-wider">量化匹配维度</h3>
+                <div class="grid grid-cols-2 gap-3.5">
+                  <div class="bg-white p-3.5 rounded-xl border border-slate-200/60 shadow-sm">
+                    <div class="text-[10px] text-slate-400 font-bold mb-0.5">经验匹配</div>
+                    <div class="text-lg font-black text-slate-800">
+                      {{ formatNum(candidate.radar.exp) }}<span class="text-xs font-medium text-slate-400 ml-0.5">分</span>
+                    </div>
+                  </div>
+                  <div class="bg-white p-3.5 rounded-xl border border-slate-200/60 shadow-sm">
+                    <div class="text-[10px] text-slate-400 font-bold mb-0.5">技能匹配</div>
+                    <div class="text-lg font-black text-slate-800">
+                      {{ formatNum(candidate.radar.skill) }}<span class="text-xs font-medium text-slate-400 ml-0.5">分</span>
+                    </div>
+                  </div>
+                  <div class="bg-white p-3.5 rounded-xl border border-slate-200/60 shadow-sm">
+                    <div class="text-[10px] text-slate-400 font-bold mb-0.5">教育背景</div>
+                    <div class="text-lg font-black text-slate-800">
+                      {{ formatNum(candidate.radar.edu) }}<span class="text-xs font-medium text-slate-400 ml-0.5">分</span>
+                    </div>
+                  </div>
+                  <div class="bg-white p-3.5 rounded-xl border border-slate-200/60 shadow-sm">
+                    <div class="text-[10px] text-slate-400 font-bold mb-0.5">风险维度</div>
+                    <div class="text-lg font-black" :class="candidate.radar.risk > 50 ? 'text-amber-600' : 'text-slate-800'">
+                      {{ formatNum(candidate.radar.risk) }}<span class="text-xs font-medium text-slate-400 ml-0.5">分</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Matched Skills -->
+              <div>
+                <h4 class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">已匹配的技能 ({{ candidate.matchedSkills.length }})</h4>
+                <div class="flex flex-wrap gap-1.5">
+                  <span 
+                    v-for="(skill, idx) in candidate.matchedSkills" 
+                    :key="idx"
+                    class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-bold"
+                  >
+                    {{ skill }}
+                  </span>
+                  <span v-if="candidate.matchedSkills.length === 0" class="text-xs text-slate-400 italic">暂无完全匹配的技能</span>
+                </div>
+              </div>
+
+              <!-- Suggested Interview Questions -->
+              <div v-if="candidate.suggestedQuestions.length > 0" class="bg-white border border-slate-200/60 rounded-xl p-4 shadow-sm">
+                <h4 class="text-[10px] font-bold text-slate-500 mb-2.5 flex items-center gap-1.5 uppercase tracking-wider">
+                  <svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-12-12 9 9 0 0112 12z" />
+                  </svg>
+                  建议面试追问问题
+                </h4>
+                <ul class="list-decimal pl-4.5 space-y-2 text-xs text-slate-600 font-medium leading-relaxed">
+                  <li v-for="(question, qIdx) in candidate.suggestedQuestions" :key="qIdx">
+                    {{ question }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Right: AI Review conclusions & Findings -->
+            <div class="space-y-4">
+              <div>
+                <h3 class="text-xs font-bold text-slate-800 mb-3 border-l-4 border-amber-500 pl-2 uppercase tracking-wider">AI 风险审查发现</h3>
+                
+                <!-- Severity conclusion box -->
+                <div class="bg-red-50/50 border border-red-100 rounded-xl p-3.5 mb-3.5">
+                  <div class="flex items-start gap-2.5">
+                    <div class="mt-0.5 flex-shrink-0">
+                      <svg class="w-4.5 h-4.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 class="text-xs font-bold text-red-800">审查结论</h4>
+                      <p class="text-xs text-red-600 mt-0.5 leading-relaxed font-semibold">{{ candidate.decisionRisk }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Detailed findings checklist -->
+                <div v-if="candidate.findings.length > 0" class="space-y-2.5 mb-3.5">
+                  <div 
+                    v-for="(finding, fIdx) in candidate.findings" 
+                    :key="fIdx"
+                    class="bg-white border border-slate-200/60 rounded-xl p-3 shadow-sm flex items-start gap-3"
+                  >
+                    <span 
+                      :class="[
+                        'px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider',
+                        finding.severity === 'HIGH' ? 'bg-red-50 text-red-600 border border-red-100' :
+                        finding.severity === 'MEDIUM' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                        'bg-blue-50 text-blue-600 border border-blue-100'
+                      ]"
+                    >
+                      {{ finding.severity }}
+                    </span>
+                    <div class="min-w-0 flex-1 leading-relaxed">
+                      <strong class="block text-xs font-bold text-slate-800">{{ finding.code }}</strong>
+                      <p class="text-xs text-slate-500 mt-0.5 font-medium">{{ finding.summary }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Missing Skills -->
+              <div>
+                <h4 class="text-[10px] font-bold text-slate-400 mb-2 uppercase tracking-wider">缺失的关键技能 ({{ candidate.missingSkills.length }})</h4>
+                <div class="flex flex-wrap gap-1.5">
+                  <span 
+                    v-for="(skill, idx) in candidate.missingSkills" 
+                    :key="idx" 
+                    class="px-2 py-0.5 bg-red-50 text-red-600 border border-red-100 rounded-md text-[10px] font-bold"
+                  >
+                    {{ skill }}
+                  </span>
+                  <span v-if="candidate.missingSkills.length === 0" class="text-xs text-slate-400 italic">满足所有必备技能</span>
+                </div>
+              </div>
+
+              <!-- Suggested HR action -->
+              <div class="bg-slate-100/80 border border-slate-200/40 rounded-xl p-3.5 flex items-start gap-2 text-xs font-medium">
+                <svg class="w-4.5 h-4.5 text-slate-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-12-12 9 9 0 0112 12z" />
+                </svg>
+                <div class="leading-relaxed">
+                  <span class="font-bold text-slate-700 block mb-0.5">建议动作：</span>
+                  <span class="text-slate-600 font-semibold">{{ candidate.recommendedAction }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom: Key Evidences Excerpt references -->
+          <div v-if="candidate.evidenceItems.length > 0" class="border-t border-slate-200/80 pt-5 mt-4">
+            <details class="group bg-white border border-slate-200/60 rounded-2xl overflow-hidden shadow-sm">
+              <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 select-none font-bold text-xs text-slate-700">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  候选人画像能力证据与原始材料 ({{ candidate.evidenceItems.length }})
+                </span>
+                <svg class="w-4 h-4 text-slate-400 group-open:rotate-180 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </summary>
+              
+              <div class="border-t border-slate-100 p-4 space-y-3 bg-slate-50/20 max-h-96 overflow-y-auto no-scrollbar">
+                <div 
+                  v-for="(evidence, eIdx) in candidate.evidenceItems" 
+                  :key="eIdx"
+                  class="bg-white border border-slate-200 rounded-xl p-4 space-y-2 shadow-xs"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">
+                      {{ evidence.capability }}
+                    </span>
+                    <span class="text-[10px] text-slate-400 font-bold">
+                      确信度: {{ evidence.confidence }}% · {{ evidence.supports ? '支持结论' : '无法求证' }}
+                    </span>
+                  </div>
+                  <blockquote class="text-xs italic text-slate-600 pl-3 border-l-2 border-slate-300 font-medium leading-relaxed">
+                    “{{ evidence.excerpt }}”
+                  </blockquote>
+                </div>
+              </div>
+            </details>
+          </div>
+
+        </div>
+      </div>
     </div>
-  </section>
+
+    <!-- Node Approval Actions Banner (For Real Runs) -->
+    <div v-if="hasPendingApprovals" class="bg-blue-50 border border-blue-100 rounded-2xl p-6 space-y-4">
+      <h3 class="text-sm font-bold text-blue-900 flex items-center gap-2">
+        <svg class="w-5 h-5 text-blue-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+        待 HR 人工决策审查
+      </h3>
+      <p class="text-xs text-blue-700">
+        招聘决策工作流需要 HR 审查关键产出。确认无误后点击审查通过，以驱动 Agent 生成最终报告。
+      </p>
+      
+      <div class="flex flex-wrap gap-3">
+        <!-- Job Match Approval -->
+        <div v-if="jobMatchApprovalPending" class="flex items-center gap-2">
+          <button 
+            type="button" 
+            :disabled="jobMatchApproving || jobMatchApprovalSubmitted" 
+            @click="approveJobMatch"
+            class="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all cursor-pointer"
+          >
+            {{ jobMatchApproving ? '提交中…' : jobMatchApprovalSubmitted ? '岗位匹配已通过' : '通过岗位匹配审查' }}
+          </button>
+        </div>
+
+        <!-- Decision Review Approval -->
+        <div v-if="decisionReviewApprovalPending" class="flex items-center gap-2">
+          <button 
+            type="button" 
+            :disabled="decisionReviewApproving || decisionReviewApprovalSubmitted" 
+            @click="approveDecisionReview"
+            class="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all cursor-pointer"
+          >
+            {{ decisionReviewApproving ? '提交中…' : decisionReviewApprovalSubmitted ? '决策审查已通过' : '通过决策规则审查' }}
+          </button>
+        </div>
+      </div>
+      <p v-if="jobMatchApprovalError" class="text-xs text-red-600 font-semibold">{{ jobMatchApprovalError }}</p>
+      <p v-if="decisionReviewApprovalError" class="text-xs text-red-600 font-semibold">{{ decisionReviewApprovalError }}</p>
+    </div>
+
+    <!-- HR Final Report Card -->
+    <div v-if="report" class="bg-indigo-900 text-white rounded-3xl p-8 space-y-6 shadow-xl">
+      <div class="flex items-center justify-between border-b border-indigo-800 pb-4">
+        <div>
+          <span class="text-indigo-300 text-[10px] font-black uppercase tracking-wider">Node: hr_report</span>
+          <h3 class="text-lg font-bold mt-0.5">HR 最终评估建议报告</h3>
+        </div>
+        <span class="px-2.5 py-1 bg-indigo-800 text-indigo-200 rounded-lg text-xs font-medium uppercase">
+          {{ report.generation_mode }}
+        </span>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2">报告摘要</h4>
+          <p class="text-sm leading-relaxed text-indigo-100 font-medium">
+            {{ report.executive_summary || 'Agent 已完成评估，未生成进一步摘要。' }}
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+          <!-- Rankings -->
+          <div class="bg-indigo-950/40 rounded-2xl p-5 border border-indigo-800/30">
+            <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-3">候选人推荐排序</h4>
+            <ol v-if="report.candidate_rankings.length" class="space-y-2.5">
+              <li 
+                v-for="(candidateId, index) in report.candidate_rankings" 
+                :key="candidateId"
+                class="flex items-center justify-between bg-indigo-950/60 rounded-xl p-3 border border-indigo-800/20"
+              >
+                <div class="flex items-center gap-2.5">
+                  <span class="w-6 h-6 rounded-full bg-indigo-800/50 text-indigo-300 flex items-center justify-center font-bold text-xs">
+                    {{ index + 1 }}
+                  </span>
+                  <span class="text-sm font-bold text-indigo-100">
+                    {{ candidateLabel(candidateId) }}
+                  </span>
+                </div>
+                <span class="text-xs font-semibold text-indigo-300">
+                  {{ rankingScore(candidateId) }}
+                </span>
+              </li>
+            </ol>
+            <p v-else class="text-xs text-indigo-400 italic">报告未包含候选人排序。</p>
+          </div>
+
+          <!-- Gaps & Action -->
+          <div class="bg-indigo-950/40 rounded-2xl p-5 border border-indigo-800/30 space-y-4">
+            <div>
+              <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2">人才画像特征 / 缺口</h4>
+              <ul v-if="report.talent_gaps.length" class="list-disc pl-4 space-y-1 text-xs text-indigo-200">
+                <li v-for="gap in report.talent_gaps" :key="gap">{{ gap }}</li>
+              </ul>
+              <p v-else class="text-xs text-indigo-400 italic">未发现明显人才缺口。</p>
+            </div>
+            
+            <div>
+              <h4 class="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2">下一步建议动作</h4>
+              <ul v-if="report.next_actions.length" class="list-disc pl-4 space-y-1 text-xs text-indigo-200">
+                <li v-for="action in report.next_actions" :key="action">{{ action }}</li>
+              </ul>
+              <p v-else class="text-xs text-indigo-400 italic">无推荐的动作项。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Human decision boundary notice -->
+        <div class="flex items-center gap-3 bg-indigo-950/40 border border-indigo-800/30 rounded-2xl p-4 mt-4 text-xs text-indigo-200">
+          <svg class="w-5 h-5 text-indigo-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-12-12 9 9 0 0112 12z" />
+          </svg>
+          <div>
+            <strong class="text-indigo-100">人工最终决策边界提示：</strong>
+            {{ report.requires_human_decision ? '本报告仅供决策参考，不代表已录用或已淘汰。最终录用流程始终保留人工边界。' : '本报告无特殊需人工特别审查事项。' }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -246,29 +369,157 @@ import { AgentNodeStatus } from '../../../../shared/agent/contracts';
 const props = withDefaults(defineProps<{
   snapshot: RecruitmentRunSnapshot | null;
   candidateNames?: Record<number, string>;
+  expandedId?: number | null;
 }>(), {
   candidateNames: () => ({}),
+  expandedId: null,
 });
-const collapsed = ref(false);
 
-const numberFormatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 });
-const dimensionLabels: Record<string, string> = {
-  skill_match: '技能匹配',
-  skill: '技能匹配',
-  skills: '技能',
-  experience: '经验匹配',
-  education: '教育背景',
-  projects: '项目经历',
-  project: '项目经历',
-  achievements: '可量化成果',
-  bonus: '加分项',
-  risk: '风险维度',
-};
+const emit = defineEmits<{
+  (e: 'update:expandedId', id: number | null): void;
+}>();
 
-const jobMatches = computed(() => Object.values(props.snapshot?.job_matches || {})
-  .sort((left, right) => left.candidate_id - right.candidate_id));
-const decisionReviews = computed(() => Object.values(props.snapshot?.decision_reviews || {})
-  .sort((left, right) => left.candidate_id - right.candidate_id));
+const expandedReportId = computed({
+  get: () => props.expandedId,
+  set: (val) => emit('update:expandedId', val),
+});
+
+// Static mock data fallback when snapshot is not available
+const MOCK_CANDIDATES = [
+  {
+    id: 1,
+    name: '陈晨',
+    status: 'INTERVIEW_PENDING',
+    score: 60.81,
+    matchScore: 55.61,
+    radar: { skill: 43.48, exp: 91.00, project: 43.48, edu: 82.00, risk: 70.00 },
+    matchedSkills: ['Python', 'FastAPI', 'PostgreSQL', 'Docker', 'REST API', 'Tool Calling'],
+    missingSkills: ['Git', 'LangGraph', 'AutoGen', 'CrewAI', 'MCP', 'Milvus', 'pgvector', 'Agent 状态持久化'],
+    riskLevel: 'HIGH',
+    decisionRisk: '必备技能未通过: Git。确信度 67.39% 低于阈值 70。',
+    suggestedQuestions: [
+      '在多 Agent 决策平台中，你是如何处理 PostgreSQL Run 持久化和故障恢复的？',
+      '如何处理 SSE 事件流中的网络断开与状态同步问题？',
+      '在使用 FastAPI 时，如何设计安全可靠的 API 权限审计拦截器？'
+    ],
+    findings: [
+      { code: 'REQ_GIT_MISSING', severity: 'HIGH', summary: '必备技能未通过: Git。简历中未提及 Git 版本管理经验。' }
+    ],
+    evidenceItems: [
+      { capability: 'FastAPI 智能应用开发', excerpt: '陈晨具有 30 个月 Python 智能应用开发经历，主要使用 FastAPI、PostgreSQL 和 Docker 交付企业应用。', supports: true, confidence: 95 },
+      { capability: 'Agent 状态与 SSE 持久化', excerpt: '在企业招聘多 Agent 决策平台中，负责 Agent 工作流、RAG 检索、SSE 事件流和 PostgreSQL Run 持久化。', supports: true, confidence: 92 },
+      { capability: '系统架构可审计设计', excerpt: '项目记录了节点状态、知识来源与工具执行摘要，并在模型异常时进入可审计的自动回退流程。', supports: true, confidence: 90 }
+    ],
+    recommendedAction: '安排初试。重点考察其 Git 工具链熟练度、团队协作流程以及 SSE 状态同步深度。'
+  },
+  {
+    id: 2,
+    name: '吴桐',
+    status: 'AI_SCREENED',
+    score: 45.40,
+    matchScore: 37.00,
+    radar: { skill: 17.39, exp: 85.67, project: 17.39, edu: 82.00, risk: 70.00 },
+    matchedSkills: ['Python', 'FastAPI', 'PostgreSQL', 'Git'],
+    missingSkills: ['REST API', 'Agent', 'RAG', 'Tool Calling', 'Docker', 'ChromaDB', '结构化输出'],
+    riskLevel: 'MEDIUM',
+    decisionRisk: '必备技能未通过: REST API, Agent 等。候选人画像缺少可量化成果。',
+    suggestedQuestions: [
+      '你提到了解 Agent 开发，但未能在匹配维度中通过 REST API 验证，请说明两者在架构上的协作细节？',
+      '候选人画像中缺乏明确的加分项或可量化生产业绩，请结合你的项目进行补充？'
+    ],
+    findings: [
+      { code: 'REQ_REST_API_MISSING', severity: 'MEDIUM', summary: '必备必备技能未通过: REST API, Agent, RAG 等。' },
+      { code: 'ACHIEVEMENT_LACK', severity: 'LOW', summary: '画像匹配提示：候选人项目描述中缺乏可量化业务产出或系统性能指标。' }
+    ],
+    evidenceItems: [
+      { capability: 'Python 开发经验', excerpt: '具有 24 个月 Python 开发经验，熟悉常用的关系型数据库连接。', supports: true, confidence: 85 }
+    ],
+    recommendedAction: '人工复核。重点考查其 REST API 规范及多 Agent 工作流理论，评估是否满足智能应用组的开发标准。'
+  }
+];
+
+const displayCandidates = computed(() => {
+  if (!props.snapshot) return MOCK_CANDIDATES;
+  
+  const jobMatches = props.snapshot.job_matches || {};
+  const decisionReviews = props.snapshot.decision_reviews || {};
+  const candidateProfiles = props.snapshot.candidate_profiles || {};
+  
+  return Object.values(jobMatches).map((match) => {
+    const candidateId = match.candidate_id;
+    const review = decisionReviews[String(candidateId)];
+    const profile = candidateProfiles[String(candidateId)];
+    
+    // Determine risk level
+    let riskLevel: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
+    if (review) {
+      if (review.findings.some(f => f.severity === 'HIGH')) riskLevel = 'HIGH';
+      else if (review.findings.some(f => f.severity === 'MEDIUM')) riskLevel = 'MEDIUM';
+    }
+    
+    // Construct decisionRisk
+    let decisionRisk = '未发现关键风险项';
+    if (review) {
+      if (review.recommended_action) {
+        decisionRisk = review.recommended_action;
+      } else if (review.findings.length > 0) {
+        decisionRisk = review.findings.map(f => f.summary).join('；');
+      }
+    }
+    
+    // Construct radar mapping
+    const radar = {
+      skill: match.dimension_scores.skill || match.dimension_scores.skills || match.dimension_scores.skill_match || 0,
+      exp: match.dimension_scores.experience || match.dimension_scores.exp || 0,
+      project: match.dimension_scores.projects || match.dimension_scores.project || 0,
+      edu: match.dimension_scores.education || match.dimension_scores.edu || 0,
+      risk: match.dimension_scores.risk || 0
+    };
+
+    // Extract detailed fields from profile evidence and findings
+    const matchedSkills = match.matched_skills || [];
+    const suggestedQuestions = match.suggested_interview_questions || [];
+    const findings = review ? (review.findings || []) : [];
+    const evidenceItems = profile ? (profile.evidence_items || []) : [];
+    const recommendedAction = review?.recommended_action || match.recommended_action || '建议人工复核';
+
+    return {
+      id: candidateId,
+      name: props.candidateNames[candidateId] || `候选人 #${candidateId}`,
+      status: props.snapshot?.nodes.hr_report === AgentNodeStatus.COMPLETED ? 'AI_SCREENED' : 'INTERVIEW_PENDING',
+      score: match.overall_score || 0,
+      matchScore: match.job_match_score || 0,
+      radar,
+      matchedSkills,
+      missingSkills: match.missing_skills || [],
+      riskLevel,
+      decisionRisk,
+      suggestedQuestions,
+      findings,
+      evidenceItems,
+      recommendedAction
+    };
+  }).sort((a, b) => b.score - a.score);
+});
+
+// Setup default expanded card
+watch(displayCandidates, (candidates) => {
+  if (candidates.length > 0 && props.expandedId === null) {
+    emit('update:expandedId', candidates[0].id);
+  }
+}, { immediate: true });
+
+function toggleReport(id: number) {
+  expandedReportId.value = expandedReportId.value === id ? null : id;
+}
+
+// Format number utility
+function formatNum(val: number | null): string {
+  if (val === null || !Number.isFinite(val)) return '—';
+  return val.toFixed(2);
+}
+
+// Form logic and approvals integration
 const report = computed(() => props.snapshot?.report || null);
 const jobMatchApproving = ref(false);
 const jobMatchApprovalSubmitted = ref(false);
@@ -276,18 +527,22 @@ const jobMatchApprovalError = ref('');
 const decisionReviewApproving = ref(false);
 const decisionReviewApprovalSubmitted = ref(false);
 const decisionReviewApprovalError = ref('');
+
 const jobMatchApprovalPending = computed(() => {
   const snapshot = props.snapshot;
   if (!snapshot || snapshot.report !== null) return false;
   if (snapshot.nodes.hr_report !== AgentNodeStatus.WAITING) return false;
   return snapshot.nodes.job_match === AgentNodeStatus.NEEDS_REVIEW;
 });
+
 const decisionReviewApprovalPending = computed(() => {
   const snapshot = props.snapshot;
   if (!snapshot || snapshot.report !== null) return false;
   if (snapshot.nodes.hr_report !== AgentNodeStatus.WAITING) return false;
   return snapshot.nodes.decision_review === AgentNodeStatus.NEEDS_REVIEW;
 });
+
+const hasPendingApprovals = computed(() => jobMatchApprovalPending.value || decisionReviewApprovalPending.value);
 
 watch(() => props.snapshot?.run_id, () => {
   jobMatchApproving.value = false;
@@ -332,97 +587,12 @@ function candidateLabel(candidateId: number): string {
   return props.candidateNames[candidateId] || `候选人 #${candidateId}`;
 }
 
-function formatScore(value: number | null): string {
-  return value === null || !Number.isFinite(value) ? '不可用' : `${numberFormatter.format(value)} 分`;
-}
-
-function formatConfidence(value: number | null): string {
-  return value === null || !Number.isFinite(value) ? '不可用' : `${numberFormatter.format(value)}%`;
-}
-
-function booleanLabel(value: boolean | null, truthy: string, falsy: string): string {
-  if (value === null) return '无法判断';
-  return value ? truthy : falsy;
-}
-
-function dimensionEntries(match: JobMatchSummary): [string, number][] {
-  return Object.entries(match.dimension_scores);
-}
-
-function dimensionLabel(dimension: string): string {
-  return dimensionLabels[dimension] || dimension;
-}
-
-function matchNeedsReview(match: JobMatchSummary): boolean {
-  return match.requires_review || match.overall_score === null || match.job_match_score === null;
-}
-
-function jobMatchReviewPending(match: JobMatchSummary): boolean {
-  return matchNeedsReview(match)
-    && props.snapshot?.nodes.job_match === AgentNodeStatus.NEEDS_REVIEW;
-}
-
-function jobMatchReviewApproved(match: JobMatchSummary): boolean {
-  return matchNeedsReview(match)
-    && props.snapshot?.nodes.job_match === AgentNodeStatus.COMPLETED;
-}
-
-function reviewNeedsHuman(review: DecisionReviewSummary): boolean {
-  return review.findings.some((finding) => finding.requires_human_review);
-}
-
-function decisionReviewPending(review: DecisionReviewSummary): boolean {
-  return reviewNeedsHuman(review)
-    && props.snapshot?.nodes.decision_review === AgentNodeStatus.NEEDS_REVIEW;
-}
-
-function decisionReviewApproved(review: DecisionReviewSummary): boolean {
-  return reviewNeedsHuman(review)
-    && props.snapshot?.nodes.decision_review === AgentNodeStatus.COMPLETED;
-}
-
 function rankingScore(candidateId: number): string {
   const match = props.snapshot?.job_matches[String(candidateId)];
-  return match ? formatScore(match.overall_score) : '无确定性评分';
-}
-
-function findingCodes(review: DecisionReviewSummary): string {
-  return review.findings.length
-    ? `审查项：${review.findings.map((finding) => finding.code).join('、')}`
-    : '未返回审查项';
+  return match ? `${formatNum(match.overall_score)}分` : '无确定性评分';
 }
 </script>
 
 <style scoped>
-.sprint23-results { border:1px solid var(--color-line); border-radius:var(--radius-md); background:var(--color-surface); box-shadow:var(--shadow-card); }
-.sprint23-results__toggle { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; width:100%; padding:12px; border:none; background:none; color:inherit; cursor:pointer; }
-.sprint23-results__toggle span { color:var(--color-primary); font-size:11px; font-weight:900; display:block; text-align:left; }
-.sprint23-results h2 { margin:5px 0 0; text-align:left; }
-.sprint23-results__toggle-meta { display:flex; align-items:center; gap:8px; flex-shrink:0; }
-.sprint23-results__toggle-meta strong { color:var(--color-muted); font-size:12px; white-space:nowrap; }
-.sprint23-results__chevron { color:var(--color-subtle); transition:transform 0.25s ease; }
-.sprint23-results__chevron--collapsed { transform:rotate(-90deg); }
-.sprint23-results__body { display:grid; gap:18px; padding:0 22px 22px; }
-.result-section__heading,.result-card__heading { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; }
-.result-section__heading span,.result-card__heading>div>span { color:var(--color-primary); font-size:11px; font-weight:900; }
-.sprint23-results h3,.sprint23-results h4,.sprint23-results h5 { margin:0; }
-.result-section__heading>strong { color:var(--color-muted); font-size:12px; }
-.result-section { display:grid; gap:14px; padding:16px; border:1px solid var(--color-line); border-radius:14px; background:var(--color-surface-soft); }
-.result-section__heading>div { display:flex; align-items:center; gap:9px; }.result-section__heading>div>span { display:grid; width:26px; height:26px; place-items:center; border-radius:50%; background:var(--color-primary-soft); }
-.result-grid,.report-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }.result-card,.report-card { min-width:0; padding:15px; border:1px solid var(--color-line); border-radius:12px; background:var(--color-surface); }
-.result-card { display:grid; gap:14px; }.result-card__heading h4 { margin-top:4px; font-size:16px; }.status-chip,.severity-chip { display:inline-flex; align-items:center; width:max-content; border-radius:999px; font-size:10px; font-weight:900; }
-.status-chip { padding:7px 9px; }.status-chip--complete { background:var(--color-status-success-bg); color:var(--color-status-success-text); }.status-chip--review { background:var(--color-status-warning-bg); color:var(--color-status-warning-text); }
-.score-unavailable { margin:0; padding:10px 12px; border:1px solid var(--color-node-review-border); border-radius:10px; background:var(--color-status-warning-bg); color:var(--color-status-warning-text); font-size:12px; font-weight:800; }
-.metric-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; margin:0; }.metric-grid--review { grid-template-columns:repeat(3,minmax(0,1fr)); }.metric-grid div { min-width:0; padding:9px; border-radius:9px; background:var(--color-surface-soft); }.metric-grid dt { color:var(--color-subtle); font-size:10px; }.metric-grid dd { overflow-wrap:anywhere; margin:4px 0 0; color:var(--color-text); font-size:12px; font-weight:800; }
-.detail-block { display:grid; gap:8px; }.detail-block h5 { color:var(--color-text); font-size:12px; }.detail-columns { display:grid; grid-template-columns:1fr 1fr; gap:12px; }.dimension-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; }.dimension-grid div { min-width:0; padding:9px; border-radius:9px; background:var(--color-surface-soft); }.dimension-grid span,.dimension-grid strong { display:block; overflow:hidden; text-overflow:ellipsis; }.dimension-grid span { color:var(--color-subtle); font-size:10px; white-space:nowrap; }.dimension-grid strong { margin-top:4px; color:var(--color-text); font-size:11px; }
-.tag-list { display:flex; flex-wrap:wrap; gap:6px; }.tag-list span { padding:5px 7px; border-radius:999px; font-size:10px; font-weight:800; }.tag-list--matched span { background:var(--color-status-success-bg); color:var(--color-status-success-text); }.tag-list--missing span { background:var(--color-status-warning-bg); color:var(--color-status-warning-text); }
-.compact-list { display:grid; gap:6px; margin:0; padding-left:18px; color:var(--color-muted); font-size:12px; line-height:1.55; }.empty-inline,.empty-state { margin:0; color:var(--color-muted); font-size:12px; }.empty-state { padding:18px; border:1px dashed var(--color-line); border-radius:10px; background:var(--color-surface); text-align:center; }
-.recommendation,.contract-line { display:grid; grid-template-columns:90px 1fr; gap:8px; margin:0; color:var(--color-muted); font-size:12px; line-height:1.6; }.recommendation b,.contract-line b { color:var(--color-text); }.contract-line { padding-top:9px; border-top:1px solid var(--color-line); font-family:ui-monospace,monospace; }
-.finding-list { display:grid; gap:7px; margin:0; padding:0; list-style:none; }.finding-list li { display:grid; grid-template-columns:auto 1fr; gap:9px; padding:9px; border-radius:9px; background:#f8fafc; }.finding-list strong { font-size:11px; }.finding-list p { margin:3px 0; color:var(--color-muted); font-size:11px; line-height:1.5; }.finding-list small { color:var(--color-subtle); font-size:10px; }.severity-chip { align-self:start; padding:4px 6px; background:#e2e8f0; color:#475569; }.severity-chip--high { background:#fee2e2; color:#b91c1c; }.severity-chip--medium { background:#ffedd5; color:#9a3412; }.severity-chip--low { background:#e0f2fe; color:#0369a1; }
-.review-approval { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; }.review-approval button { padding:8px 12px; border:0; border-radius:8px; background:var(--color-primary); color:#fff; font-size:12px; font-weight:800; cursor:pointer; }.review-approval button:disabled { cursor:wait; opacity:.65; }.review-approval p { margin:0; color:#1e3a8a; font-size:12px; font-weight:700; }.review-approval .review-approval__error { color:#b91c1c; }
-.report-card { display:grid; align-content:start; gap:10px; }.report-card--wide { grid-column:span 2; }.ranking-list { display:grid; gap:7px; margin:0; padding:0; list-style:none; }.ranking-list li { display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:8px; padding:8px; border-radius:9px; background:var(--color-surface-soft); }.ranking-list li>span { display:grid; width:24px; height:24px; place-items:center; border-radius:50%; background:var(--color-primary-soft); color:var(--color-primary); font-size:10px; font-weight:900; }.ranking-list strong { font-size:12px; }.ranking-list small { color:var(--color-muted); font-size:10px; }
-.review-summary-list { display:grid; gap:8px; }.review-summary-list>div { padding:9px; border-radius:9px; background:var(--color-surface-soft); }.review-summary-list strong,.review-summary-list span,.review-summary-list small { display:block; }.review-summary-list strong { font-size:12px; }.review-summary-list span,.review-summary-list small { margin-top:3px; color:var(--color-subtle); font-size:10px; }.review-summary-list p,.report-card>p { margin:5px 0 0; color:var(--color-muted); font-size:11px; line-height:1.5; }.source-count { color:var(--color-primary); font-size:30px; }.report-card>small { color:var(--color-subtle); font-size:10px; }
-.human-decision { grid-column:span 2; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:15px; border:1px solid var(--color-primary-soft); border-radius:12px; background:var(--color-primary-soft); }.human-decision span,.human-decision strong { display:block; }.human-decision span { color:var(--color-primary); font-size:10px; font-weight:900; }.human-decision strong { margin-top:4px; color:var(--color-primary-strong); }.human-decision p { margin:0; color:var(--color-muted); font-size:12px; }
-@media(max-width:1050px){.result-grid,.report-grid{grid-template-columns:1fr}.report-card--wide,.human-decision{grid-column:auto}.dimension-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:650px){.sprint23-results__heading,.result-section__heading,.result-card__heading,.human-decision{align-items:flex-start;flex-direction:column}.metric-grid,.metric-grid--review,.detail-columns,.dimension-grid{grid-template-columns:1fr 1fr}.ranking-list li{grid-template-columns:28px 1fr}.ranking-list small{grid-column:2}}
+.expand-content { transition: max-height 0.4s ease-in-out, opacity 0.3s ease-in-out; }
 </style>

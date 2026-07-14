@@ -31,10 +31,7 @@
             hidden
             @change="handleResumeFiles"
           />
-          <button class="btn btn--primary" :disabled="importing" @click="openResumeFilePicker">
-            <span class="material-symbols-outlined">person_add</span>
-            {{ importing ? '导入中…' : '添加候选人' }}
-          </button>
+
           <button class="btn btn--primary" @click="applySmartFilter">
             <span class="material-symbols-outlined">auto_awesome</span>
             智能筛选
@@ -90,7 +87,18 @@
                 <h3>候选人列表</h3>
                 <p>{{ filterHint }}</p>
               </div>
-              <span>{{ visibleCandidates.length }} 人</span>
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <button 
+                  class="btn btn--outline" 
+                  style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid var(--color-line); border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; background: var(--color-surface); transition: all 0.2s ease;"
+                  :disabled="importing" 
+                  @click="openResumeFilePicker"
+                >
+                  <span class="material-symbols-outlined" style="font-size: 16px;">person_add</span>
+                  {{ importing ? '导入中…' : '新增候选人' }}
+                </button>
+                <span>{{ visibleCandidates.length }} 人</span>
+              </div>
             </div>
 
             <EmptyState
@@ -112,17 +120,12 @@
                 </span>
                 <span>{{ candidate.role }}</span>
                 <span><em :class="stageClass(candidate.stage)">{{ candidate.stage }}</em></span>
-                <span class="score">{{ computedScore(candidate) ?? '--' }}</span>
+                <span class="score">{{ formatScore(computedScore(candidate)) }}</span>
                 <span v-if="candidate.match !== null">
                   <span class="match-bar"><i :style="{ width: `${candidate.match}%` }"></i></span>
-                  <small>{{ candidate.match }}%</small>
+                  <small>置信度：{{ candidate.match }}%</small>
                 </span>
                 <span v-else class="text-on-surface-variant">待评估</span>
-                <span><em :class="riskClass(candidate.riskLevel)">{{ candidate.riskLabel }}</em></span>
-                <span class="candidate-row__action">
-                  <strong>{{ candidate.recommendedAction }}</strong>
-                  <button class="link-button" @click.stop="selectCandidate(candidate)">查看评估</button>
-                </span>
               </button>
             </div>
           </div>
@@ -161,9 +164,23 @@
               <h3>{{ selectedCandidate.name }}</h3>
               <small>{{ selectedCandidate.role }} · {{ selectedCandidate.stage }}</small>
             </div>
-            <div class="candidate-detail-card__score">
-              <strong>{{ computedScore(selectedCandidate) ?? '--' }}</strong>
-              <span>综合评分</span>
+            
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <button 
+                style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid var(--color-primary-soft); border-radius: 999px; font-size: 11px; font-weight: 800; cursor: pointer; background: var(--color-primary-soft); color: var(--color-primary); transition: all 0.2s ease; outline: none; margin-right: 2px;"
+                :disabled="viewingResume"
+                @click="viewResume(selectedCandidate.id, selectedCandidate.name)"
+                onmouseover="this.style.background='rgba(36,85,245,0.15)'"
+                onmouseout="this.style.background='var(--color-primary-soft)'"
+              >
+                <span class="material-symbols-outlined" style="font-size: 14px;">visibility</span>
+                {{ viewingResume ? '载入中...' : '查看简历' }}
+              </button>
+              
+              <div class="candidate-detail-card__score">
+                <strong>{{ formatScore(computedScore(selectedCandidate)) }}</strong>
+                <span>综合评分</span>
+              </div>
             </div>
           </div>
 
@@ -261,7 +278,7 @@ import EmptyState from '../shared/components/feedback/EmptyState.vue';
 import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
 import { advanceCandidateStage, fetchApplication, fetchApplications, fetchCandidates, fetchJobs, importCandidateResumes, scoreCandidate } from '../shared/api/modules/recruitment';
 import { checkBackendHealth } from '../shared/api/modules/health';
-import { ApiClientError } from '../shared/api/apiClient';
+import apiClient, { ApiClientError } from '../shared/api/apiClient';
 import { useAuthStore } from '../features/auth/authStore';
 import type { CandidateApplicationListItem } from '../shared/api/modules/recruitment';
 import type { Candidate as ApiCandidate, CandidateScoreResponse, Job as ApiJob, PipelineStage } from '../shared/api/types';
@@ -402,6 +419,28 @@ const filterHint = computed(() => {
 });
 
 onMounted(loadCandidatePool);
+
+const viewingResume = ref(false);
+
+async function viewResume(applicationId: number, name: string) {
+  if (viewingResume.value) return;
+  viewingResume.value = true;
+  try {
+    const response = await apiClient.get(`/recruitment/applications/${applicationId}/resume`, {
+      responseType: 'blob'
+    });
+    const headers = response.headers || {};
+    const contentType = String(headers['content-type'] || '').toLowerCase();
+    const type = contentType.includes('text/plain') ? 'text/plain; charset=utf-8' : 'application/pdf';
+    const blob = new Blob([response.data], { type });
+    const url = window.URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch (error) {
+    emit('show-toast', error instanceof Error ? error.message : '打开简历失败，简历文件可能不存在。');
+  } finally {
+    viewingResume.value = false;
+  }
+}
 
 function openResumeFilePicker() {
   if (!importing.value) resumeFileInput.value?.click();
@@ -553,7 +592,12 @@ function computedScore(candidate: Candidate): number | null {
     (sum, key) => sum + dimensions[key] * weights[key],
     0,
   ) / totalWeight;
-  return Math.round(weighted * 100) / 100;
+  return Math.round(weighted * 10) / 10;
+}
+
+function formatScore(score: number | null): string {
+  if (score === null) return '--';
+  return score.toFixed(1);
 }
 
 function getDimensionScore(candidateId: number, dimKey: WeightKey): number {
@@ -784,7 +828,7 @@ function riskClass(level: Candidate['riskLevel']) {
 .candidate-table-card__header p, .candidate-detail-card__header p, .candidate-detail-card__header small { margin: 4px 0 0; color: var(--color-muted); }
 .candidate-table-card__header > span { padding: 6px 10px; border-radius: 999px; background: var(--color-surface-soft); color: var(--color-muted); font-weight: 800; }
 .candidate-table { display: grid; }
-.candidate-row { display: grid; grid-template-columns: minmax(160px,1.3fr) minmax(130px,1fr) 92px 78px minmax(120px,0.9fr) 112px minmax(150px,1fr); gap: 12px; align-items: center; width: 100%; padding: 16px 20px; border: 0; border-bottom: 1px solid var(--color-line); background: transparent; color: var(--color-text); text-align: left; cursor: pointer; transition: 0.18s ease; }
+.candidate-row { display: grid; grid-template-columns: minmax(180px, 1.4fr) minmax(150px, 1fr) 100px 90px minmax(140px, 1fr); gap: 12px; align-items: center; width: 100%; padding: 16px 20px; border: 0; border-bottom: 1px solid var(--color-line); background: transparent; color: var(--color-text); text-align: left; cursor: pointer; transition: 0.18s ease; }
 .candidate-row:hover, .candidate-row--selected { background: #f7f9ff; }
 .candidate-row:last-child { border-bottom: 0; }
 .candidate-row__name strong, .candidate-row__name small, .candidate-row__action strong { display: block; }
@@ -801,7 +845,7 @@ function riskClass(level: Candidate['riskLevel']) {
 .tag--red { background: var(--color-status-error-bg); color: var(--color-status-error-text); }
 .candidate-detail-card { position: sticky; top: 92px; display: grid; gap: 14px; padding: 16px; }
 .candidate-detail-card__header { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--color-line); }
-.candidate-detail-card__score { display: grid; min-width: 92px; place-items: center; padding: 12px; border-radius: 16px; background: var(--color-primary-soft); color: var(--color-primary); }
+.candidate-detail-card__score { display: grid; width: 92px; height: 92px; place-items: center; align-content: center; padding: 12px; border-radius: 16px; background: var(--color-primary-soft); color: var(--color-primary); box-sizing: border-box; flex-shrink: 0; }
 .candidate-detail-card__score strong { font-size: 32px; line-height: 1; }
 .candidate-detail-card__score span { margin-top: 5px; font-size: 12px; font-weight: 800; }
 .score-breakdown { padding: 12px; border: 1px solid var(--color-line); border-radius: 12px; background: var(--color-surface-soft); }
