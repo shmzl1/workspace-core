@@ -410,12 +410,30 @@ class RecruitmentService:
             pipeline_record=CandidatePipelineRecordRead.model_validate(record),
         )
 
+    # ── public report API ───────────────────────────────
     def get_report(self, time_range: str = "30d") -> RecruitmentReportRead:
+        """生成招聘统计报告，按时间范围、部门、渠道和趋势汇总。"""
         if time_range not in {"30d", "90d", "all"}:
             raise TalentFlowError("INVALID_TIME_RANGE", "time_range 仅支持 30d、90d 或 all。")
         jobs = self.repository.list_jobs()
         candidates = self.repository.list_candidates()
         rows = self.repository.list_applications()
+        applications, scored, scores, match_scores, stages = self._prepare_report_data(rows, time_range)
+        application_count = len(applications)
+        funnel = self._build_funnel(applications, scored, stages, application_count)
+        departments = self._build_departments(rows, jobs)
+        sources = self._build_sources(candidates, applications)
+        trends = self._build_trends(applications)
+        return self._assemble_report(
+            time_range, jobs, applications, scored, scores, match_scores,
+            stages, application_count, funnel, departments, sources, trends,
+        )
+
+    # ── data preparation ─────────────────────────────────
+    def _prepare_report_data(
+        self, rows: list, time_range: str
+    ) -> tuple:
+        """Filter rows by time range and extract scored / scores / match_scores / stages."""
         cutoff = None
         if time_range != "all":
             cutoff = datetime.now(timezone.utc) - timedelta(days=30 if time_range == "30d" else 90)
@@ -426,8 +444,13 @@ class RecruitmentService:
         match_scores = [self._match_score(item) for item in scored]
         match_scores = [value for value in match_scores if value is not None]
         stages = Counter(item.current_stage for item in applications)
-        application_count = len(applications)
+        return applications, scored, scores, match_scores, stages
 
+    # ── sub-reports ──────────────────────────────────────
+    @staticmethod
+    def _build_funnel(
+        applications: list, scored: list, stages: Counter, application_count: int
+    ) -> list:
         funnel_counts = [
             ("简历获取", application_count),
             ("智能筛选", len(scored)),
@@ -435,7 +458,7 @@ class RecruitmentService:
             ("Offer 阶段", stages["OFFERED"]),
             ("正式入职", stages["HIRED"]),
         ]
-        funnel = [
+        return [
             RecruitmentFunnelItem(
                 label=label,
                 count=count,
@@ -444,6 +467,8 @@ class RecruitmentService:
             for label, count in funnel_counts
         ]
 
+    @staticmethod
+    def _build_departments(rows: list, jobs: list) -> list:
         department_rows: dict[str, list] = defaultdict(list)
         for application, _candidate, job in rows:
             department_rows[job.department if job else "未分配部门"].append(application)
@@ -461,13 +486,16 @@ class RecruitmentService:
                     completion_rate=round(hired * 100 / len(department_apps), 1) if department_apps else 0,
                 )
             )
+        return departments
 
+    @staticmethod
+    def _build_sources(candidates: list, applications: list) -> list:
         filtered_candidate_ids = {application.candidate_id for application in applications}
         source_counts = Counter(
             candidate.source for candidate in candidates if candidate.id in filtered_candidate_ids
         )
         source_total = sum(source_counts.values())
-        sources = [
+        return [
             RecruitmentSourceItem(
                 source=source,
                 count=count,
@@ -476,6 +504,8 @@ class RecruitmentService:
             for source, count in sorted(source_counts.items())
         ]
 
+    @staticmethod
+    def _build_trends(applications: list) -> list:
         trend_rows: dict[str, list] = defaultdict(list)
         for application in applications:
             trend_rows[application.applied_at.strftime("%Y-%m")].append(application)
@@ -491,7 +521,25 @@ class RecruitmentService:
                     average_score=round(sum(period_scores) / len(period_scores), 2) if period_scores else 0,
                 )
             )
+        return trends
 
+    # ── final assembly ───────────────────────────────────
+    def _assemble_report(
+        self,
+        time_range: str,
+        jobs: list,
+        applications: list,
+        scored: list,
+        scores: list,
+        match_scores: list,
+        stages: Counter,
+        application_count: int,
+        funnel: list,
+        departments: list,
+        sources: list,
+        trends: list,
+    ) -> RecruitmentReportRead:
+        filtered_candidate_ids = {application.candidate_id for application in applications}
         return RecruitmentReportRead(
             time_range=time_range,
             jobs_count=len(jobs),

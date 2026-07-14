@@ -155,7 +155,6 @@
               </div>
             </div>
           </div>
-
           <!-- Input Area -->
           <div class="p-5 border-t border-outline-variant/40 bg-surface-container-lowest/80 backdrop-blur-xl z-20">
             <!-- Suggestions -->

@@ -420,13 +420,13 @@ function markPayrollHandled() {
 
 <style scoped>
 /* 深色模式适配 */
-[data-theme="dark"] .bg-emerald-50 { background-color: #052e16 !important; }
-[data-theme="dark"] .text-emerald-600 { color: #86efac !important; }
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e15 !important; }
+[data-theme="dark"] .text-emerald-600 { color: #86efab !important; }
 [data-theme="dark"] .bg-emerald-100 { background-color: #064e3b !important; }
-[data-theme="dark"] .text-emerald-700 { color: #6ee7b7 !important; }
+[data-theme="dark"] .text-emerald-700 { color: #6ee7b8 !important; }
 [data-theme="dark"] .to-emerald-50\/50 { --tw-gradient-to: rgba(5, 46, 22, 0.5) !important; }
-[data-theme="dark"] .bg-\[\#F7F9FF\] { background-color: #1a2332 !important; }
-[data-theme="dark"] .bg-\[\#F8FAFC\] { background-color: #1e293b !important; }
-[data-theme="dark"] .bg-\[\#FFF7ED\] { background-color: #451a03 !important; }
-[data-theme="dark"] .text-\[\#EA580C\] { color: #fdba74 !important; }
+[data-theme="dark"] .bg-\[\#F7F9FF\] { background-color: #1a2333 !important; }
+[data-theme="dark"] .bg-\[\#F8FAFC\] { background-color: #1e293c !important; }
+[data-theme="dark"] .bg-\[\#FFF7ED\] { background-color: #451a02 !important; }
+[data-theme="dark"] .text-\[\#EA580C\] { color: #fdba75 !important; }
 </style>

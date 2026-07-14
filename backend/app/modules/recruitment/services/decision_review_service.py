@@ -33,7 +33,6 @@ REAL_INTERVIEW_STATUSES = {
     "已评价",
 }
 
-
 class DecisionReviewService:
     """Review evidence and thresholds without changing deterministic scores."""
 
@@ -96,6 +95,89 @@ class DecisionReviewService:
             ),
             2,
         )
+        _urgency_str = str(goal.urgency).upper()
+        is_urgent = _urgency_str in ("HIGH", "CRITICAL")
+        is_critical = _urgency_str == "CRITICAL"
+        if is_urgent:
+            findings.append(
+                self._finding(
+                    "URGENCY_FAST_TRACK",
+                    "MEDIUM",
+                    f"当前岗位紧急度为 {_urgency_str}，建议加快审查流程、适当放宽辅助指标。",
+                )
+            )
+            if is_critical and confidence < goal.confidence_threshold:
+                findings.append(
+                    self._finding(
+                        "CRITICAL_URGENCY_LOW_CONFIDENCE",
+                        "HIGH",
+                        "紧急岗位在可信度不足的情况下推进，存在误招风险，建议同步安排加面或背书。",
+                    )
+                )
+        profile_exp = profile.experience_months or 0
+        if profile_exp > 0 and goal.min_experience_months > 0:
+            exp_ratio = profile_exp / goal.min_experience_months
+            if exp_ratio < 0.5:
+                findings.append(
+                    self._finding(
+                        "EXPERIENCE_SEVERE_GAP",
+                        "HIGH",
+                        f"候选人经验 ({profile_exp} 个月) 远低于岗位要求 ({goal.min_experience_months} 个月)，"
+                        f"差距超过 50%，需慎重评估学习能力和成长潜力。",
+                    )
+                )
+            elif exp_ratio < 1.0:
+                findings.append(
+                    self._finding(
+                        "EXPERIENCE_MODERATE_GAP",
+                        "MEDIUM",
+                        f"候选人经验 ({profile_exp} 个月) 未达到岗位要求 ({goal.min_experience_months} 个月)，"
+                        f"建议在面试中重点考察项目经验和独立交付能力。",
+                    )
+                )
+            elif exp_ratio >= 3.0:
+                findings.append(
+                    self._finding(
+                        "EXPERIENCE_OVERQUALIFIED",
+                        "MEDIUM",
+                        f"候选人经验 ({profile_exp} 个月) 远超岗位要求 ({goal.min_experience_months} 个月)，"
+                        f"可能存在薪资预期不匹配或职业发展受限的风险。",
+                    )
+                )
+        has_education = bool(profile.education)
+        has_certs = bool(profile.certificates)
+        has_projects = bool(profile.projects)
+        if not has_education and not has_certs and profile_exp < 12:
+            findings.append(
+                self._finding(
+                    "INSUFFICIENT_QUALIFICATION_EVIDENCE",
+                    "HIGH",
+                    "候选人缺少正式教育背景和证书资质，且工作经验不足一年，能力评估缺乏客观依据。",
+                )
+            )
+        elif not has_education and not has_certs and not has_projects:
+            findings.append(
+                self._finding(
+                    "NO_QUALIFICATION_INDICATORS",
+                    "MEDIUM",
+                    "缺少教育、证书和项目经历等关键资质指标，建议要求候选人补充材料。",
+                )
+            )
+
+        if has_education:
+            edu_concat = " ".join(profile.education).casefold()
+            has_bachelor_or_above = any(
+                kw in edu_concat
+                for kw in ("本科", "学士", "bachelor", "硕士", "master", "博士", "phd")
+            )
+            if not has_bachelor_or_above:
+                findings.append(
+                    self._finding(
+                        "EDUCATION_BELOW_BACHELOR",
+                        "MEDIUM",
+                        "候选人未显示本科或以上学历信息，若岗位对学历有硬性要求建议核实。",
+                    )
+                )
 
         if not score_available:
             findings.append(
@@ -166,6 +248,42 @@ class DecisionReviewService:
                     "缺少真实结构化面试评价，未生成面试能力结论。",
                 )
             )
+        if interview_available and interview_evaluation is not None:
+            eval_ref = interview_evaluation
+            if eval_ref.conflicts:
+                findings.append(
+                    self._finding(
+                        "INTERVIEW_EVALUATION_CONFLICT",
+                        "HIGH",
+                        f"面试评价存在内部矛盾：{'；'.join(eval_ref.conflicts)}。",
+                    )
+                )
+                disagreements.extend(eval_ref.conflicts)
+            if eval_ref.risks:
+                findings.append(
+                    self._finding(
+                        "INTERVIEW_RISK_FLAGGED",
+                        "HIGH" if len(eval_ref.risks) >= 2 else "MEDIUM",
+                        f"面试标记了 {len(eval_ref.risks)} 个风险点，需人工复核。",
+                    )
+                )
+            if eval_ref.requires_review and not eval_ref.strengths:
+                findings.append(
+                    self._finding(
+                        "INTERVIEW_INCONCLUSIVE",
+                        "MEDIUM",
+                        "面试结论不确定且未记录候选人优势项，建议安排补充面试或交叉评价。",
+                    )
+                )
+            if eval_ref.strengths and eval_ref.risks:
+                if len(eval_ref.risks) > len(eval_ref.strengths):
+                    findings.append(
+                        self._finding(
+                            "INTERVIEW_RISK_OUTWEIGHS_STRENGTH",
+                            "MEDIUM",
+                            "面试评价中风险点数量超过优势数量，整体评估偏负面。",
+                        )
+                    )
 
         if score_available and job_match.overall_score is not None:
             if job_match.overall_score < goal.score_threshold:
@@ -179,6 +297,62 @@ class DecisionReviewService:
                         ),
                     )
                 )
+        if job_match.dimension_scores:
+            low_dims = [
+                dim
+                for dim, score in job_match.dimension_scores.items()
+                if score < 50
+            ]
+            if len(low_dims) >= 2:
+                findings.append(
+                    self._finding(
+                        "MULTIPLE_WEAK_DIMENSIONS",
+                        "HIGH",
+                        f"候选人在多个维度上评分偏低（<50）：{'、'.join(low_dims)}，"
+                        f"建议针对性面试或要求补充材料。",
+                    )
+                )
+            elif low_dims:
+                findings.append(
+                    self._finding(
+                        "SINGLE_WEAK_DIMENSION",
+                        "MEDIUM",
+                        f"候选人在 '{low_dims[0]}' 维度评分偏低（<50），建议在面试中重点考察该方向。",
+                    )
+                )
+            if (
+                job_match.job_match_score is not None
+                and job_match.overall_score is not None
+                and job_match.job_match_score < 50
+                and job_match.overall_score >= 50
+            ):
+                findings.append(
+                    self._finding(
+                        "SCORE_COMPOSITION_ANOMALY",
+                        "MEDIUM",
+                        "岗位匹配评分较低但综合评分尚可，可能存在非技能因素拉高总分，建议仔细审查各维度。",
+                    )
+                )
+        if has_projects:
+            if len(profile.projects) < 2 and goal.min_experience_months >= 24:
+                findings.append(
+                    self._finding(
+                        "LIMITED_PROJECT_PORTFOLIO",
+                        "MEDIUM",
+                        f"候选人仅展示了 {len(profile.projects)} 个项目，"
+                        f"对于要求 {goal.min_experience_months // 12} 年经验的岗位建议关注项目深度和复杂度。",
+                    )
+                )
+            if profile.project_roles and profile.project_technologies:
+                tech_breadth = len(profile.project_technologies)
+                if tech_breadth < 2 and goal.min_experience_months >= 36:
+                    findings.append(
+                        self._finding(
+                            "NARROW_TECH_STACK",
+                            "MEDIUM",
+                            "候选人技术栈覆盖面较窄，高级岗位通常要求更广泛的技术储备。",
+                        )
+                    )
 
         if confidence < goal.confidence_threshold:
             findings.append(
@@ -210,6 +384,41 @@ class DecisionReviewService:
                 )
             )
             disagreements.append(summary)
+        if profile.availability:
+            avail = profile.availability.strip().casefold()
+            immediate_keywords = (
+                "立即", "immediate", "随时", "asap", "一周内", "1 week",
+            )
+            long_wait_keywords = (
+                "三个月", "半年", "3 month", "6 month", "年后",
+            )
+            can_start_soon = any(kw in avail for kw in immediate_keywords)
+            requires_long_wait = any(kw in avail for kw in long_wait_keywords)
+            if requires_long_wait and is_urgent:
+                findings.append(
+                    self._finding(
+                        "AVAILABILITY_URGENCY_CONFLICT",
+                        "HIGH",
+                        f"候选人需要较长等待时间（{profile.availability}），"
+                        f"与紧急岗位需求存在时间冲突。",
+                    )
+                )
+            elif not can_start_soon and is_critical:
+                findings.append(
+                    self._finding(
+                        "AVAILABILITY_CRITICAL_CONCERN",
+                        "MEDIUM",
+                        "关键岗位需候选人尽快到岗，但当前可用性描述未体现立即到岗能力。",
+                    )
+                )
+        if profile.fallback_used and not profile.evidence_items:
+            findings.append(
+                self._finding(
+                    "PROFILE_LOW_QUALITY_EXTRACTION",
+                    "HIGH",
+                    "候选人画像使用回退模式提取且缺少证据条目，信息可信度较低，建议人工核实简历原文。",
+                )
+            )
 
         has_high_risk = any(finding.severity == "HIGH" for finding in findings)
         if has_high_risk or confidence < goal.confidence_threshold:

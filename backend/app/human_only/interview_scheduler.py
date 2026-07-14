@@ -30,32 +30,11 @@ def schedule_interview(payload: dict[str, Any] | None) -> dict[str, Any]:
                 common_slot = overlap(candidate_slot, interviewer_slot)
                 if not common_slot or not enough_time(common_slot, duration):
                     continue
-                for room in room_list:
-                    room_slots = read_slots(room.get("available_slots") if isinstance(room, dict) else [])
-                    usable_slot = common_slot
-                    if room_slots:
-                        matches = [overlap(common_slot, room_slot) for room_slot in room_slots]
-                        matches = [item for item in matches if item and enough_time(item, duration)]
-                        if not matches:
-                            continue
-                        usable_slot = matches[0]
-                    option = make_option(
-                        usable_slot,
-                        duration,
-                        candidate.get("candidate_id"),
-                        interviewer,
-                        room,
-                        conflicts,
-                    )
-                    if option["has_conflict"]:
-                        conflict_notes.append(
-                            {
-                                "type": "event_conflict",
-                                "message": f"{format_time(option['start'])} 存在已占用日程。",
-                            }
-                        )
-                        continue
-                    options.append(option)
+                room_options, room_conflicts = _find_room_options_for_slot(
+                    common_slot, duration, candidate, interviewer, room_list, conflicts,
+                )
+                options.extend(room_options)
+                conflict_notes.extend(room_conflicts)
     if not options:
         return {
             "status": "no_available_slot",
@@ -204,3 +183,43 @@ def serialize_slot(slot: dict[str, Any]) -> dict[str, Any]:
     }
 def format_time(value: datetime) -> str:
     return value.isoformat(timespec="minutes")
+
+
+def _find_room_options_for_slot(
+    common_slot: dict[str, datetime],
+    duration: int,
+    candidate: dict[str, Any],
+    interviewer: dict[str, Any],
+    room_list: list[dict[str, Any]],
+    conflicts: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """Evaluate room availability for a shared candidate-interviewer time slot."""
+    options: list[dict[str, Any]] = []
+    conflict_notes: list[dict[str, str]] = []
+    for room in room_list:
+        room_slots = read_slots(room.get("available_slots") if isinstance(room, dict) else [])
+        usable_slot = common_slot
+        if room_slots:
+            matches = [overlap(common_slot, room_slot) for room_slot in room_slots]
+            matches = [item for item in matches if item and enough_time(item, duration)]
+            if not matches:
+                continue
+            usable_slot = matches[0]
+        option = make_option(
+            usable_slot,
+            duration,
+            candidate.get("candidate_id"),
+            interviewer,
+            room,
+            conflicts,
+        )
+        if option["has_conflict"]:
+            conflict_notes.append(
+                {
+                    "type": "event_conflict",
+                    "message": f"{format_time(option['start'])} 存在已占用日程。",
+                }
+            )
+            continue
+        options.append(option)
+    return options, conflict_notes
