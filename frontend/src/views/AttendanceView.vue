@@ -21,7 +21,7 @@
         <!-- Large Circular Clock -->
         <div class="relative w-[300px] h-[300px] rounded-full bg-primary/5 shadow-inner flex items-center justify-center mb-10 border border-primary/10">
           <div class="absolute inset-0 rounded-full border border-primary/20 animate-[pulse_3s_cubic-bezier(0.4,0,0.6,1)_infinite]"></div>
-          <div class="w-[260px] h-[260px] rounded-full bg-white shadow-sm flex flex-col items-center justify-center relative z-10 border border-outline-variant/20">
+          <div class="w-[260px] h-[260px] rounded-full bg-surface-container-lowest shadow-sm flex flex-col items-center justify-center relative z-10 border border-outline-variant/20">
             <span class="font-label-md text-label-md text-outline uppercase tracking-widest mb-1">当前时间</span>
             <div class="font-display text-[56px] leading-none text-on-surface font-bold tabular-nums">
               {{ time }}
@@ -122,14 +122,14 @@
         <div class="flex flex-wrap items-center gap-3">
           <div v-if="canSelectTarget" class="flex items-center gap-2">
             <span class="text-xs font-medium text-on-surface-variant">目标员工</span>
-            <select v-model="targetEmployeeId" @change="loadMonthlySummary" class="bg-white border border-outline-variant rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary">
+            <select v-model="targetEmployeeId" @change="loadMonthlySummary" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary">
               <option v-for="emp in employees" :key="emp.id" :value="emp.id">{{ emp.full_name }} · {{ emp.department }}</option>
             </select>
           </div>
-          <select v-model="selectedYear" class="bg-white border border-outline-variant rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary">
+          <select v-model="selectedYear" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary">
             <option v-for="y in [2025, 2026, 2027]" :key="y" :value="y">{{ y }}年</option>
           </select>
-          <select v-model="selectedMonth" class="bg-white border border-outline-variant rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary">
+          <select v-model="selectedMonth" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary">
             <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
           </select>
           <button @click="loadMonthlySummary" class="bg-primary text-on-primary font-semibold px-4 py-1.5 rounded-lg text-sm hover:bg-primary-container transition-all flex items-center gap-1">
@@ -220,15 +220,15 @@
               带薪年假查询与余额
             </h4>
             <div class="grid grid-cols-3 gap-2 mt-4 text-center">
-              <div class="bg-white rounded-lg p-2.5 border border-outline-variant/20 shadow-sm">
+              <div class="bg-surface-container-lowest rounded-lg p-2.5 border border-outline-variant/20 shadow-sm">
                 <span class="block text-[10px] text-outline font-medium">总天数</span>
                 <span class="font-display text-lg font-bold text-on-surface mt-1 block">{{ monthlySummary.total_days }}</span>
               </div>
-              <div class="bg-white rounded-lg p-2.5 border border-outline-variant/20 shadow-sm">
+              <div class="bg-surface-container-lowest rounded-lg p-2.5 border border-outline-variant/20 shadow-sm">
                 <span class="block text-[10px] text-outline font-medium">已用</span>
                 <span class="font-display text-lg font-bold text-secondary mt-1 block">{{ monthlySummary.used_days }}</span>
               </div>
-              <div class="bg-white rounded-lg p-2.5 border border-primary/20 bg-primary/5 shadow-sm">
+              <div class="bg-surface-container-lowest rounded-lg p-2.5 border border-primary/20 shadow-sm">
                 <span class="block text-[10px] text-primary font-medium">剩余</span>
                 <span class="font-display text-lg font-bold text-primary mt-1 block">{{ monthlySummary.remaining_days }}</span>
               </div>
@@ -431,3 +431,10 @@ onUnmounted(() => {
   if (clockTimer) clearInterval(clockTimer);
 });
 </script>
+
+<style scoped>
+/* 深色模式适配 */
+[data-theme="dark"] .bg-amber-50 { background-color: #451a03 !important; }
+[data-theme="dark"] .text-amber-600 { color: #fdba74 !important; }
+[data-theme="dark"] .bg-amber-500\/20 { background-color: rgba(245, 158, 11, 0.15) !important; }
+</style>

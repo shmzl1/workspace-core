@@ -105,12 +105,12 @@
               <div class="flex bg-surface-container-low rounded-lg p-1">
                 <button
                   class="px-3 py-1 rounded font-label-md text-label-md transition-colors"
-                  :class="calendarView === 'month' ? 'bg-white shadow-sm text-on-surface' : 'text-on-surface-variant hover:text-on-surface'"
+                  :class="calendarView === 'month' ? 'bg-surface-container-lowest shadow-sm text-on-surface' : 'text-on-surface-variant hover:text-on-surface'"
                   @click="calendarView = 'month'"
                 >月视图</button>
                 <button
                   class="px-3 py-1 rounded font-label-md text-label-md transition-colors"
-                  :class="calendarView === 'week' ? 'bg-white shadow-sm text-on-surface' : 'text-on-surface-variant hover:text-on-surface'"
+                  :class="calendarView === 'week' ? 'bg-surface-container-lowest shadow-sm text-on-surface' : 'text-on-surface-variant hover:text-on-surface'"
                   @click="calendarView = 'week'"
                 >周视图</button>
               </div>
@@ -176,7 +176,7 @@
                   :class="{
                     'border-primary/20 bg-primary/5': scheduleGenerated && item.recommended && !item.hasConflict,
                     'border-[#EA580C]/20 bg-[#FFF7ED]': item.hasConflict,
-                    'border-outline-variant bg-white hover:border-primary/50': !scheduleGenerated || (!item.recommended && !item.hasConflict),
+                    'border-outline-variant bg-surface-container-lowest hover:border-primary/50': !scheduleGenerated || (!item.recommended && !item.hasConflict),
                   }"
                 >
                   <div v-if="scheduleGenerated && item.recommended && !item.hasConflict" class="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500 rounded-l-lg"></div>
@@ -221,7 +221,7 @@
                 <!-- Candidate Selection Dropdown -->
                 <div v-if="applications.length > 0" class="space-y-1">
                   <label for="candidate-select" class="text-xs font-semibold text-on-surface-variant block">选择排期候选人：</label>
-                  <select id="candidate-select" v-model="selectedApplicationId" class="w-full bg-white border border-outline-variant rounded-lg p-2.5 text-sm outline-none focus:border-primary cursor-pointer font-semibold" @change="clearPreview">
+                  <select id="candidate-select" v-model="selectedApplicationId" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 text-sm outline-none focus:border-primary cursor-pointer font-semibold" @change="clearPreview">
                     <option v-for="app in applications" :key="app.id" :value="app.id">
                       {{ applicationLabel(app) }}
                     </option>
@@ -234,7 +234,7 @@
                   当前缺少可用的面试官或会议室资源，暂时无法生成排期预览。
                 </p>
 
-                <div class="rounded-xl border border-outline-variant bg-white p-4 space-y-3">
+                <div class="rounded-xl border border-outline-variant bg-surface-container-lowest p-4 space-y-3">
                   <div>
                     <span class="text-xs text-on-surface-variant">推荐时间段</span>
                     <p class="font-semibold text-on-surface">{{ currentSuggestion.time }}</p>
@@ -686,3 +686,18 @@ function formatClock(value: Date) {
   return value.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 </script>
+
+<style scoped>
+/* 深色模式适配 */
+[data-theme="dark"] .bg-red-50 { background-color: #450a0a !important; }
+[data-theme="dark"] .text-red-800 { color: #fca5a5 !important; }
+[data-theme="dark"] .bg-amber-50 { background-color: #451a03 !important; }
+[data-theme="dark"] .text-amber-800 { color: #fdba74 !important; }
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e16 !important; }
+[data-theme="dark"] .text-emerald-700 { color: #86efac !important; }
+[data-theme="dark"] .bg-emerald-100 { background-color: #052e16 !important; }
+[data-theme="dark"] .bg-\[\#FFF7ED\] { background-color: #451a03 !important; }
+[data-theme="dark"] .bg-\[\#FFEDD5\] { background-color: #5c2d0a !important; }
+[data-theme="dark"] .text-\[\#EA580C\] { color: #fdba74 !important; }
+[data-theme="dark"] .border-\[\#EA580C\]\/20 { border-color: rgba(253, 186, 116, 0.2) !important; }
+</style>

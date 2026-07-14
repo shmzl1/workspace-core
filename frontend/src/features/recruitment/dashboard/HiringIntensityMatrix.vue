@@ -114,6 +114,10 @@ const heatmapRows = ['周一', '周二', '周三', '周四', '周五', '周六',
   background: #2455f5;
 }
 
+/* 深色模式适配 */
+[data-theme="dark"] .matrix-card__cell--1 { background: #1e3a5f; }
+[data-theme="dark"] .matrix-card__cell--2 { background: #1e40af; }
+
 @media (max-width: 720px) {
   .matrix-card__header {
     flex-direction: column;

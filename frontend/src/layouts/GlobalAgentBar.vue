@@ -152,6 +152,22 @@ function submitCommand() {
   transform: rotate(45deg);
 }
 
+/* 深色模式适配 */
+[data-theme="dark"] .agentbar__quick button {
+  background: rgba(30, 41, 59, 0.92);
+  color: var(--color-muted);
+}
+[data-theme="dark"] .agentbar__form {
+  background: rgba(30, 41, 59, 0.96);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+}
+[data-theme="dark"] .agentbar__spark {
+  background:
+    linear-gradient(90deg, transparent 43%, #1e293b 43%, #1e293b 57%, transparent 57%),
+    linear-gradient(0deg, transparent 43%, #1e293b 43%, #1e293b 57%, transparent 57%),
+    var(--color-primary);
+}
+
 @media (max-width: 980px) {
   .agentbar {
     right: 18px;

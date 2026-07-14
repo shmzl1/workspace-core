@@ -418,7 +418,7 @@ onMounted(() => {
   padding: 22px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-card);
 }
 
@@ -470,7 +470,7 @@ onMounted(() => {
   padding: 22px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-card);
 }
 
@@ -530,7 +530,7 @@ onMounted(() => {
 
 .audit-page__badge--amber {
   background: #fef3c7;
-  color: #c2410c;
+  color: var(--color-status-warning-text);
 }
 
 // ── Metrics ──────────────────────────────────
@@ -545,7 +545,7 @@ onMounted(() => {
   padding: 18px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-card);
 
   p {
@@ -570,7 +570,7 @@ onMounted(() => {
   }
 
   .up { color: #15803d; font-weight: 700; }
-  .text-red { color: #b91c1c; }
+  .text-red { color: var(--color-status-error-text); }
 }
 
 // ── Buttons ──────────────────────────────────
@@ -581,7 +581,7 @@ onMounted(() => {
   padding: 6px 14px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--color-surface);
   color: var(--color-muted);
   font-size: 12px;
   font-weight: 700;
@@ -609,7 +609,7 @@ onMounted(() => {
 .audit-page__table-card {
   border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: var(--shadow-card);
   overflow: hidden;
 }
@@ -710,8 +710,8 @@ table {
   font-size: 11px;
   font-weight: 700;
 
-  &--blue { background: #eaf0ff; color: var(--color-primary); }
-  &--amber { background: #fef3c7; color: #c2410c; }
+  &--blue { background: var(--color-primary-soft); color: var(--color-primary); }
+  &--amber { background: #fef3c7; color: var(--color-status-warning-text); }
 }
 
 .audit-page__result {
@@ -724,8 +724,8 @@ table {
   font-weight: 700;
 
   &--allowed { background: rgba(22,163,74,0.08); color: #15803d; }
-  &--denied { background: rgba(229,92,60,0.08); color: #b91c1c; }
-  &--pending { background: rgba(245,158,11,0.08); color: #c2410c; }
+  &--denied { background: rgba(229,92,60,0.08); color: var(--color-status-error-text); }
+  &--pending { background: rgba(245,158,11,0.08); color: var(--color-status-warning-text); }
 }
 
 .audit-page__dot {
@@ -787,4 +787,10 @@ table {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* 深色模式 */
+[data-theme="dark"] .audit-page__tag--amber { background: #451a03; }
+[data-theme="dark"] .audit-page__result--allowed { background: rgba(34, 197, 94, 0.12); color: #86efac; }
+[data-theme="dark"] .audit-page__badge--amber { background: #451a03; }
 </style>

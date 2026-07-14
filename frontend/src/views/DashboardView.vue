@@ -142,7 +142,7 @@
               <div class="flex-1 border-r border-outline-variant/30 flex flex-col pt-4 px-4 relative">
                 <div class="text-center text-xs font-medium text-on-surface-variant mb-6 bg-surface-container px-2 py-1 rounded mx-auto border border-outline-variant/50">原始提取</div>
                 
-                <div class="bg-white p-3 rounded-lg border border-outline-variant shadow-sm relative z-10 flex items-center gap-3">
+                <div class="bg-surface-container-lowest p-3 rounded-lg border border-outline-variant shadow-sm relative z-10 flex items-center gap-3">
                   <div class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-bold text-[10px]">AL</div>
                   <div>
                     <div class="text-sm font-medium">Alex Lee</div>
@@ -156,7 +156,7 @@
               <div class="flex-1 border-r border-outline-variant/30 flex flex-col pt-4 px-4 relative">
                 <div class="text-center text-xs font-medium text-primary mb-6 bg-primary-container/10 px-2 py-1 rounded mx-auto border border-primary-container/30">语义匹配</div>
                 
-                <div class="bg-white p-3 rounded-lg border-2 border-primary/20 shadow-sm relative z-10 flex flex-col gap-2 mt-8 ai-glow animate-pulse" :style="{ animationDuration: '3s' }">
+                <div class="bg-surface-container-lowest p-3 rounded-lg border-2 border-primary/20 shadow-sm relative z-10 flex flex-col gap-2 mt-8 ai-glow animate-pulse" :style="{ animationDuration: '3s' }">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden">
                       <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4JExOfEgKff3_zwoGHO_pX6WwAtseY2QgK0RvTHNYWUsvKJmv6cAWDWum2grupoInSyKOzqLPOfW6i6kwr7OsmCUeHsf9Sfg1uLAAcaGfj07hyhmJ8-_Nm0JqC1uu2zqN4ZL0b6aK749jS3D78k994GK4Z8z-RoAKKNTpgoO8_PYi43Fg0luUQnp_7k2vGehUnxTyhH0I83dAm6GQUiidXYIOhsuMlawSLNCWgg9ec98QiM__mT-EGYr0VBHvsop13Tpx93AS0PF0" alt="Candidate" class="w-full h-full object-cover"/>
@@ -182,7 +182,7 @@
                   <span class="material-symbols-outlined text-[14px]">star</span> 顶级匹配
                 </div>
                 
-                <div class="bg-gradient-to-br from-white to-emerald-50/50 p-4 rounded-xl border-2 border-emerald-500 shadow-[0_4px_15px_rgba(16,185,129,0.15)] relative z-10 mt-[100px]">
+                <div class="bg-gradient-to-br from-surface-container-lowest to-emerald-50/50 p-4 rounded-xl border-2 border-emerald-500 shadow-[0_4px_15px_rgba(16,185,129,0.15)] relative z-10 mt-[100px]">
                   <div class="absolute -top-3 -right-3 bg-emerald-500 text-white font-bold text-[10px] px-2 py-1 rounded-full shadow-md">98% 匹配</div>
                   <div class="flex items-center gap-3 mb-3">
                     <div class="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden border-2 border-white shadow-sm">
@@ -417,3 +417,16 @@ function markPayrollHandled() {
   emit('show-toast', '薪资预审风险已标记为已处理。');
 }
 </script>
+
+<style scoped>
+/* 深色模式适配 */
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e16 !important; }
+[data-theme="dark"] .text-emerald-600 { color: #86efac !important; }
+[data-theme="dark"] .bg-emerald-100 { background-color: #064e3b !important; }
+[data-theme="dark"] .text-emerald-700 { color: #6ee7b7 !important; }
+[data-theme="dark"] .to-emerald-50\/50 { --tw-gradient-to: rgba(5, 46, 22, 0.5) !important; }
+[data-theme="dark"] .bg-\[\#F7F9FF\] { background-color: #1a2332 !important; }
+[data-theme="dark"] .bg-\[\#F8FAFC\] { background-color: #1e293b !important; }
+[data-theme="dark"] .bg-\[\#FFF7ED\] { background-color: #451a03 !important; }
+[data-theme="dark"] .text-\[\#EA580C\] { color: #fdba74 !important; }
+</style>

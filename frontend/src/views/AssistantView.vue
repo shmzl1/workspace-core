@@ -142,7 +142,7 @@
                       </div>
                       <h4 class="text-sm font-semibold text-on-surface m-0">员工手册 2024</h4>
                     </div>
-                    <div class="flex items-center gap-1.5 px-2 py-1 bg-emerald-100 border border-emerald-200 rounded-full text-emerald-700 font-medium text-[10px]">
+                    <div class="flex items-center gap-1.5 px-2 py-1 bg-emerald-100 border border-emerald-200 rounded-full text-emerald-700 font-medium text-[10px] assistant-conf-badge">
                       <span class="material-symbols-outlined text-[12px]">verified</span> 高置信度
                     </div>
                   </div>
@@ -245,3 +245,8 @@
 
 <script setup lang="ts">
 </script>
+
+<style scoped>
+/* 深色模式适配 */
+[data-theme="dark"] .assistant-conf-badge { background-color: #052e16 !important; border-color: #166534 !important; color: #86efac !important; }
+</style>

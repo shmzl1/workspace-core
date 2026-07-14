@@ -112,7 +112,7 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer); });
 </script>
 
 <style scoped>
-.run-overview { display:grid; gap:16px; padding:20px; border:1px solid var(--color-line); border-radius:var(--radius-md); background:#fff; box-shadow:var(--shadow-card); }
+.run-overview { display:grid; gap:16px; padding:20px; border:1px solid var(--color-line); border-radius:var(--radius-md); background:var(--color-surface); box-shadow:var(--shadow-card); }
 .run-overview header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; }
 .run-overview header span { color:var(--color-primary); font-size:12px; font-weight:800; }
 .run-overview h2 { margin:5px 0 0; }

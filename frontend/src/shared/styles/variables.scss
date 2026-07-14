@@ -1,23 +1,115 @@
 :root {
+  /* ── 表面 / 背景 ── */
   --color-bg: #f5f7fb;
   --color-surface: #ffffff;
   --color-surface-soft: #f8fbff;
+
+  /* ── 边框 ── */
   --color-line: #e5eaf3;
   --color-line-strong: #d6deee;
+
+  /* ── 主色（蓝色系） ── */
   --color-primary: #2455f5;
   --color-primary-strong: #273ddb;
   --color-primary-soft: #eef4ff;
+
+  /* ── 文字 ── */
   --color-text: #172033;
   --color-muted: #667085;
   --color-subtle: #98a2b3;
+
+  /* ── 语义色 ── */
   --color-success: #16a36a;
   --color-dark: #101828;
+
+  /* ── 状态背景 / 文字（success / error / warning / info） ── */
+  --color-status-success-bg: #dcfce7;
+  --color-status-success-text: #166534;
+  --color-status-error-bg: #fee2e2;
+  --color-status-error-text: #b91c1c;
+  --color-status-warning-bg: #ffedd5;
+  --color-status-warning-text: #9a3412;
+  --color-status-info-bg: #e0f2fe;
+  --color-status-info-text: #0369a1;
+
+  /* ── 节点状态色（Agent 工作流） ── */
+  --color-node-running-glow: rgba(36, 85, 245, 0.10);
+  --color-node-completed-bg: #f0fdf4;
+  --color-node-completed-border: #86efac;
+  --color-node-skipped-bg: #fffbeb;
+  --color-node-skipped-border: #fde68a;
+  --color-node-failed-bg: #fff7f7;
+  --color-node-failed-border: #fecaca;
+  --color-node-review-bg: #fff7ed;
+  --color-node-review-border: #fdba74;
+  --color-node-selected-outline: rgba(36, 85, 245, 0.22);
+
+  /* ── 阴影 ── */
   --shadow-card: 0 14px 40px rgba(31, 44, 71, 0.08);
   --shadow-soft: 0 8px 24px rgba(37, 85, 245, 0.12);
+
+  /* ── 圆角 / 尺寸（主题无关） ── */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
   --topbar-height: 72px;
   --sidebar-width: 248px;
   --agentbar-height: 128px;
+}
+
+/* ═══════════════════════════════════════════
+   深色模式
+   ═══════════════════════════════════════════ */
+[data-theme="dark"] {
+  /* ── 表面 / 背景：白 → 深蓝灰 ── */
+  --color-bg: #0f172a;                /* slate-900 */
+  --color-surface: #1e293b;           /* slate-800 */
+  --color-surface-soft: #1a2332;      /* 介于 bg 和 surface 之间 */
+
+  /* ── 边框：浅灰 → 深灰 ── */
+  --color-line: #334155;              /* slate-700 */
+  --color-line-strong: #475569;       /* slate-600 */
+
+  /* ── 主色：蓝色保留，浅蓝 ↔ 深蓝互换 ── */
+  --color-primary: #3b82f6;           /* 略微提亮 */
+  --color-primary-strong: #60a5fa;    /* 深蓝 → 亮蓝 */
+  --color-primary-soft: #1e3a5f;      /* 浅蓝底 → 深蓝底 */
+
+  /* ── 文字：黑色 → 浅色 ── */
+  --color-text: #e2e8f0;              /* slate-200 */
+  --color-muted: #94a3b8;             /* slate-400 */
+  --color-subtle: #64748b;            /* slate-500 */
+
+  /* ── 语义色：保留色调，微调亮度 ── */
+  --color-success: #22c55e;           /* 绿，略提亮 */
+  --color-dark: #f1f5f9;              /* 原深色 → 浅色 */
+
+  /* ── 状态背景 / 文字 ── */
+  --color-status-success-bg: #052e16;
+  --color-status-success-text: #86efac;
+  --color-status-error-bg: #450a0a;
+  --color-status-error-text: #fca5a5;
+  --color-status-warning-bg: #451a03;
+  --color-status-warning-text: #fdba74;
+  --color-status-info-bg: #0c2d48;
+  --color-status-info-text: #7dd3fc;
+
+  /* ── 节点状态色 ── */
+  --color-node-running-glow: rgba(59, 130, 246, 0.15);
+  --color-node-completed-bg: #052e16;
+  --color-node-completed-border: #166534;
+  --color-node-skipped-bg: #451a03;
+  --color-node-skipped-border: #78350f;
+  --color-node-failed-bg: #450a0a;
+  --color-node-failed-border: #991b1b;
+  --color-node-review-bg: #451a03;
+  --color-node-review-border: #9a3412;
+  --color-node-selected-outline: rgba(59, 130, 246, 0.35);
+
+  /* ── 阴影：加深 ── */
+  --shadow-card: 0 14px 40px rgba(0, 0, 0, 0.35);
+  --shadow-soft: 0 8px 24px rgba(59, 130, 246, 0.20);
+
+  /* ── 强制浏览器原生控件跟随主题 ── */
+  color-scheme: dark;
 }

@@ -79,7 +79,7 @@
               自助查询假期、薪资及公司政策。与智能助手对话，快速解决日常行政和人事问题。
             </p>
             <div class="mt-auto w-full max-w-[240px]">
-              <span class="flex items-center justify-center px-6 py-3.5 bg-white/80 border-2 border-primary/20 text-primary rounded-xl text-sm font-semibold group-hover:bg-white group-hover:border-primary/40 group-hover:shadow-lg group-hover:shadow-primary/10 transition-all duration-300 w-full backdrop-blur-sm">
+              <span class="flex items-center justify-center px-6 py-3.5 bg-surface-container-lowest/80 border-2 border-primary/20 text-primary rounded-xl text-sm font-semibold group-hover:bg-surface-container-lowest group-hover:border-primary/40 group-hover:shadow-lg group-hover:shadow-primary/10 transition-all duration-300 w-full backdrop-blur-sm">
                 <span class="font-bold mr-1.5 text-base bg-clip-text text-transparent bg-gradient-to-r from-primary-container to-tertiary">AI</span> 
                 启动智能助手 
                 <span class="material-symbols-outlined ml-2 text-base transition-transform group-hover:scale-110">chat_bubble</span>

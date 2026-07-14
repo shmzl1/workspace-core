@@ -72,20 +72,20 @@ function visibleError(mode?: string, lastError?: string | null): string {
 </script>
 
 <style scoped>
-.integration-status { display:grid; gap:14px; padding:18px 20px; border:1px solid var(--color-line); border-radius:var(--radius-md); background:#fff; box-shadow:var(--shadow-card); }
+.integration-status { display:grid; gap:14px; padding:18px 20px; border:1px solid var(--color-line); border-radius:var(--radius-md); background:var(--color-surface); box-shadow:var(--shadow-card); }
 .integration-status header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .integration-status header span { color:var(--color-primary); font-size:11px; font-weight:800; }
 .integration-status h2 { margin:4px 0 0; font-size:18px; }
-.integration-status button { display:grid; width:36px; height:36px; place-items:center; border:1px solid var(--color-line); border-radius:6px; background:#fff; color:var(--color-muted); cursor:pointer; }
+.integration-status button { display:grid; width:36px; height:36px; place-items:center; border:1px solid var(--color-line); border-radius:6px; background:var(--color-surface); color:var(--color-muted); cursor:pointer; }
 .integration-status button:disabled { cursor:default; opacity:.55; }
 .integration-status__grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
 .integration-status article { min-width:0; padding:11px 12px; border-left:3px solid var(--color-line); background:var(--color-surface-soft); }
 .integration-status article span,.integration-status article strong,.integration-status article small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .integration-status article span,.integration-status article small { color:var(--color-subtle); font-size:10px; }
 .integration-status article strong { margin:5px 0; color:var(--color-text); font-size:13px; }
-.integration-status__error { margin:0; padding:11px; background:#fff7ed; color:#9a3412; font-size:12px; }
-.integration-status__last-error { margin-top:5px; color:#9a3412!important; }
-.is-ready { color:#166534!important; }.is-configured { color:#475569!important; }.is-disabled { color:#64748b!important; }.is-degraded { color:#b45309!important; }
+.integration-status__error { margin:0; padding:11px; background:var(--color-status-warning-bg); color:var(--color-status-warning-text); font-size:12px; }
+.integration-status__last-error { margin-top:5px; color:var(--color-status-warning-text)!important; }
+.is-ready { color:var(--color-status-success-text)!important; }.is-configured { color:var(--color-muted)!important; }.is-disabled { color:var(--color-subtle)!important; }.is-degraded { color:var(--color-status-warning-text)!important; }
 .is-spinning { animation:spin 1s linear infinite; } @keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:850px){.integration-status__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.integration-status__grid{grid-template-columns:1fr}}

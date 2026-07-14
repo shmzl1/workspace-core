@@ -21,8 +21,8 @@
       <button class="icon-button" aria-label="最近操作">
         <span class="icon icon--history"></span>
       </button>
-      <button class="icon-button" aria-label="主题切换">
-        <span class="icon icon--theme"></span>
+      <button class="icon-button" aria-label="主题切换" @click="toggleTheme()" :title="theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'">
+        <span class="icon" :class="theme === 'dark' ? 'icon--sun' : 'icon--moon'"></span>
       </button>
       <div class="topbar__user">
         <span class="topbar__avatar">{{ user.full_name?.slice(0, 1) || user.username.slice(0, 1) }}</span>
@@ -36,8 +36,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { AuthUser } from '../features/auth/authTypes';
+import { useTheme } from '../shared/composables/useTheme';
+
 const props = defineProps<{ user: AuthUser }>();
 defineEmits<{ logout: [] }>();
+
+const { theme, toggleTheme } = useTheme();
+
 const roleLabel = computed(() => ({ EMPLOYEE: '普通员工', DEPARTMENT_MANAGER: '部门主管', HR_SPECIALIST: 'HR 专员', PAYROLL_ADMIN: '薪酬管理员' }[props.user.role] || props.user.role));
 </script>
 
@@ -51,7 +56,7 @@ const roleLabel = computed(() => ({ EMPLOYEE: '普通员工', DEPARTMENT_MANAGER
   height: var(--topbar-height);
   padding: 0 28px;
   border-bottom: 1px solid var(--color-line);
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--color-surface);
   backdrop-filter: blur(16px);
 }
 
@@ -160,9 +165,8 @@ const roleLabel = computed(() => ({ EMPLOYEE: '普通员工', DEPARTMENT_MANAGER
   place-items: center;
   border: 1px solid var(--color-line);
   border-radius: 50%;
-  background: #fff;
+  background: var(--color-surface);
 }
-
 .icon {
   position: relative;
   width: 17px;
@@ -203,10 +207,24 @@ const roleLabel = computed(() => ({ EMPLOYEE: '普通员工', DEPARTMENT_MANAGER
   content: '';
 }
 
-.icon--theme {
-  border-radius: 50%;
-  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+.icon--moon {
   border: 2px solid currentColor;
+  border-radius: 50%;
+}
+.icon--moon::after {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  content: '';
+}
+.icon--sun {
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px currentColor;
 }
 
 .topbar__user {
@@ -224,10 +242,10 @@ const roleLabel = computed(() => ({ EMPLOYEE: '普通员工', DEPARTMENT_MANAGER
   height: 36px;
   place-items: center;
   border-radius: 50%;
-  background: #e9efff;
+  background: var(--color-primary-soft);
   color: var(--color-primary);
 }
-.logout-button { border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: #fff; color: var(--color-muted); padding: 8px 10px; font-weight: 700; }
+.logout-button { border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-muted); padding: 8px 10px; font-weight: 700; }
 
 @media (max-width: 1180px) {
   .topbar__nav {
