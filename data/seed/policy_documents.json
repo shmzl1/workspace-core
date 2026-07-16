@@ -1,8 +1,135 @@
 [
-  {"id": 1, "document_code": "TF-POL-001", "title": "员工手册", "category": "员工福利", "source_path": "docs/policies/employee-handbook.pdf", "version": "v2.1", "metadata_json": {"required": true, "summary": "员工行为、福利与服务说明"}},
-  {"id": 2, "document_code": "TF-POL-002", "title": "考勤与休假管理制度", "category": "考勤休假", "source_path": "docs/policies/attendance-leave.pdf", "version": "v1.3", "metadata_json": {"required": true, "summary": "打卡、加班及各类请假规则"}},
-  {"id": 3, "document_code": "TF-POL-003", "title": "差旅报销管理办法", "category": "差旅报销", "source_path": "docs/policies/travel-expense.pdf", "version": "v1.1", "metadata_json": {"summary": "出差申请和费用报销标准"}},
-  {"id": 4, "document_code": "TF-POL-004", "title": "商业行为与职业道德准则", "category": "行为准则", "source_path": "docs/policies/code-of-conduct.pdf", "version": "v1.5", "metadata_json": {"required": true, "summary": "职业道德与合规要求"}},
-  {"id": 5, "document_code": "TF-POL-005", "title": "混合办公与远程协作规范", "category": "办公协作", "source_path": "docs/policies/hybrid-work.pdf", "version": "v1.0", "metadata_json": {"summary": "适用于经主管批准的混合办公安排，明确办公地点、信息安全和工作时段要求"}},
-  {"id": 6, "document_code": "TF-POL-006", "title": "员工健康体检与心理支持服务说明", "category": "员工福利", "source_path": "docs/policies/wellbeing-support.pdf", "version": "v1.2", "metadata_json": {"summary": "说明年度健康体检、员工援助计划及预约方式，不包含个人健康信息"}}
+  {
+    "document_code": "NPC-LABOR-LAW-2018",
+    "title": "中华人民共和国劳动法",
+    "category": "劳动用工",
+    "source_path": "https://flk.npc.gov.cn/detail?id=ff8080816f135f46016f20f16ee11737&title=中华人民共和国劳动法",
+    "version": "2018年修正",
+    "is_active": true,
+    "metadata_json": {
+      "summary": "规定促进就业、劳动合同和集体合同、工作时间与休息休假、工资、劳动安全卫生、女职工和未成年工特殊保护、职业培训、社会保险福利、劳动争议以及监督检查等劳动关系基本制度。",
+      "issuing_authority": "全国人民代表大会常务委员会",
+      "official_document_number": "中华人民共和国主席令第二十八号",
+      "publication_date": "2018-12-29",
+      "effective_date": "2018-12-29",
+      "status": "现行有效",
+      "jurisdiction": "中华人民共和国",
+      "source_type": "国家法律法规数据库",
+      "verified_at": "2026-07-16"
+    }
+  },
+  {
+    "document_code": "NPC-LABOR-CONTRACT-LAW-2012",
+    "title": "中华人民共和国劳动合同法",
+    "category": "劳动合同",
+    "source_path": "https://flk.npc.gov.cn/detail?fileId=&id=2c909fdd678bf17901678bf74d7106b3&title=中华人民共和国劳动合同法&type=",
+    "version": "2012年修正",
+    "is_active": true,
+    "metadata_json": {
+      "summary": "规范劳动合同的订立、履行、变更、解除和终止，并规定集体合同、劳务派遣、非全日制用工、监督检查及法律责任等事项。",
+      "issuing_authority": "全国人民代表大会常务委员会",
+      "official_document_number": "中华人民共和国主席令第六十五号",
+      "publication_date": "2012-12-28",
+      "effective_date": "2013-07-01",
+      "status": "现行有效",
+      "jurisdiction": "中华人民共和国",
+      "source_type": "国家法律法规数据库",
+      "verified_at": "2026-07-16"
+    }
+  },
+  {
+    "document_code": "STATE-COUNCIL-ORDER-514",
+    "title": "职工带薪年休假条例",
+    "category": "休息休假",
+    "source_path": "https://xzfg.moj.gov.cn/front/law/detail?LawID=208",
+    "version": "国务院令第514号",
+    "is_active": true,
+    "metadata_json": {
+      "summary": "连续工作1年以上的职工依法享受带薪年休假；累计工作已满1年不满10年、已满10年不满20年、已满20年的年休假分别为5天、10天、15天。法定休假日和休息日不计入年休假，年休假一般不跨年度，确有必要时可跨1个年度安排。",
+      "issuing_authority": "国务院",
+      "official_document_number": "中华人民共和国国务院令第514号",
+      "publication_date": "2007-12-14",
+      "effective_date": "2008-01-01",
+      "status": "现行有效",
+      "jurisdiction": "中华人民共和国",
+      "source_type": "国家行政法规库",
+      "verified_at": "2026-07-16"
+    }
+  },
+  {
+    "document_code": "MOHRSS-ORDER-1-2008",
+    "title": "企业职工带薪年休假实施办法",
+    "category": "休息休假",
+    "source_path": "https://www.mohrss.gov.cn/xxgk2020/gzk/gz/202112/P020211229590352867273.pdf",
+    "version": "人社部令第1号",
+    "is_active": true,
+    "metadata_json": {
+      "summary": "适用于企业、民办非企业单位和有雇工的个体工商户等用人单位，明确连续工作满12个月的享受条件、累计工作时间认定、新进职工和解除或终止劳动关系时的年休假折算、统筹安排及未休年休假工资报酬等规则。",
+      "issuing_authority": "人力资源和社会保障部",
+      "official_document_number": "中华人民共和国人力资源和社会保障部令第1号",
+      "publication_date": "2008-09-18",
+      "effective_date": "2008-09-18",
+      "status": "现行有效",
+      "jurisdiction": "中华人民共和国",
+      "source_type": "人力资源社会保障部规章库",
+      "verified_at": "2026-07-16"
+    }
+  },
+  {
+    "document_code": "STATE-COUNCIL-ORDER-795",
+    "title": "全国年节及纪念日放假办法",
+    "category": "休息休假",
+    "source_path": "https://xzfg.moj.gov.cn/front/law/detail?LawID=1737",
+    "version": "2024年第四次修订",
+    "is_active": true,
+    "metadata_json": {
+      "summary": "现行办法规定元旦、春节、清明节、劳动节、端午节、中秋节和国庆节等全体公民放假的节日及天数，并规定法定节假日调休可结合带薪年休假形成较长假期；除个别特殊情形外，法定节假日前后连续工作一般不超过6天。",
+      "issuing_authority": "国务院",
+      "official_document_number": "中华人民共和国国务院令第795号",
+      "publication_date": "2024-11-12",
+      "effective_date": "2025-01-01",
+      "status": "现行有效",
+      "jurisdiction": "中华人民共和国",
+      "source_type": "国家行政法规库",
+      "verified_at": "2026-07-16"
+    }
+  },
+  {
+    "document_code": "LABOR-MINISTRY-1994-489",
+    "title": "工资支付暂行规定",
+    "category": "工资支付",
+    "source_path": "https://www.mohrss.gov.cn/xxgk2020/gzk/gz/202112/P020220105606656151693.pdf",
+    "version": "劳部发〔1994〕489号",
+    "is_active": true,
+    "metadata_json": {
+      "summary": "规范用人单位工资支付行为，规定工资应以法定货币支付、按照约定日期支付且至少每月支付一次，并明确加班工资、特殊情况下工资支付以及不得克扣或无故拖欠工资等要求。",
+      "issuing_authority": "原劳动部",
+      "official_document_number": "劳部发〔1994〕489号",
+      "publication_date": "1994-12-06",
+      "effective_date": "1995-01-01",
+      "status": "现行有效",
+      "jurisdiction": "中华人民共和国",
+      "source_type": "人力资源社会保障部规章库",
+      "verified_at": "2026-07-16"
+    }
+  },
+  {
+    "document_code": "STATE-COUNCIL-ORDER-619",
+    "title": "女职工劳动保护特别规定",
+    "category": "劳动保护",
+    "source_path": "https://xzfg.moj.gov.cn/front/law/detail?LawID=343",
+    "version": "国务院令第619号",
+    "is_active": true,
+    "metadata_json": {
+      "summary": "适用于境内用人单位及其女职工，规定用人单位改善劳动安全卫生条件、遵守女职工禁忌劳动范围，并明确女职工孕期、产期和哺乳期的劳动保护、产假及相关待遇。",
+      "issuing_authority": "国务院",
+      "official_document_number": "中华人民共和国国务院令第619号",
+      "publication_date": "2012-04-28",
+      "effective_date": "2012-04-28",
+      "status": "现行有效",
+      "jurisdiction": "中华人民共和国",
+      "source_type": "国家行政法规库",
+      "verified_at": "2026-07-16"
+    }
+  }
 ]

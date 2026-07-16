@@ -19,7 +19,7 @@ sys.path.insert(0, str(BACKEND_DIR))
 os.chdir(BACKEND_DIR)
 
 from passlib.hash import bcrypt
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -32,9 +32,12 @@ from app.modules.auth.permissions import ROLE_DEFAULT_PERMISSIONS
 from app.modules.employee.models import Employee, LeaveBalance
 from app.modules.interview.models import Interview, Interviewer, InterviewSlot, MeetingRoom
 from app.modules.payroll.models import PayrollLineItem, PayrollPeriod, PayrollReviewRecord, SalaryRecord
+from app.modules.policy.models import PolicyDocument
 from app.modules.recruitment.models import Candidate, CandidateApplication, CandidatePipelineRecord, Job
 
 EXPECTED_JOB_CODES = {"JOB-AGENT-001", "JOB-DATA-001", "JOB-AI-PLATFORM-001"}
+POLICY_SEED_PATH = ROOT_DIR / "data" / "seed" / "policy_documents.json"
+OFFICIAL_POLICY_SOURCE_HOSTS = {"flk.npc.gov.cn", "xzfg.moj.gov.cn", "www.mohrss.gov.cn"}
 JOB_IDS = {
     "JOB-AGENT-001": 1,
     "JOB-DATA-001": 2,
@@ -125,6 +128,77 @@ def load_active_job_standards() -> dict[str, dict[str, Any]]:
         unexpected = sorted(set(standards) - EXPECTED_JOB_CODES)
         raise ValueError(f"活跃岗位标准必须恰好为三个；缺少={missing}，多余={unexpected}。")
     return standards
+
+
+def load_policy_documents() -> list[dict[str, Any]]:
+    """Load and validate public policy metadata from official government sources."""
+
+    payload = json.loads(POLICY_SEED_PATH.read_text(encoding="utf-8"))
+    if not isinstance(payload, list) or not payload:
+        raise ValueError("政策种子数据必须是非空数组。")
+
+    required_fields = {"document_code", "title", "category", "source_path", "version", "metadata_json"}
+    document_codes: set[str] = set()
+    documents: list[dict[str, Any]] = []
+    for index, item in enumerate(payload, 1):
+        if not isinstance(item, dict):
+            raise ValueError(f"第 {index} 条政策种子数据不是对象。")
+        missing_fields = sorted(required_fields - item.keys())
+        if missing_fields:
+            raise ValueError(f"第 {index} 条政策种子数据缺少字段：{missing_fields}")
+
+        document_code = item["document_code"]
+        if not isinstance(document_code, str) or not document_code.strip():
+            raise ValueError(f"第 {index} 条政策种子数据的 document_code 无效。")
+        if document_code in document_codes:
+            raise ValueError(f"政策种子数据存在重复 document_code：{document_code}")
+        document_codes.add(document_code)
+
+        for field_name in ("title", "category", "source_path", "version"):
+            value = item[field_name]
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"政策 {document_code} 的 {field_name} 无效。")
+
+        source = urlsplit(item["source_path"])
+        if source.scheme != "https" or source.hostname not in OFFICIAL_POLICY_SOURCE_HOSTS:
+            raise ValueError(f"政策 {document_code} 必须使用允许的政府官方 HTTPS 来源。")
+
+        metadata = item["metadata_json"]
+        if not isinstance(metadata, dict) or not isinstance(metadata.get("summary"), str) or not metadata["summary"].strip():
+            raise ValueError(f"政策 {document_code} 缺少有效摘要。")
+        if metadata.get("status") != "现行有效":
+            raise ValueError(f"政策 {document_code} 必须明确标记为现行有效。")
+
+        documents.append({
+            "document_code": document_code.strip(),
+            "title": item["title"].strip(),
+            "category": item["category"].strip(),
+            "source_path": item["source_path"].strip(),
+            "version": item["version"].strip(),
+            "is_active": item.get("is_active", True) is True,
+            "metadata_json": metadata,
+        })
+    return documents
+
+
+def upsert_policy_documents(db: Session) -> int:
+    """Insert or update official policy metadata without deleting unrelated data."""
+
+    policies = load_policy_documents()
+    codes = [policy["document_code"] for policy in policies]
+    existing = {
+        policy.document_code: policy
+        for policy in db.scalars(select(PolicyDocument).where(PolicyDocument.document_code.in_(codes)))
+    }
+    for values in policies:
+        document = existing.get(values["document_code"])
+        if document is None:
+            db.add(PolicyDocument(**values))
+            continue
+        for field_name, value in values.items():
+            setattr(document, field_name, value)
+    db.commit()
+    return len(policies)
 
 
 def clear_existing_data(db: Session) -> None:
@@ -638,6 +712,7 @@ def seed_data() -> None:
         stages = [
             ("写入用户", lambda: add_users(db, password_hash)),
             ("写入员工", lambda: add_employees(db, today)),
+            ("写入官方政策文档", lambda: upsert_policy_documents(db)),
             ("写入招聘岗位、候选人和候选人申请", lambda: add_recruitment(db, today)),
             ("写入面试官、会议室和面试数据", lambda: add_interviews(db, now)),
             ("写入考勤日历和考勤记录", lambda: add_attendance(db, today, now)),
@@ -651,6 +726,25 @@ def seed_data() -> None:
     except Exception:
         db.rollback()
         print(f"[seed] 失败阶段：{current_stage}", file=sys.stderr, flush=True)
+        traceback.print_exc()
+        raise
+    finally:
+        db.close()
+
+
+def seed_policy_documents() -> None:
+    """Upsert only official policy documents, preserving all other database tables."""
+
+    settings = get_settings()
+    print(f"[seed-policy] DATABASE_URL={masked_database_url(settings.database_url)}", flush=True)
+    db = SessionLocal()
+    try:
+        log("写入官方政策文档")
+        count = upsert_policy_documents(db)
+        print(f"[seed-policy] 完成，共写入或更新 {count} 条政策。", flush=True)
+    except Exception:
+        db.rollback()
+        print("[seed-policy] 写入失败", file=sys.stderr, flush=True)
         traceback.print_exc()
         raise
     finally:
