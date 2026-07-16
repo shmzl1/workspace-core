@@ -1,31 +1,67 @@
 <template>
-  <article class="pipeline-card tf-card">
+  <article
+    class="pipeline-card tf-card reveal-item"
+    :style="{ animationDelay: `${d(0)}` }"
+  >
     <div class="pipeline-card__header">
       <div>
-        <h2 class="tf-section-title">AI 筛选流水线</h2>
-        <p class="tf-section-subtitle">候选人简历解析与匹配过程</p>
+        <h2
+          class="tf-section-title reveal-item"
+          :style="{ animationDelay: `${d(0.15)}` }"
+        >AI 筛选流水线</h2>
+        <p
+          class="tf-section-subtitle reveal-item"
+          :style="{ animationDelay: `${d(0.3)}` }"
+        >候选人简历解析与匹配过程</p>
       </div>
-      <span class="tf-tag">实时视图</span>
+      <span
+        class="tf-tag reveal-item"
+        :style="{ animationDelay: `${d(0.15)}` }"
+      >实时视图</span>
     </div>
 
     <div class="pipeline-card__board">
       <template v-for="(stage, index) in pipelineStages" :key="stage.title">
-        <section class="pipeline-stage" :class="{ 'pipeline-stage--match': stage.match }">
-          <div class="pipeline-stage__title">{{ stage.title }}</div>
-          <div class="pipeline-stage__candidate">
-            <strong>{{ stage.candidate }}</strong>
-            <span>{{ stage.status }}</span>
-          </div>
-          <div v-if="stage.progress" class="pipeline-stage__progress">
-            <i :style="{ width: `${stage.progress}%` }"></i>
-          </div>
-          <div v-if="stage.match" class="pipeline-stage__match">{{ stage.match }}</div>
-          <div v-if="stage.tags" class="pipeline-stage__tags">
-            <span v-for="tag in stage.tags" :key="tag">{{ tag }}</span>
-          </div>
-        </section>
+        <!-- Float wrapper: grid child that carries the floatStage animation.
+             Placed OUTSIDE the section so border + content float together,
+             and each stage gets a staggered animation-delay. -->
+        <div
+          class="pipeline-stage__float"
+          :style="{ animationDelay: `${d(0.45 + index * 0.15)}` }"
+        >
+          <!-- Stage frame (border + shadow) slides in -->
+          <section
+            class="pipeline-stage reveal-item"
+            :class="{ 'pipeline-stage--match': stage.match }"
+            :style="{ animationDelay: `${d(0.45 + index * 0.15)}` }"
+          >
+            <!-- Stage content slides in 0.45s after the first stage frame -->
+            <div
+              class="pipeline-stage__inner reveal-item"
+              :style="{ animationDelay: `${d(0.9 + index * 0.15)}` }"
+            >
+              <div class="pipeline-stage__title">{{ stage.title }}</div>
+              <div class="pipeline-stage__candidate">
+                <strong>{{ stage.candidate }}</strong>
+                <span>{{ stage.status }}</span>
+              </div>
+              <div v-if="stage.progress" class="pipeline-stage__progress">
+                <i :style="{ width: `${stage.progress}%` }"></i>
+              </div>
+              <div v-if="stage.match" class="pipeline-stage__match">{{ stage.match }}</div>
+              <div v-if="stage.tags" class="pipeline-stage__tags">
+                <span v-for="tag in stage.tags" :key="tag">{{ tag }}</span>
+              </div>
+            </div>
+          </section>
+        </div>
 
-        <div v-if="index < pipelineStages.length - 1" class="pipeline-card__connector">
+        <!-- Connector appears with the next stage frame -->
+        <div
+          v-if="index < pipelineStages.length - 1"
+          class="pipeline-card__connector reveal-item"
+          :style="{ animationDelay: `${d(0.6 + index * 0.15)}` }"
+        >
           <span></span>
         </div>
       </template>
@@ -36,7 +72,17 @@
 <script setup lang="ts">
 import type { PipelineStage } from '../../../shared/types/recruitmentDashboard';
 
-defineProps<{ pipelineStages: PipelineStage[] }>();
+const props = withDefaults(defineProps<{
+  pipelineStages: PipelineStage[];
+  revealDelay?: number;
+}>(), {
+  revealDelay: 0,
+});
+
+/** 计算相对于组件基准延迟的绝对动画延迟（秒） */
+function d(offsetSeconds: number): string {
+  return ((props.revealDelay ?? 0) + offsetSeconds).toFixed(2) + 's';
+}
 </script>
 
 <style scoped lang="scss">
@@ -73,15 +119,11 @@ defineProps<{ pipelineStages: PipelineStage[] }>();
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 10px 28px rgba(36, 85, 245, 0.08);
+}
+
+/* 浮动动画 — 独立于 revealFromLeft，避免 transform 属性冲突 */
+.pipeline-stage__float {
   animation: floatStage 4s ease-in-out infinite;
-}
-
-.pipeline-stage:nth-child(3) {
-  animation-delay: 0.45s;
-}
-
-.pipeline-stage:nth-child(5) {
-  animation-delay: 0.8s;
 }
 
 .pipeline-stage--match {
@@ -176,16 +218,6 @@ defineProps<{ pipelineStages: PipelineStage[] }>();
   content: '';
 }
 
-@keyframes floatStage {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
 @media (max-width: 760px) {
   .pipeline-card__board {
     grid-template-columns: 1fr;
@@ -199,6 +231,16 @@ defineProps<{ pipelineStages: PipelineStage[] }>();
   .pipeline-card__connector span {
     width: 2px;
     height: 100%;
+  }
+}
+
+@keyframes floatStage {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-24px);
   }
 }
 

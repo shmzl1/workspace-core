@@ -1,6 +1,12 @@
   <template>
-  <article class="matrix-card tf-card">
-    <div class="matrix-card__header">
+  <article
+    class="matrix-card tf-card reveal-item"
+    :style="{ animationDelay: `${(revealDelay ?? 0).toFixed(2)}s` }"
+  >
+    <div
+      class="matrix-card__header reveal-item"
+      :style="{ animationDelay: `${((revealDelay ?? 0) + 0.15).toFixed(2)}s` }"
+    >
       <div>
         <h2 class="tf-section-title">招聘热度矩阵</h2>
         <p class="tf-section-subtitle">AI 预测未来 7 天的招聘活跃度</p>
@@ -12,7 +18,10 @@
       </div>
     </div>
 
-    <div class="matrix-card__content">
+    <div
+      class="matrix-card__content reveal-item"
+      :style="{ animationDelay: `${((revealDelay ?? 0) + 0.3).toFixed(2)}s` }"
+    >
       <div class="matrix-card__days">
         <span v-for="day in heatmapRows" :key="day">{{ day }}</span>
       </div>
@@ -29,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{ values: number[] }>();
+const props = defineProps<{ values: number[]; revealDelay?: number }>();
 const values = props.values;
 const heatmapRows = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 </script>

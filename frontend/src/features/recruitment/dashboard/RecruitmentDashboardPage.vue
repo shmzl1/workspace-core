@@ -2,40 +2,68 @@
   <section class="dashboard-page">
     <div class="dashboard-page__header">
       <div>
-        <p class="dashboard-page__eyebrow">企业级 HR 智能助手概览</p>
-        <h1>{{ pageTitle }}</h1>
+        <p class="dashboard-page__eyebrow reveal-item" style="animation-delay: 0.00s">企业级 HR 智能助手概览</p>
+        <h1 class="reveal-item" style="animation-delay: 0.15s">{{ pageTitle }}</h1>
       </div>
-      <button class="dashboard-page__export" type="button" @click="$emit('exportReport')">
+      <button
+        class="dashboard-page__export reveal-item"
+        style="animation-delay: 0.30s"
+        type="button"
+        @click="$emit('exportReport')"
+      >
         <span></span>
         导出报告
       </button>
     </div>
 
     <div class="dashboard-page__kpis">
-      <KpiCard v-for="item in kpiItems" :key="item.id" :item="item" />
+      <KpiCard
+        v-for="(item, idx) in kpiItems"
+        :key="item.id"
+        :item="item"
+        :reveal-delay="(3 + idx) * 0.15"
+      />
     </div>
 
     <div class="dashboard-page__grid">
-      <ScreeningPipelineBoard class="dashboard-page__pipeline" :pipeline-stages="pipelineStages" />
-      <WeeklyScheduleCard :weekly-schedule="weeklySchedule" />
+      <ScreeningPipelineBoard
+        class="dashboard-page__pipeline"
+        :pipeline-stages="pipelineStages"
+        :reveal-delay="7 * 0.15"
+      />
+      <WeeklyScheduleCard
+        :weekly-schedule="weeklySchedule"
+        :reveal-delay="16 * 0.15"
+      />
     </div>
 
     <div class="dashboard-page__lower">
-      <HiringIntensityMatrix :values="heatmapValues" />
-      <AgentTraceCard :logs="traceLogs" />
+      <HiringIntensityMatrix
+        :values="heatmapValues"
+        :reveal-delay="18 * 0.15"
+      />
+      <AgentTraceCard
+        :logs="traceLogs"
+        :reveal-delay="20 * 0.15"
+      />
     </div>
 
     <section class="payroll-risk">
       <div class="payroll-risk__header">
         <div>
-          <p class="dashboard-page__eyebrow">薪资预审与风险提示</p>
-          <h2>待处理薪资预审</h2>
+          <p class="dashboard-page__eyebrow reveal-item" style="animation-delay: 3.30s">薪资预审与风险提示</p>
+          <h2 class="reveal-item" style="animation-delay: 3.45s">待处理薪资预审</h2>
         </div>
-        <button type="button">查看全部</button>
+        <button class="reveal-item" style="animation-delay: 3.60s" type="button">查看全部</button>
       </div>
 
       <div class="payroll-risk__grid">
-        <article v-for="item in payrollReviewItems" :key="item.id" class="payroll-risk__item">
+        <article
+          v-for="(item, idx) in payrollReviewItems"
+          :key="item.id"
+          class="payroll-risk__item reveal-item"
+          :style="{ animationDelay: `${(3.75 + idx * 0.15).toFixed(2)}s` }"
+        >
           <div class="payroll-risk__item-head">
             <strong>{{ item.employee }}</strong>
             <span>{{ item.status }}</span>
@@ -63,6 +91,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import '../../../shared/styles/reveal-animations.css';
 import KpiCard from '../../../shared/components/base/KpiCard.vue';
 import AgentTraceCard from './AgentTraceCard.vue';
 import HiringIntensityMatrix from './HiringIntensityMatrix.vue';

@@ -1,5 +1,9 @@
 <template>
-  <article class="kpi-card" :class="`kpi-card--${item.variant}`">
+  <article
+    class="kpi-card reveal-item"
+    :class="`kpi-card--${item.variant}`"
+    :style="{ animationDelay: `${(revealDelay ?? 0).toFixed(2)}s` }"
+  >
     <template v-if="item.variant !== 'dark'">
       <div class="kpi-card__top">
         <span class="kpi-card__icon">
@@ -49,6 +53,7 @@ import type { KpiItem } from '../../types/recruitmentDashboard';
 
 defineProps<{
   item: KpiItem;
+  revealDelay?: number;
 }>();
 </script>
 
