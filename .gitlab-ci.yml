@@ -74,16 +74,32 @@ devops_record:
   when: always
   script:
     - mkdir -p devops-records
-    - printf "# TalentFlow DevOps 流水线记录\n\n" > "devops-records/pipeline-${CI_PIPELINE_ID}.md"
-    - printf -- "- 项目：%s\n" "$CI_PROJECT_PATH" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
-    - printf -- "- 分支：%s\n" "$CI_COMMIT_REF_NAME" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
-    - printf -- "- Commit：%s\n" "$CI_COMMIT_SHA" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
-    - printf -- "- 提交标题：%s\n" "$CI_COMMIT_TITLE" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
-    - printf -- "- 提交人：%s\n" "$CI_COMMIT_AUTHOR" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
-    - printf -- "- Pipeline ID：%s\n" "$CI_PIPELINE_ID" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
-    - printf -- "- Pipeline 地址：%s\n" "$CI_PIPELINE_URL" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
-    - printf -- "- 创建时间：%s\n" "$CI_PIPELINE_CREATED_AT" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
-    - cat "devops-records/pipeline-${CI_PIPELINE_ID}.md"
+    - |
+      python - <<'PY'
+      import os
+      from pathlib import Path
+
+      pipeline_id = os.getenv("CI_PIPELINE_ID", "unknown")
+      record_path = Path("devops-records") / f"pipeline-{pipeline_id}.md"
+
+      fields = [
+          ("项目", os.getenv("CI_PROJECT_PATH", "")),
+          ("分支", os.getenv("CI_COMMIT_REF_NAME", "")),
+          ("Commit", os.getenv("CI_COMMIT_SHA", "")),
+          ("提交标题", os.getenv("CI_COMMIT_TITLE", "")),
+          ("提交人", os.getenv("CI_COMMIT_AUTHOR", "")),
+          ("Pipeline ID", pipeline_id),
+          ("Pipeline 地址", os.getenv("CI_PIPELINE_URL", "")),
+          ("创建时间", os.getenv("CI_PIPELINE_CREATED_AT", "")),
+      ]
+
+      content = "# TalentFlow DevOps 流水线记录\n\n"
+      content += "\n".join(f"- {name}：{value}" for name, value in fields)
+      content += "\n"
+
+      record_path.write_text(content, encoding="utf-8")
+      print(content)
+      PY
   artifacts:
     when: always
     name: "devops-record-${CI_PIPELINE_ID}"
