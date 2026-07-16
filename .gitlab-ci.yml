@@ -21,10 +21,10 @@ default:
   tags:
     - docker
   before_script:
-    - echo "Project: $CI_PROJECT_PATH"
-    - echo "Branch: $CI_COMMIT_REF_NAME"
-    - echo "Commit: $CI_COMMIT_SHORT_SHA"
-    - echo "Pipeline: $CI_PIPELINE_ID"
+    - 'echo "Project: $CI_PROJECT_PATH"'
+    - 'echo "Branch: $CI_COMMIT_REF_NAME"'
+    - 'echo "Commit: $CI_COMMIT_SHORT_SHA"'
+    - 'echo "Pipeline: $CI_PIPELINE_ID"'
 
 # 检查 FastAPI 后端 Python 文件是否存在语法错误
 backend_syntax_check:
