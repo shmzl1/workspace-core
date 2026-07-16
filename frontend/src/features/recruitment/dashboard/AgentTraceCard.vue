@@ -1,8 +1,9 @@
 <template>
-  <article
-    class="trace-card reveal-item"
+  <div
+    class="dashboard-card-reveal reveal-item"
     :style="{ animationDelay: `${(revealDelay ?? 0).toFixed(2)}s` }"
   >
+    <article class="trace-card dashboard-hover-card dashboard-hover-card--preserve-background">
     <div
       class="trace-card__header reveal-item"
       :style="{ animationDelay: `${((revealDelay ?? 0) + 0.15).toFixed(2)}s` }"
@@ -36,7 +37,8 @@
         {{ log }}
       </li>
     </ul>
-  </article>
+    </article>
+  </div>
 </template>
 
 <script setup lang="ts">

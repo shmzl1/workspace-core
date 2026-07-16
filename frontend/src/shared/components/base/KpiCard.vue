@@ -1,9 +1,12 @@
 <template>
-  <article
-    class="kpi-card reveal-item"
-    :class="`kpi-card--${item.variant}`"
+  <div
+    class="dashboard-card-reveal reveal-item"
     :style="{ animationDelay: `${(revealDelay ?? 0).toFixed(2)}s` }"
   >
+    <article
+      class="kpi-card dashboard-hover-card"
+      :class="[`kpi-card--${item.variant}`, { 'dashboard-hover-card--preserve-background': item.variant === 'gradient' || item.variant === 'dark' }]"
+    >
     <template v-if="item.variant !== 'dark'">
       <div class="kpi-card__top">
         <span class="kpi-card__icon">
@@ -45,7 +48,8 @@
       </div>
       <p>正在查询候选人 “React.js” 相关技能知识图谱...</p>
     </template>
-  </article>
+    </article>
+  </div>
 </template>
 
 <script setup lang="ts">

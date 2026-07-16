@@ -1,8 +1,9 @@
   <template>
-  <article
-    class="matrix-card tf-card reveal-item"
+  <div
+    class="dashboard-card-reveal reveal-item"
     :style="{ animationDelay: `${(revealDelay ?? 0).toFixed(2)}s` }"
   >
+    <article class="matrix-card tf-card dashboard-hover-card">
     <div
       class="matrix-card__header reveal-item"
       :style="{ animationDelay: `${((revealDelay ?? 0) + 0.15).toFixed(2)}s` }"
@@ -34,7 +35,8 @@
         ></span>
       </div>
     </div>
-  </article>
+    </article>
+  </div>
 </template>
 
 <script setup lang="ts">

@@ -48,7 +48,7 @@
       />
     </div>
 
-    <section class="payroll-risk">
+    <section class="payroll-risk dashboard-hover-card">
       <div class="payroll-risk__header">
         <div>
           <p class="dashboard-page__eyebrow reveal-item" style="animation-delay: 3.30s">薪资预审与风险提示</p>
@@ -58,12 +58,13 @@
       </div>
 
       <div class="payroll-risk__grid">
-        <article
+        <div
           v-for="(item, idx) in payrollReviewItems"
           :key="item.id"
-          class="payroll-risk__item reveal-item"
+          class="dashboard-card-reveal reveal-item"
           :style="{ animationDelay: `${(3.75 + idx * 0.15).toFixed(2)}s` }"
         >
+          <article class="payroll-risk__item dashboard-hover-card--compact">
           <div class="payroll-risk__item-head">
             <strong>{{ item.employee }}</strong>
             <span>{{ item.status }}</span>
@@ -83,7 +84,8 @@
             </div>
           </dl>
           <p>{{ item.suggestion }}</p>
-        </article>
+          </article>
+        </div>
       </div>
     </section>
   </section>

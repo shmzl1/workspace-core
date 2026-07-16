@@ -1,8 +1,9 @@
 <template>
-  <article
-    class="pipeline-card tf-card reveal-item"
+  <div
+    class="dashboard-card-reveal reveal-item"
     :style="{ animationDelay: `${d(0)}` }"
   >
+    <article class="pipeline-card tf-card dashboard-hover-card">
     <div class="pipeline-card__header">
       <div>
         <h2
@@ -30,11 +31,14 @@
           :style="{ animationDelay: `${d(0.45 + index * 0.15)}` }"
         >
           <!-- Stage frame (border + shadow) slides in -->
-          <section
-            class="pipeline-stage reveal-item"
-            :class="{ 'pipeline-stage--match': stage.match }"
+          <div
+            class="pipeline-stage__reveal dashboard-card-reveal reveal-item"
             :style="{ animationDelay: `${d(0.45 + index * 0.15)}` }"
           >
+            <section
+              class="pipeline-stage dashboard-hover-card--compact"
+              :class="{ 'pipeline-stage--match': stage.match }"
+            >
             <!-- Stage content slides in 0.45s after the first stage frame -->
             <div
               class="pipeline-stage__inner reveal-item"
@@ -53,7 +57,8 @@
                 <span v-for="tag in stage.tags" :key="tag">{{ tag }}</span>
               </div>
             </div>
-          </section>
+            </section>
+          </div>
         </div>
 
         <!-- Connector appears with the next stage frame -->
@@ -66,7 +71,8 @@
         </div>
       </template>
     </div>
-  </article>
+    </article>
+  </div>
 </template>
 
 <script setup lang="ts">
