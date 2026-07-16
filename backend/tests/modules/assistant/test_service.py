@@ -24,14 +24,57 @@ from app.modules.assistant.service import AssistantService
 
 def valid_output(**overrides: Any) -> dict[str, Any]:
     output: dict[str, Any] = {
+        "response_mode": "CHAT",
         "intent": "CHAT",
         "normalized_query": "用户向智能助手问好",
         "reply": "您好，我可以协助您查询本人假期、薪资考勤影响因素和公司政策。",
         "parameters": {"year": None, "month": None, "policy_keywords": []},
+        "result_reference": {
+            "operation": "NONE",
+            "fact_keys": [],
+            "candidate_number": None,
+            "candidate_text": None,
+        },
         "updated_summary": "用户刚刚开始与智能助手对话。",
     }
     output.update(overrides)
+    if "response_mode" not in overrides and "intent" in overrides:
+        output["response_mode"] = {
+            "LEAVE": "QUERY_DATA",
+            "PAYROLL": "QUERY_DATA",
+            "POLICY": "QUERY_DATA",
+            "CHAT": "CHAT",
+            "UNKNOWN": "UNKNOWN",
+        }.get(str(output["intent"]), "UNKNOWN")
     return output
+
+
+def available_leave_context() -> dict[str, Any]:
+    return {
+        "domain": "LEAVE",
+        "query_summary": "已查询本人假期余额，可引用额度、已使用和剩余字段。",
+        "primary_fact_key": "leave.annual.remaining",
+        "available_facts": [
+            {
+                "key": "leave.annual.total",
+                "label": "年假总额度",
+                "unit": "天",
+                "value_type": "number",
+            },
+            {
+                "key": "leave.annual.used",
+                "label": "年假已使用",
+                "unit": "天",
+                "value_type": "number",
+            },
+            {
+                "key": "leave.annual.remaining",
+                "label": "年假当前剩余",
+                "unit": "天",
+                "value_type": "number",
+            },
+        ],
+    }
 
 
 class StaticModelGateway:
@@ -171,6 +214,144 @@ def test_contextual_follow_up_contracts(
 def test_request_schema_rejects_invalid_or_unbounded_context(payload: dict[str, Any]) -> None:
     with pytest.raises(ValidationError):
         AssistantChatRequest.model_validate(payload)
+
+
+def test_available_result_context_validates_without_business_values() -> None:
+    payload = AssistantChatRequest.model_validate({
+        "message": "是 11 天吗",
+        "available_result_context": available_leave_context(),
+    })
+
+    assert payload.available_result_context is not None
+    assert payload.available_result_context.primary_fact_key == "leave.annual.remaining"
+    assert not hasattr(payload.available_result_context.available_facts[0], "value")
+
+
+def test_available_result_context_rejects_value_field() -> None:
+    context = available_leave_context()
+    context["available_facts"][2]["value"] = 11
+
+    with pytest.raises(ValidationError):
+        AssistantChatRequest.model_validate({
+            "message": "是 11 天吗",
+            "available_result_context": context,
+        })
+
+
+def result_answer_output(**reference_overrides: Any) -> dict[str, Any]:
+    reference = {
+        "operation": "CONFIRM",
+        "fact_keys": ["leave.annual.remaining"],
+        "candidate_number": 11,
+        "candidate_text": None,
+    }
+    reference.update(reference_overrides)
+    return valid_output(
+        response_mode="ANSWER_FROM_RESULT",
+        intent="LEAVE",
+        normalized_query="确认上一轮年假当前剩余是否与用户候选值一致",
+        reply="正在根据上一轮真实结果进行确认。",
+        parameters={"year": None, "month": None, "policy_keywords": []},
+        result_reference=reference,
+        updated_summary="用户正在确认上一轮本人年假余额结果。",
+    )
+
+
+def test_result_confirmation_uses_only_available_fact_descriptions() -> None:
+    gateway = StaticModelGateway(result_answer_output())
+    service = AssistantService(gateway, today_provider=lambda: date(2026, 7, 16))
+    payload = AssistantChatRequest.model_validate({
+        "message": "是 11 天吗",
+        "available_result_context": available_leave_context(),
+    })
+
+    result = run_chat(service, payload)
+
+    assert result.response_mode.value == "ANSWER_FROM_RESULT"
+    assert result.result_reference.operation.value == "CONFIRM"
+    assert result.result_reference.candidate_number == 11
+    sent_context = gateway.requests[0].structured_input["available_result_context"]
+    assert sent_context == available_leave_context()
+    assert all("value" not in fact for fact in sent_context["available_facts"])
+
+
+def test_result_confirmation_canonicalizes_non_authoritative_model_text() -> None:
+    output = result_answer_output()
+    output["reply"] = "是的，年假当前剩余 11 天。"
+    output["updated_summary"] = "用户正在确认年假当前剩余是否为 11 天。"
+    service = AssistantService(StaticModelGateway(output))
+    payload = AssistantChatRequest.model_validate({
+        "message": "是11天吗？",
+        "available_result_context": available_leave_context(),
+    })
+
+    result = run_chat(service, payload)
+
+    assert result.response_mode.value == "ANSWER_FROM_RESULT"
+    assert result.reply == "正在根据上一轮真实结果进行确认。"
+    assert result.updated_summary == "用户正在确认上一轮本人假期结果。"
+    assert "11" not in result.reply
+    assert "11" not in result.updated_summary
+
+
+@pytest.mark.parametrize(
+    "output",
+    [
+        result_answer_output(fact_keys=["leave.fake.remaining"]),
+        result_answer_output(fact_keys=[]),
+        result_answer_output(operation="COMPARE", fact_keys=["leave.annual.remaining"]),
+        result_answer_output(candidate_number=None, candidate_text=None),
+        valid_output(
+            response_mode="QUERY_DATA",
+            intent="LEAVE",
+            result_reference={
+                "operation": "NONE",
+                "fact_keys": ["leave.annual.remaining"],
+                "candidate_number": None,
+                "candidate_text": None,
+            },
+        ),
+    ],
+)
+def test_invalid_result_reference_contracts_are_rejected(output: dict[str, Any]) -> None:
+    service = AssistantService(StaticModelGateway(output))
+    payload = AssistantChatRequest.model_validate({
+        "message": "继续",
+        "available_result_context": available_leave_context(),
+    })
+
+    with pytest.raises(TalentFlowError) as raised:
+        run_chat(service, payload)
+
+    assert raised.value.code == "ASSISTANT_MODEL_OUTPUT_INVALID"
+
+
+def test_result_answer_requires_available_context() -> None:
+    service = AssistantService(StaticModelGateway(result_answer_output()))
+
+    with pytest.raises(TalentFlowError) as raised:
+        run_chat(service, AssistantChatRequest(message="是 11 天吗"))
+
+    assert raised.value.code == "ASSISTANT_MODEL_OUTPUT_INVALID"
+
+
+def test_first_leave_request_remains_query_data() -> None:
+    gateway = StaticModelGateway(valid_output(
+        response_mode="QUERY_DATA",
+        intent="LEAVE",
+        normalized_query="查询本人假期余额",
+        reply="好的，我将查询您的假期余额。",
+        parameters={"year": 2026, "month": None, "policy_keywords": []},
+    ))
+
+    result = run_chat(
+        AssistantService(gateway, today_provider=lambda: date(2026, 7, 16)),
+        AssistantChatRequest(message="假期还剩多少天"),
+    )
+
+    assert result.response_mode.value == "QUERY_DATA"
+    assert result.intent.value == "LEAVE"
+    assert result.result_reference.operation.value == "NONE"
 
 
 def invalid_output_cases() -> list[Any]:

@@ -20,10 +20,17 @@ client = TestClient(app)
 class StaticModelGateway:
     async def generate(self, _request: ModelGatewayInput) -> ModelGatewayOutput:
         return ModelGatewayOutput(structured_output={
+            "response_mode": "CHAT",
             "intent": "CHAT",
             "normalized_query": "用户向智能助手问好",
             "reply": "您好，我可以协助您查询本人假期、薪资考勤影响因素和公司政策。",
             "parameters": {"year": None, "month": None, "policy_keywords": []},
+            "result_reference": {
+                "operation": "NONE",
+                "fact_keys": [],
+                "candidate_number": None,
+                "candidate_text": None,
+            },
             "updated_summary": "用户刚刚开始与智能助手对话。",
         })
 
@@ -75,6 +82,7 @@ def test_assistant_chat_returns_unified_authenticated_response() -> None:
     assert body["success"] is True
     assert body["trace_id"] == "assistant-success"
     assert body["data"]["intent"] == "CHAT"
+    assert body["data"]["response_mode"] == "CHAT"
     assert body["data"]["context"] == {"recent_message_count": 1, "summary_used": True}
 
 
@@ -93,6 +101,29 @@ def test_assistant_chat_rejects_invalid_input(payload: dict[str, Any]) -> None:
     override_authenticated_dependencies()
 
     response = client.post("/api/v1/assistant/chat", json=payload)
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "PARAM_VALIDATION_ERROR"
+
+
+def test_assistant_chat_rejects_result_fact_value() -> None:
+    override_authenticated_dependencies()
+
+    response = client.post("/api/v1/assistant/chat", json={
+        "message": "是 11 天吗",
+        "available_result_context": {
+            "domain": "LEAVE",
+            "query_summary": "已查询本人假期余额。",
+            "primary_fact_key": "leave.annual.remaining",
+            "available_facts": [{
+                "key": "leave.annual.remaining",
+                "label": "年假当前剩余",
+                "unit": "天",
+                "value_type": "number",
+                "value": 11,
+            }],
+        },
+    })
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "PARAM_VALIDATION_ERROR"

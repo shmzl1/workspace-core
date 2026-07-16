@@ -17,15 +17,20 @@ from app.agents.shared.model_gateway import ModelGateway, ModelGatewayInput
 from app.core.exceptions import TalentFlowError
 from app.modules.assistant.prompts import ASSISTANT_SYSTEM_PROMPT
 from app.modules.assistant.schemas import (
+    AssistantAvailableResultContext,
     AssistantChatDecision,
     AssistantChatRequest,
     AssistantChatResponse,
     AssistantContextMetadata,
     AssistantIntent,
+    AssistantResponseMode,
     AssistantResolvedParameters,
+    AssistantResultOperation,
 )
 
 _SUPPORTED_INTENTS = [intent.value for intent in AssistantIntent]
+_SUPPORTED_RESPONSE_MODES = [mode.value for mode in AssistantResponseMode]
+_SUPPORTED_RESULT_OPERATIONS = [operation.value for operation in AssistantResultOperation]
 _FORBIDDEN_OUTPUT_PATTERN = re.compile(
     r"https?://|/api(?:/|\b)|\btool_calls?\b|工具调用|接口地址",
     flags=re.IGNORECASE,
@@ -48,6 +53,11 @@ _REDACTION_RULES = (
     (_SENSITIVE_TEXT_PATTERNS[1], "[已脱敏敏感字段]"),
     (_SENSITIVE_TEXT_PATTERNS[2], "[已脱敏薪资金额]"),
 )
+_RESULT_VALUE_PATTERN = re.compile(
+    r"\d+(?:\.\d+)?\s*(?:天|小时|元|人民币|CNY|RMB|次)",
+    flags=re.IGNORECASE,
+)
+_NON_NEUTRAL_REPLY_PATTERN = re.compile(r"^\s*(?:是的|不是|对的|不对)")
 
 
 class AssistantService:
@@ -78,7 +88,12 @@ class AssistantService:
                 }
                 for message in payload.recent_messages[-12:]
             ],
+            "available_result_context": _available_result_context_input(
+                payload.available_result_context
+            ),
             "supported_intents": _SUPPORTED_INTENTS,
+            "supported_response_modes": _SUPPORTED_RESPONSE_MODES,
+            "supported_result_operations": _SUPPORTED_RESULT_OPERATIONS,
         }
         try:
             gateway_output = await self._model_gateway.generate(
@@ -121,16 +136,21 @@ class AssistantService:
         try:
             raw_output: Any = gateway_output.structured_output
             decision = AssistantChatDecision.model_validate(raw_output)
+            _validate_forbidden_model_output(decision)
+            _validate_decision_contract(decision, payload.available_result_context)
+            decision = _canonicalize_result_answer_text(decision)
             _validate_safe_model_output(decision)
             parameters = _normalize_parameters(decision, current_date)
         except (AttributeError, TypeError, ValidationError, ValueError) as exc:
             raise _invalid_output_error() from exc
 
         return AssistantChatResponse(
+            response_mode=decision.response_mode,
             intent=decision.intent,
             normalized_query=decision.normalized_query,
             reply=decision.reply,
             parameters=parameters,
+            result_reference=decision.result_reference,
             updated_summary=decision.updated_summary,
             context=AssistantContextMetadata(
                 recent_message_count=len(payload.recent_messages),
@@ -143,6 +163,8 @@ def _normalize_parameters(
     decision: AssistantChatDecision,
     current_date: date,
 ) -> AssistantResolvedParameters:
+    if decision.response_mode is not AssistantResponseMode.QUERY_DATA:
+        return AssistantResolvedParameters()
     parameters = decision.parameters
     if decision.intent is AssistantIntent.PAYROLL:
         return AssistantResolvedParameters(
@@ -167,17 +189,148 @@ def _sanitize_context_text(value: str, max_length: int) -> str:
     return sanitized[:max_length]
 
 
-def _validate_safe_model_output(decision: AssistantChatDecision) -> None:
-    output_texts = (
+def _available_result_context_input(
+    context: AssistantAvailableResultContext | None,
+) -> dict[str, Any] | None:
+    if context is None:
+        return None
+    return {
+        "domain": context.domain,
+        "query_summary": _sanitize_context_text(context.query_summary, 500),
+        "primary_fact_key": context.primary_fact_key,
+        "available_facts": [
+            {
+                "key": fact.key,
+                "label": _sanitize_context_text(fact.label, 100),
+                "unit": _sanitize_context_text(fact.unit, 20) if fact.unit else None,
+                "value_type": fact.value_type,
+            }
+            for fact in context.available_facts
+        ],
+    }
+
+
+def _model_output_texts(decision: AssistantChatDecision) -> tuple[str, ...]:
+    return (
         decision.normalized_query,
         decision.reply,
         decision.updated_summary,
+        decision.result_reference.candidate_text or "",
         *decision.parameters.policy_keywords,
     )
+
+
+def _validate_forbidden_model_output(decision: AssistantChatDecision) -> None:
+    output_texts = _model_output_texts(decision)
     if any(_FORBIDDEN_OUTPUT_PATTERN.search(text) for text in output_texts):
         raise ValueError("model output contains a forbidden route or tool reference")
     if any(pattern.search(text) for pattern in _SENSITIVE_TEXT_PATTERNS for text in output_texts):
         raise ValueError("model output contains sensitive data")
+
+
+def _canonicalize_result_answer_text(
+    decision: AssistantChatDecision,
+) -> AssistantChatDecision:
+    if decision.response_mode is not AssistantResponseMode.ANSWER_FROM_RESULT:
+        return decision
+
+    operation_text = {
+        AssistantResultOperation.READ: ("读取", "正在读取上一轮真实结果。"),
+        AssistantResultOperation.CONFIRM: ("确认", "正在根据上一轮真实结果进行确认。"),
+        AssistantResultOperation.COMPARE: ("比较", "正在比较上一轮真实结果。"),
+        AssistantResultOperation.EXPLAIN: ("解释", "正在根据上一轮真实结果进行解释。"),
+    }.get(decision.result_reference.operation, ("处理", "正在处理上一轮真实结果。"))
+    intent_label = {
+        AssistantIntent.LEAVE: "假期",
+        AssistantIntent.PAYROLL: "薪资与考勤",
+        AssistantIntent.POLICY: "政策",
+    }.get(decision.intent, "业务")
+    action, reply = operation_text
+    return decision.model_copy(
+        update={
+            "reply": reply,
+            "updated_summary": f"用户正在{action}上一轮本人{intent_label}结果。",
+        }
+    )
+
+
+def _validate_safe_model_output(decision: AssistantChatDecision) -> None:
+    _validate_forbidden_model_output(decision)
+    if _RESULT_VALUE_PATTERN.search(decision.updated_summary):
+        raise ValueError("updated summary contains a business result value")
+    if (
+        decision.response_mode is AssistantResponseMode.ANSWER_FROM_RESULT
+        and (
+            _RESULT_VALUE_PATTERN.search(decision.reply)
+            or _NON_NEUTRAL_REPLY_PATTERN.search(decision.reply)
+            or any(character.isdigit() for character in decision.updated_summary)
+        )
+    ):
+        raise ValueError("result-answer text contains a business result value")
+
+
+def _validate_decision_contract(
+    decision: AssistantChatDecision,
+    available_context: AssistantAvailableResultContext | None,
+) -> None:
+    reference = decision.result_reference
+    has_candidate = (
+        reference.candidate_number is not None or reference.candidate_text is not None
+    )
+
+    if decision.response_mode is AssistantResponseMode.ANSWER_FROM_RESULT:
+        if available_context is None:
+            raise ValueError("result answer requires available result context")
+        if decision.intent.value != available_context.domain:
+            raise ValueError("result answer intent does not match available result domain")
+        if reference.operation is AssistantResultOperation.NONE:
+            raise ValueError("result answer requires an operation")
+
+        available_keys = {fact.key for fact in available_context.available_facts}
+        if not reference.fact_keys or any(
+            key not in available_keys for key in reference.fact_keys
+        ):
+            raise ValueError("result answer references an unavailable fact")
+        if len(reference.fact_keys) != len(set(reference.fact_keys)):
+            raise ValueError("result answer fact keys must be unique")
+
+        if reference.operation is AssistantResultOperation.CONFIRM and not has_candidate:
+            raise ValueError("confirmation requires a candidate value")
+        if (
+            reference.operation is AssistantResultOperation.COMPARE
+            and len(reference.fact_keys) != 2
+        ):
+            raise ValueError("comparison requires exactly two facts")
+        if (
+            reference.operation in {
+                AssistantResultOperation.READ,
+                AssistantResultOperation.EXPLAIN,
+            }
+            and len(reference.fact_keys) < 1
+        ):
+            raise ValueError("read or explanation requires a fact")
+        return
+
+    if (
+        reference.operation is not AssistantResultOperation.NONE
+        or reference.fact_keys
+        or has_candidate
+    ):
+        raise ValueError("non-result response cannot reference result facts")
+
+    if decision.response_mode is AssistantResponseMode.QUERY_DATA:
+        if decision.intent not in {
+            AssistantIntent.LEAVE,
+            AssistantIntent.PAYROLL,
+            AssistantIntent.POLICY,
+        }:
+            raise ValueError("data query requires a business intent")
+    elif decision.response_mode is AssistantResponseMode.CHAT:
+        if decision.intent is not AssistantIntent.CHAT:
+            raise ValueError("chat mode requires CHAT intent")
+    elif decision.response_mode is AssistantResponseMode.UNKNOWN:
+        if decision.intent is not AssistantIntent.UNKNOWN:
+            raise ValueError("unknown mode requires UNKNOWN intent")
 
 
 def _invalid_output_error() -> TalentFlowError:

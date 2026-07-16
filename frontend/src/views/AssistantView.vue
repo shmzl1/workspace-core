@@ -86,7 +86,10 @@
                   >{{ turnStatusLabel(turn) }}</span>
                 </div>
 
-                <div class="relative h-20 w-full bg-surface-container-lowest/50 rounded-lg border border-outline-variant/30 overflow-hidden mb-3 p-3 flex justify-between items-center px-4 sm:px-8">
+                <div
+                  v-if="turn.showProgressAnimation"
+                  class="relative h-20 w-full bg-surface-container-lowest/50 rounded-lg border border-outline-variant/30 overflow-hidden mb-3 p-3 flex justify-between items-center px-4 sm:px-8"
+                >
                   <div class="agent-progress-step agent-progress-step--first flex flex-col items-center gap-1 z-10">
                     <div class="agent-progress-node w-8 h-8 rounded-full bg-surface border-2 flex items-center justify-center">
                       <span class="material-symbols-outlined text-[16px]">manage_search</span>
@@ -148,15 +151,22 @@
                   </div>
                 </div>
 
+                <!-- Result follow-ups use deterministic answers from local real business data. -->
+                <template v-else-if="turn.responseMode === 'ANSWER_FROM_RESULT'">
+                  <p class="text-sm text-on-surface m-0 whitespace-pre-wrap break-words leading-relaxed">
+                    {{ turn.assistantReply }}
+                  </p>
+                </template>
+
                 <!-- Normal chat uses text interpolation only; model HTML is never rendered. -->
-                <template v-else-if="turn.intent === 'CHAT'">
+                <template v-else-if="turn.responseMode === 'CHAT'">
                   <p class="text-sm text-on-surface m-0 whitespace-pre-wrap break-words leading-relaxed">
                     {{ turn.assistantReply }}
                   </p>
                 </template>
 
                 <!-- Leave result keeps the existing cards, table and progress presentation. -->
-                <template v-else-if="turn.intent === 'LEAVE'">
+                <template v-else-if="turn.responseMode === 'QUERY_DATA' && turn.intent === 'LEAVE'">
                   <p v-if="leaveBalances(turn).length === 0" class="text-sm text-on-surface m-0 leading-relaxed relative z-10">
                     {{ leaveResultYear(turn) }} 年度暂无可用的假期余额数据。
                   </p>
@@ -266,7 +276,7 @@
                 </template>
 
                 <!-- Payroll result -->
-                <template v-else-if="turn.intent === 'PAYROLL' && turn.payrollResult">
+                <template v-else-if="turn.responseMode === 'QUERY_DATA' && turn.intent === 'PAYROLL' && turn.payrollResult">
                   <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
                     <div>
                       <h3 class="text-lg font-bold text-on-surface m-0">{{ turn.payrollResult.period.label }}薪资与考勤影响因素</h3>
@@ -277,6 +287,10 @@
                       数据库记录
                     </span>
                   </div>
+
+                  <p class="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-medium text-on-surface leading-relaxed mb-5">
+                    {{ payrollAttendanceConclusion(turn.payrollResult) }}
+                  </p>
 
                   <div class="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-tertiary/5 p-4 mb-5">
                     <div class="flex items-center gap-2 mb-4">
@@ -345,7 +359,7 @@
                 </template>
 
                 <!-- Policy result -->
-                <template v-else-if="turn.intent === 'POLICY' && turn.policyResult">
+                <template v-else-if="turn.responseMode === 'QUERY_DATA' && turn.intent === 'POLICY' && turn.policyResult">
                   <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
                     <div>
                       <h3 class="text-lg font-bold text-on-surface m-0">政策数据库查询结果</h3>
@@ -459,10 +473,12 @@
               <input
                 v-model="assistantInput"
                 type="text"
-                maxlength="4000"
                 placeholder="例如：查看上个月的薪资影响因素"
                 class="w-full h-14 bg-transparent border-none focus:ring-0 text-sm text-on-surface placeholder:text-outline/60 px-2 outline-none disabled:cursor-not-allowed disabled:opacity-60"
                 :disabled="queryActive"
+                :aria-invalid="Boolean(assistantInputError)"
+                aria-describedby="assistant-input-error"
+                @input="validateAssistantInput"
                 @keydown.enter.prevent="submitInputQuery"
               />
               <div class="pr-2 flex gap-1">
@@ -485,6 +501,12 @@
               </div>
             </div>
           </div>
+          <p
+            v-if="assistantInputError"
+            id="assistant-input-error"
+            role="alert"
+            class="m-0 mt-2 text-center text-xs font-medium text-red-600"
+          >{{ assistantInputError }}</p>
           <div class="text-center mt-3">
             <span class="text-[10px] text-outline/70 font-medium">业务数据来自现有数据库接口，请以最终审核记录为准。</span>
           </div>
@@ -637,16 +659,20 @@ import { fetchMySalary, type SalaryDetail } from '../shared/api/modules/payroll'
 import { fetchPolicies, type PolicyDocument } from '../shared/api/modules/policy';
 import {
   sendAssistantChat,
+  type AssistantAvailableResultContext,
   type AssistantChatMessage,
   type AssistantChatResponse,
   type AssistantIntent,
   type AssistantResolvedParameters,
+  type AssistantResponseMode,
+  type AssistantResultReference,
 } from '../shared/api/modules/assistant';
 
 type AssistantTurnStatus = 'loading' | 'success' | 'error';
 type DashboardStatus = 'loading' | 'success' | 'empty' | 'error';
 type BusinessIntent = Exclude<AssistantIntent, 'CHAT' | 'UNKNOWN'>;
-type UnderstandingMode = 'MODEL' | 'LOCAL_FALLBACK';
+type UnderstandingMode = 'MODEL' | 'LOCAL_FALLBACK' | 'SERIAL_SPLIT';
+type AnswerSource = 'MODEL_CHAT' | 'LOCAL_BUSINESS_RESULT';
 
 interface PayrollPeriod {
   year: number;
@@ -688,6 +714,27 @@ interface PolicyResult {
   searchKeywords: string[];
 }
 
+interface SerialBusinessQuery {
+  prompt: string;
+  intent: BusinessIntent;
+}
+
+interface LocalBusinessFact {
+  key: string;
+  label: string;
+  value: number | string | boolean | null;
+  unit?: string;
+  valueType: 'number' | 'text' | 'boolean' | 'date';
+}
+
+interface LocalBusinessResultContext {
+  domain: BusinessIntent;
+  querySummary: string;
+  primaryFactKey?: string;
+  facts: LocalBusinessFact[];
+  sourceTurnId: string;
+}
+
 interface AssistantTurn {
   id: string;
   prompt: string;
@@ -698,6 +745,7 @@ interface AssistantTurn {
   visibleLogCount: number;
   logAnimationActive: boolean;
   logsComplete: boolean;
+  showProgressAnimation: boolean;
   progressComplete: boolean;
   requestComplete: boolean;
   completedAt?: string;
@@ -705,6 +753,9 @@ interface AssistantTurn {
   assistantReply?: string;
   normalizedQuery?: string;
   resolvedParameters?: AssistantResolvedParameters;
+  responseMode?: AssistantResponseMode;
+  resultReference?: AssistantResultReference;
+  answerSource?: AnswerSource;
   understandingMode?: UnderstandingMode;
   leaveResult?: LeaveResult;
   payrollResult?: PayrollResult;
@@ -736,18 +787,27 @@ const POLICY_SEARCH_TERMS = [
 ] as const;
 const GENERIC_POLICY_TERMS = new Set(['公司规定', '政策', '制度', '规定']);
 const leaveTypeOrder: Record<string, number> = { ANNUAL: 0, SICK: 1, COMP_TIME: 2 };
+const leaveFactMetadata: Record<LeaveBalanceItem['leave_type'], { prefix: string; label: string }> = {
+  ANNUAL: { prefix: 'leave.annual', label: '年假' },
+  SICK: { prefix: 'leave.sick', label: '病假' },
+  COMP_TIME: { prefix: 'leave.comp_time', label: '调休' },
+};
 const MAX_RECENT_CONTEXT_MESSAGES = 12;
 const MAX_CONTEXT_MESSAGE_LENGTH = 1_000;
 const MAX_CONVERSATION_SUMMARY_LENGTH = 4_000;
+const MAX_ASSISTANT_INPUT_LENGTH = 4_000;
+const ASSISTANT_INPUT_TOO_LONG_MESSAGE = '文本过长，请重新输入（最多 4000 字）。';
 const MODEL_UNAVAILABLE_REPLY = '智能对话模型当前不可用，但您仍可查询本人假期、薪资与考勤影响因素，以及公司政策。';
 
 const chatHistoryRef = ref<HTMLElement | null>(null);
 const policyDialogRef = ref<HTMLDivElement | null>(null);
 const assistantInput = ref('');
+const assistantInputError = ref('');
 const turns = ref<AssistantTurn[]>([]);
 const conversationSummary = ref('');
 const recentContextMessages = ref<AssistantChatMessage[]>([]);
 const lastBusinessIntent = ref<BusinessIntent | null>(null);
+const lastBusinessResultContext = ref<LocalBusinessResultContext | null>(null);
 const selectedPolicy = ref<PolicyDocument | null>(null);
 const conversationStartedAt = new Date();
 const dashboardBalances = ref<LeaveBalanceItem[]>([]);
@@ -810,6 +870,23 @@ function classifyIntent(input: string, keywords: string[]): AssistantIntent {
   if (containsTerm(PAYROLL_KEYWORDS) || keywords.some((keyword) => PAYROLL_KEYWORDS.includes(keyword as typeof PAYROLL_KEYWORDS[number]))) return 'PAYROLL';
   if (containsTerm(LEAVE_KEYWORDS) || keywords.some((keyword) => LEAVE_KEYWORDS.includes(keyword as typeof LEAVE_KEYWORDS[number]))) return 'LEAVE';
   return 'UNKNOWN';
+}
+
+function splitSerialBusinessQueries(prompt: string): SerialBusinessQuery[] {
+  const parts = prompt
+    .split(/[？?！!。；;\n]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return [];
+
+  const queries = parts.map((part) => ({
+    prompt: part,
+    intent: classifyIntent(part, extractKeywords(part)),
+  }));
+  if (queries.some((query) => !isBusinessIntent(query.intent))) return [];
+
+  const businessQueries = queries as SerialBusinessQuery[];
+  return new Set(businessQueries.map((query) => query.intent)).size > 1 ? businessQueries : [];
 }
 
 function extractPolicySearchKeywords(input: string): string[] {
@@ -976,12 +1053,15 @@ function markProgressComplete(turn: AssistantTurn): void {
 
 function createTurn(prompt: string): AssistantTurn {
   const keywords = extractKeywords(prompt);
+  const showProgressAnimation = turns.value.length === 0;
   turnSequence += 1;
   return reactive<AssistantTurn>({
     id: `assistant-turn-${turnSequence}`,
     prompt,
     keywords,
     intent: 'UNKNOWN',
+    responseMode: 'UNKNOWN',
+    resultReference: emptyResultReference(),
     status: 'loading',
     logs: [
       '[问题理解] 正在结合会话摘要和最近消息理解当前问题',
@@ -989,9 +1069,163 @@ function createTurn(prompt: string): AssistantTurn {
     visibleLogCount: 1,
     logAnimationActive: true,
     logsComplete: false,
-    progressComplete: false,
+    showProgressAnimation,
+    progressComplete: !showProgressAnimation,
     requestComplete: false,
   });
+}
+
+function emptyResultReference(): AssistantResultReference {
+  return {
+    operation: 'NONE',
+    fact_keys: [],
+    candidate_number: null,
+    candidate_text: null,
+  };
+}
+
+function toAvailableResultContext(
+  context: LocalBusinessResultContext | null,
+): AssistantAvailableResultContext | null {
+  if (!context || context.facts.length === 0) return null;
+  return {
+    domain: context.domain,
+    query_summary: context.querySummary,
+    primary_fact_key: context.primaryFactKey ?? null,
+    available_facts: context.facts.map((fact) => ({
+      key: fact.key,
+      label: fact.label,
+      unit: fact.unit ?? null,
+      value_type: fact.valueType,
+    })),
+  };
+}
+
+function leavePrimaryFactKey(prompt: string, balances: LeaveBalanceItem[]): string | undefined {
+  const explicitType = prompt.includes('年假')
+    ? 'ANNUAL'
+    : prompt.includes('病假')
+      ? 'SICK'
+      : prompt.includes('调休')
+        ? 'COMP_TIME'
+        : null;
+  const selectedType = explicitType && balances.some((balance) => balance.leave_type === explicitType)
+    ? explicitType
+    : balances.length === 1
+      ? balances[0].leave_type
+      : balances.some((balance) => balance.leave_type === 'ANNUAL')
+        ? 'ANNUAL'
+        : undefined;
+  return selectedType ? `${leaveFactMetadata[selectedType].prefix}.remaining` : undefined;
+}
+
+function buildLeaveResultContext(
+  turn: AssistantTurn,
+  year: number,
+  balances: LeaveBalanceItem[],
+): LocalBusinessResultContext | null {
+  if (balances.length === 0) return null;
+  const facts = balances.flatMap<LocalBusinessFact>((balance) => {
+    const metadata = leaveFactMetadata[balance.leave_type];
+    const unit = leaveUnit(balance.leave_type);
+    return [
+      {
+        key: `${metadata.prefix}.total`,
+        label: `${metadata.label}总额度`,
+        value: Number(balance.total_days),
+        unit,
+        valueType: 'number',
+      },
+      {
+        key: `${metadata.prefix}.used`,
+        label: `${metadata.label}已使用`,
+        value: Number(balance.used_days),
+        unit,
+        valueType: 'number',
+      },
+      {
+        key: `${metadata.prefix}.remaining`,
+        label: `${metadata.label}当前剩余`,
+        value: remainingLeave(balance),
+        unit,
+        valueType: 'number',
+      },
+    ];
+  });
+  return {
+    domain: 'LEAVE',
+    querySummary: `已查询 ${year} 年本人假期余额，可引用年假、病假或调休的额度、已使用和剩余字段。`,
+    primaryFactKey: leavePrimaryFactKey(turn.prompt, balances),
+    facts,
+    sourceTurnId: turn.id,
+  };
+}
+
+function buildPayrollResultContext(
+  turn: AssistantTurn,
+  result: PayrollResult,
+): LocalBusinessResultContext | null {
+  const facts: LocalBusinessFact[] = [];
+  if (result.salary.base_salary !== null) {
+    facts.push({
+      key: 'payroll.base_salary',
+      label: '基础月薪',
+      value: Number(result.salary.base_salary),
+      unit: result.salary.currency || undefined,
+      valueType: 'number',
+    });
+  }
+  if (result.salary.currency) {
+    facts.push({ key: 'payroll.currency', label: '薪资币种', value: result.salary.currency, valueType: 'text' });
+  }
+  if (result.salary.effective_from) {
+    facts.push({ key: 'payroll.effective_from', label: '薪资生效日期', value: result.salary.effective_from, valueType: 'date' });
+  }
+  attendanceFactors(result.attendance).forEach((factor) => {
+    if (factor.value === null) return;
+    facts.push({
+      key: `payroll.attendance.${factor.key}`,
+      label: factor.label,
+      value: factor.value,
+      unit: factor.unit,
+      valueType: 'number',
+    });
+  });
+  if (facts.length === 0) return null;
+  return {
+    domain: 'PAYROLL',
+    querySummary: `已查询 ${result.period.label}本人薪资与考勤影响字段。`,
+    primaryFactKey: facts.some((fact) => fact.key === 'payroll.base_salary') ? 'payroll.base_salary' : facts[0].key,
+    facts,
+    sourceTurnId: turn.id,
+  };
+}
+
+function buildPolicyResultContext(
+  turn: AssistantTurn,
+  result: PolicyResult,
+): LocalBusinessResultContext {
+  const facts: LocalBusinessFact[] = [{
+    key: 'policy.document_count',
+    label: '匹配政策文档数量',
+    value: result.documents.length,
+    unit: '篇',
+    valueType: 'number',
+  }];
+  result.documents.slice(0, 5).forEach((document, index) => {
+    const prefix = `policy.document.${index + 1}`;
+    facts.push({ key: `${prefix}.title`, label: `政策标题 ${index + 1}`, value: document.title, valueType: 'text' });
+    if (document.category) facts.push({ key: `${prefix}.category`, label: `政策分类 ${index + 1}`, value: document.category, valueType: 'text' });
+    if (document.version) facts.push({ key: `${prefix}.version`, label: `政策版本 ${index + 1}`, value: document.version, valueType: 'text' });
+    facts.push({ key: `${prefix}.updated_at`, label: `政策更新时间 ${index + 1}`, value: document.updated_at, valueType: 'date' });
+  });
+  return {
+    domain: 'POLICY',
+    querySummary: `已查询公司政策，结果字段仅包含数量、标题、分类、版本和更新时间。`,
+    primaryFactKey: 'policy.document_count',
+    facts,
+    sourceTurnId: turn.id,
+  };
 }
 
 async function executeLeaveQuery(turn: AssistantTurn): Promise<void> {
@@ -1005,6 +1239,7 @@ async function executeLeaveQuery(turn: AssistantTurn): Promise<void> {
     (left, right) => (leaveTypeOrder[left.leave_type] ?? Number.MAX_SAFE_INTEGER) - (leaveTypeOrder[right.leave_type] ?? Number.MAX_SAFE_INTEGER),
   );
   turn.leaveResult = { year, balances };
+  lastBusinessResultContext.value = buildLeaveResultContext(turn, year, balances);
   turn.logs.push(`[数据返回] 已获取 ${balances.length} 条假期余额记录`);
   turn.logs.push(balances.length > 0 ? '[结果整理] 已生成假期统计卡片、进度与余额表格' : '[结果整理] 已生成假期余额空状态');
   dashboardBalances.value = balances;
@@ -1029,9 +1264,32 @@ async function executePayrollQuery(turn: AssistantTurn): Promise<void> {
   const rawAttendance: unknown = await fetchMonthlyAttendanceSummary(period.year, period.month, salary.employee_id);
   const attendance = normalizeAttendanceSummary(rawAttendance);
   turn.payrollResult = { salary, attendance, period };
+  lastBusinessResultContext.value = buildPayrollResultContext(turn, turn.payrollResult);
   turn.logs.push(`[数据返回] 已获取 ${period.label}数据库考勤汇总`);
   turn.logs.push('[结果整理] 已生成薪资记录与考勤影响因素视图');
   notifyLogsChanged(turn);
+}
+
+function payrollAttendanceConclusion(result: PayrollResult): string {
+  const riskFactors = attendanceFactors(result.attendance).filter((factor) => factor.riskWhenPositive);
+  const knownRiskFactors = riskFactors.filter((factor) => factor.value !== null);
+  const recordedRisks = knownRiskFactors.filter((factor) => Number(factor.value) > 0);
+  let attendanceConclusion = '考勤影响字段暂无可用数据。';
+  if (recordedRisks.length > 0) {
+    attendanceConclusion = `发现${recordedRisks.map((factor) => `${factor.label} ${formatAttendanceValue(factor)}`).join('、')}。`;
+  } else if (knownRiskFactors.length === riskFactors.length) {
+    attendanceConclusion = '未发现迟到、早退、缺勤或无薪假记录。';
+  } else if (knownRiskFactors.length > 0) {
+    attendanceConclusion = '已返回的考勤影响字段未发现异常，部分字段暂无数据。';
+  }
+
+  const absentCount = result.attendance.absent_count;
+  const absenceConclusion = absentCount === null
+    ? '缺勤字段暂无数据，暂时无法确认是否有缺勤。'
+    : absentCount > 0
+      ? `有缺勤，共 ${formatLeaveAmount(absentCount)} 天。`
+      : '没有缺勤，缺勤天数为 0 天。';
+  return `薪资主记录本身不包含缺勤字段；结合 ${result.period.label}的考勤汇总来看，${attendanceConclusion}${absenceConclusion}`;
 }
 
 function policySearchText(document: PolicyDocument): string {
@@ -1075,6 +1333,7 @@ async function executePolicyQuery(turn: AssistantTurn): Promise<void> {
   const documents = filterPolicyDocuments(Array.from(mergedById.values()), searchKeywords)
     .sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime());
   turn.policyResult = { documents, searchKeywords };
+  lastBusinessResultContext.value = buildPolicyResultContext(turn, turn.policyResult);
   turn.logs.push(`[数据返回] 已匹配 ${documents.length} 篇政策文档`);
   turn.logs.push(documents.length > 0 ? '[结果整理] 已生成政策摘要与来源信息' : '[结果整理] 已生成政策查询空状态');
   notifyLogsChanged(turn);
@@ -1087,15 +1346,161 @@ function executeUnknownQuery(turn: AssistantTurn): void {
 }
 
 function executeChatReply(turn: AssistantTurn): void {
+  turn.answerSource = 'MODEL_CHAT';
   turn.logs.push('[结果整理] 已生成安全文本回复');
   notifyLogsChanged(turn);
 }
 
+function displayFactLabel(fact: LocalBusinessFact): string {
+  return fact.label.replace('当前', '');
+}
+
+function formatLocalFactValue(fact: LocalBusinessFact): string {
+  if (fact.value === null) return '暂无可用值';
+  if (typeof fact.value === 'number') return formatLeaveAmount(fact.value);
+  if (typeof fact.value === 'boolean') return fact.value ? '是' : '否';
+  return fact.value;
+}
+
+function factsForResultReference(
+  turn: AssistantTurn,
+  context: LocalBusinessResultContext,
+): LocalBusinessFact[] {
+  const requestedKeys = turn.resultReference?.fact_keys ?? [];
+  const requestedFacts = requestedKeys
+    .map((key) => context.facts.find((fact) => fact.key === key))
+    .filter((fact): fact is LocalBusinessFact => Boolean(fact));
+  if (requestedFacts.length > 0) return requestedFacts;
+  if (context.primaryFactKey) {
+    const primaryFact = context.facts.find((fact) => fact.key === context.primaryFactKey);
+    if (primaryFact) return [primaryFact];
+  }
+  const candidate = turn.resultReference?.candidate_number;
+  if (candidate !== null && candidate !== undefined) {
+    const matches = context.facts.filter(
+      (fact) => typeof fact.value === 'number' && Math.abs(fact.value - candidate) <= 1e-9,
+    );
+    if (matches.length === 1) return matches;
+  }
+  return [];
+}
+
+function resultClarification(context: LocalBusinessResultContext): string {
+  if (context.domain === 'LEAVE') return '请说明您想查看的是年假、病假还是调休。';
+  if (context.domain === 'PAYROLL') return '请说明您想查看的是薪资字段还是某项考勤影响因素。';
+  return '请说明您想查看哪一项政策结果。';
+}
+
+function readResultReply(facts: LocalBusinessFact[]): string {
+  if (facts.length === 0) return '';
+  return facts.map((fact) => (
+    fact.value === null
+      ? `上一轮结果中没有可用的${displayFactLabel(fact)}值。`
+      : `您当前的${displayFactLabel(fact)} ${formatLocalFactValue(fact)}${fact.unit ? ` ${fact.unit}` : ''}。`
+  )).join('\n');
+}
+
+function confirmResultReply(
+  fact: LocalBusinessFact,
+  reference: AssistantResultReference,
+): string {
+  if (fact.value === null) return `上一轮结果中没有可用的${displayFactLabel(fact)}值。`;
+  let matches = false;
+  if (reference.candidate_number !== null && reference.candidate_number !== undefined) {
+    matches = typeof fact.value === 'number'
+      && Math.abs(fact.value - reference.candidate_number) <= 1e-9;
+  } else if (reference.candidate_text !== null && reference.candidate_text !== undefined) {
+    matches = String(fact.value).trim() === reference.candidate_text.trim();
+  }
+  const actual = `${formatLocalFactValue(fact)}${fact.unit ? ` ${fact.unit}` : ''}`;
+  return matches
+    ? `是的，您当前的${displayFactLabel(fact)} ${actual}。`
+    : `不是，您当前的${displayFactLabel(fact)} ${actual}。`;
+}
+
+function compareResultReply(facts: LocalBusinessFact[]): string {
+  if (facts.length !== 2) return '';
+  const [left, right] = facts;
+  if (
+    typeof left.value !== 'number'
+    || typeof right.value !== 'number'
+    || !left.unit
+    || !right.unit
+  ) {
+    return '这两个结果不是可直接比较的同类数值。';
+  }
+  if (left.unit !== right.unit) {
+    return `${displayFactLabel(left)}使用${left.unit}，${displayFactLabel(right)}使用${right.unit}，不能直接比较。`;
+  }
+  const leftText = `${displayFactLabel(left)} ${formatLocalFactValue(left)} ${left.unit}`;
+  const rightText = `${displayFactLabel(right)} ${formatLocalFactValue(right)} ${right.unit}`;
+  const difference = left.value - right.value;
+  if (Math.abs(difference) <= 1e-9) return `${leftText}，${rightText}；两者相同。`;
+  const relation = difference > 0 ? '多' : '少';
+  return `${leftText}，${rightText}；${displayFactLabel(left)}比${displayFactLabel(right)}${relation} ${formatLeaveAmount(Math.abs(difference))} ${left.unit}。`;
+}
+
+function explainResultReply(
+  fact: LocalBusinessFact,
+  context: LocalBusinessResultContext,
+): string {
+  if (fact.key.endsWith('.remaining')) {
+    const prefix = fact.key.slice(0, -'.remaining'.length);
+    const total = context.facts.find((item) => item.key === `${prefix}.total`);
+    const used = context.facts.find((item) => item.key === `${prefix}.used`);
+    if (
+      total
+      && used
+      && typeof total.value === 'number'
+      && typeof used.value === 'number'
+      && typeof fact.value === 'number'
+      && total.unit === used.unit
+      && used.unit === fact.unit
+    ) {
+      const subject = fact.label.replace(/当前剩余$/, '');
+      return `您的${subject}总额度为 ${formatLocalFactValue(total)} ${fact.unit}，已使用 ${formatLocalFactValue(used)} ${fact.unit}，因此当前剩余 ${formatLocalFactValue(fact)} ${fact.unit}。`;
+    }
+  }
+  if (fact.value === null) return `当前没有足够数据解释${displayFactLabel(fact)}。`;
+  return `当前只能确认${displayFactLabel(fact)} ${formatLocalFactValue(fact)}${fact.unit ? ` ${fact.unit}` : ''}，暂时没有足够数据解释其组成。`;
+}
+
+function executeResultFollowUp(turn: AssistantTurn): void {
+  const context = lastBusinessResultContext.value;
+  if (!context || context.domain !== turn.intent) {
+    turn.assistantReply = '上一轮可引用的业务结果已不可用，请重新查询。';
+  } else {
+    const facts = factsForResultReference(turn, context);
+    const operation = turn.resultReference?.operation ?? 'NONE';
+    if (facts.length === 0) {
+      turn.assistantReply = resultClarification(context);
+    } else if (operation === 'READ') {
+      turn.assistantReply = readResultReply(facts);
+    } else if (operation === 'CONFIRM') {
+      turn.assistantReply = confirmResultReply(facts[0], turn.resultReference ?? emptyResultReference());
+    } else if (operation === 'COMPARE') {
+      turn.assistantReply = compareResultReply(facts) || resultClarification(context);
+    } else if (operation === 'EXPLAIN') {
+      turn.assistantReply = explainResultReply(facts[0], context);
+    } else {
+      turn.assistantReply = resultClarification(context);
+    }
+  }
+  turn.answerSource = 'LOCAL_BUSINESS_RESULT';
+  turn.logs.push('[问题理解] 已识别为对上一轮结果的追问');
+  turn.logs.push('[结果引用] 使用上一轮真实业务结果');
+  turn.logs.push('[结果整理] 已生成基于实际数据的直接回答');
+  notifyLogsChanged(turn);
+}
+
 async function dispatchTurn(turn: AssistantTurn): Promise<void> {
-  if (turn.intent === 'LEAVE') return executeLeaveQuery(turn);
-  if (turn.intent === 'PAYROLL') return executePayrollQuery(turn);
-  if (turn.intent === 'POLICY') return executePolicyQuery(turn);
-  if (turn.intent === 'CHAT') return executeChatReply(turn);
+  if (turn.responseMode === 'ANSWER_FROM_RESULT') return executeResultFollowUp(turn);
+  if (turn.responseMode === 'QUERY_DATA') {
+    if (turn.intent === 'LEAVE') return executeLeaveQuery(turn);
+    if (turn.intent === 'PAYROLL') return executePayrollQuery(turn);
+    if (turn.intent === 'POLICY') return executePolicyQuery(turn);
+  }
+  if (turn.responseMode === 'CHAT') return executeChatReply(turn);
   executeUnknownQuery(turn);
 }
 
@@ -1117,22 +1522,86 @@ function parameterLog(parameters: AssistantResolvedParameters): string | null {
 }
 
 function applyAssistantResponse(turn: AssistantTurn, response: AssistantChatResponse): void {
+  turn.responseMode = response.response_mode;
   turn.intent = response.intent;
   turn.assistantReply = response.reply;
   turn.normalizedQuery = response.normalized_query;
   turn.resolvedParameters = response.parameters;
+  turn.resultReference = response.result_reference;
   turn.understandingMode = 'MODEL';
   conversationSummary.value = sanitizeContextText(
     response.updated_summary,
     MAX_CONVERSATION_SUMMARY_LENGTH,
   );
-  turn.logs.push('[问题理解] 已结合会话摘要和最近消息理解当前问题');
-  turn.logs.push(response.intent === 'CHAT'
-    ? '[意图识别] 已识别为普通对话'
-    : `[意图识别] 已识别查询类型：${response.intent}`);
-  const resolvedParameterLog = parameterLog(response.parameters);
+  if (response.response_mode === 'ANSWER_FROM_RESULT') {
+    turn.logs.push('[问题理解] 已识别为对上一轮结果的追问');
+    turn.logs.push(`[结果引用] 已定位结果字段：${response.result_reference.fact_keys.join('、')}`);
+  } else {
+    turn.logs.push('[问题理解] 已结合会话摘要和最近消息理解当前问题');
+    turn.logs.push(response.response_mode === 'CHAT'
+      ? '[意图识别] 已识别为普通对话'
+      : `[意图识别] 已识别查询类型：${response.intent}`);
+    const resolvedParameterLog = parameterLog(response.parameters);
+    if (resolvedParameterLog) turn.logs.push(resolvedParameterLog);
+  }
+  notifyLogsChanged(turn);
+}
+
+function applySerialBusinessUnderstanding(turn: AssistantTurn, intent: BusinessIntent): void {
+  const payrollPeriod = parsePayrollPeriod(turn.prompt);
+  turn.responseMode = 'QUERY_DATA';
+  turn.intent = intent;
+  turn.resultReference = emptyResultReference();
+  turn.understandingMode = 'SERIAL_SPLIT';
+  turn.resolvedParameters = {
+    year: intent === 'LEAVE' ? parseLeaveYear(turn.prompt) : intent === 'PAYROLL' ? payrollPeriod.year : null,
+    month: intent === 'PAYROLL' ? payrollPeriod.month : null,
+    policy_keywords: intent === 'POLICY' ? extractPolicySearchKeywords(turn.prompt) : [],
+  };
+  turn.logs.push('[问题拆分] 已将跨业务问题拆分为串行子问题');
+  turn.logs.push(`[意图识别] 已识别查询类型：${intent}`);
+  const resolvedParameterLog = parameterLog(turn.resolvedParameters);
   if (resolvedParameterLog) turn.logs.push(resolvedParameterLog);
   notifyLogsChanged(turn);
+}
+
+function tryResolveLocalResultConfirmation(turn: AssistantTurn): boolean {
+  const context = lastBusinessResultContext.value;
+  if (!context) return false;
+  const match = turn.prompt.trim().match(
+    /^(?:是不是|是|有|还剩)\s*(-?\d+(?:\.\d+)?)\s*(天|小时|元|次)?\s*(?:吗|么)?[？?]?$/,
+  );
+  if (!match) return false;
+  const candidateNumber = Number(match[1]);
+  if (!Number.isFinite(candidateNumber)) return false;
+  const candidateUnit = match[2];
+  const primary = context.primaryFactKey
+    ? context.facts.find((fact) => fact.key === context.primaryFactKey)
+    : undefined;
+  const primaryMatchesUnit = primary
+    && typeof primary.value === 'number'
+    && (!candidateUnit || primary.unit === candidateUnit);
+  const candidates = primaryMatchesUnit
+    ? [primary]
+    : context.facts.filter((fact) => (
+      fact.key.endsWith('.remaining')
+      && typeof fact.value === 'number'
+      && (!candidateUnit || fact.unit === candidateUnit)
+    ));
+  if (candidates.length !== 1) return false;
+
+  turn.responseMode = 'ANSWER_FROM_RESULT';
+  turn.intent = context.domain;
+  turn.resultReference = {
+    operation: 'CONFIRM',
+    fact_keys: [candidates[0].key],
+    candidate_number: candidateNumber,
+    candidate_text: null,
+  };
+  turn.logs.push('[问题理解] 智能理解服务当前不可用');
+  turn.logs.push('[兼容兜底] 已识别为上一轮真实结果的数字确认');
+  notifyLogsChanged(turn);
+  return true;
 }
 
 async function resolveTurnUnderstanding(turn: AssistantTurn): Promise<void> {
@@ -1141,6 +1610,7 @@ async function resolveTurnUnderstanding(turn: AssistantTurn): Promise<void> {
       message: turn.prompt,
       conversation_summary: conversationSummary.value,
       recent_messages: recentContextMessages.value.map((message) => ({ ...message })),
+      available_result_context: toAvailableResultContext(lastBusinessResultContext.value),
     });
     applyAssistantResponse(turn, response);
   } catch (error: unknown) {
@@ -1148,10 +1618,13 @@ async function resolveTurnUnderstanding(turn: AssistantTurn): Promise<void> {
       throw error;
     }
     turn.understandingMode = 'LOCAL_FALLBACK';
+    if (tryResolveLocalResultConfirmation(turn)) return;
     const localIntent = classifyIntent(turn.prompt, turn.keywords);
     turn.intent = isExplicitFollowUp(turn.prompt) && lastBusinessIntent.value
       ? lastBusinessIntent.value
       : localIntent;
+    turn.responseMode = isBusinessIntent(turn.intent) ? 'QUERY_DATA' : 'UNKNOWN';
+    turn.resultReference = emptyResultReference();
     turn.assistantReply = turn.intent === 'UNKNOWN' ? MODEL_UNAVAILABLE_REPLY : undefined;
     turn.logs.push('[问题理解] 智能理解服务当前不可用');
     turn.logs.push(`[兼容兜底] 已使用本地关键词规则${turn.intent !== localIntent ? '并继承最近业务意图' : ''}`);
@@ -1170,7 +1643,11 @@ function sanitizeContextText(value: string, maxLength: number): string {
 }
 
 function assistantContextNote(turn: AssistantTurn, succeeded: boolean): string {
-  if (turn.intent === 'CHAT') return turn.assistantReply || '已完成普通对话。';
+  if (turn.responseMode === 'ANSWER_FROM_RESULT') {
+    const operation = turn.resultReference?.operation ?? 'READ';
+    return `已根据上一轮 ${turn.intent} 真实结果完成 ${operation}，未记录或传递具体业务值。`;
+  }
+  if (turn.responseMode === 'CHAT') return turn.assistantReply || '已完成普通对话。';
   if (turn.intent === 'PAYROLL') {
     const period = turn.payrollResult?.period;
     const target = period ? `${period.year} 年 ${period.month} 月` : '所选月份';
@@ -1199,17 +1676,28 @@ function appendRecentContext(turn: AssistantTurn, succeeded: boolean): void {
   recentContextMessages.value = nextMessages.slice(-MAX_RECENT_CONTEXT_MESSAGES);
 }
 
-async function submitAssistantQuery(prompt: string): Promise<void> {
-  if (queryActive.value || prompt.trim().length === 0) return;
+function validateAssistantInput(): boolean {
+  if (Array.from(assistantInput.value).length > MAX_ASSISTANT_INPUT_LENGTH) {
+    assistantInputError.value = ASSISTANT_INPUT_TOO_LONG_MESSAGE;
+    return false;
+  }
+  assistantInputError.value = '';
+  return true;
+}
+
+async function executeAssistantQuery(prompt: string, serialIntent?: BusinessIntent): Promise<void> {
   const turn = createTurn(prompt);
   turns.value.push(turn);
   await scrollChatToLatest();
 
   let succeeded = false;
   try {
-    await resolveTurnUnderstanding(turn);
+    if (serialIntent) applySerialBusinessUnderstanding(turn, serialIntent);
+    else await resolveTurnUnderstanding(turn);
     await dispatchTurn(turn);
-    if (isBusinessIntent(turn.intent)) lastBusinessIntent.value = turn.intent;
+    if (turn.responseMode === 'QUERY_DATA' && isBusinessIntent(turn.intent)) {
+      lastBusinessIntent.value = turn.intent;
+    }
     turn.status = 'success';
     succeeded = true;
   } catch (error: unknown) {
@@ -1222,12 +1710,31 @@ async function submitAssistantQuery(prompt: string): Promise<void> {
     appendRecentContext(turn, succeeded);
     turn.completedAt = formatQueryTime(new Date());
     turn.requestComplete = true;
-    assistantInput.value = '';
     notifyLogsChanged(turn);
   }
 }
 
+async function submitAssistantQuery(prompt: string): Promise<void> {
+  if (queryActive.value || prompt.trim().length === 0) return;
+  if (Array.from(prompt).length > MAX_ASSISTANT_INPUT_LENGTH) {
+    assistantInputError.value = ASSISTANT_INPUT_TOO_LONG_MESSAGE;
+    return;
+  }
+
+  const serialQueries = splitSerialBusinessQueries(prompt);
+  if (serialQueries.length > 1) {
+    for (const query of serialQueries) {
+      await executeAssistantQuery(query.prompt, query.intent);
+    }
+  } else {
+    await executeAssistantQuery(prompt);
+  }
+  assistantInput.value = '';
+  assistantInputError.value = '';
+}
+
 async function submitInputQuery(): Promise<void> {
+  if (!validateAssistantInput()) return;
   const prompt = assistantInput.value;
   await submitAssistantQuery(prompt);
 }
@@ -1238,7 +1745,9 @@ function clearConversation(): void {
   conversationSummary.value = '';
   recentContextMessages.value = [];
   lastBusinessIntent.value = null;
+  lastBusinessResultContext.value = null;
   assistantInput.value = '';
+  assistantInputError.value = '';
   closePolicyDetail();
 }
 
