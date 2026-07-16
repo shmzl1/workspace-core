@@ -1,0 +1,92 @@
+# TalentFlow GitLab CI/CD Pipeline
+# 用于后端语法检查、前端配置检查、项目结构检查、
+# 源码制品生成和 DevOps 流水线记录生成。
+
+stages:
+  - verify
+  - package
+  - record
+
+workflow:
+  rules:
+    # dev、main 分支推送时运行
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+    # 创建或更新合并请求时运行
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+default:
+  image: python:3.11-alpine
+  tags:
+    - docker
+  before_script:
+    - echo "Project: $CI_PROJECT_PATH"
+    - echo "Branch: $CI_COMMIT_REF_NAME"
+    - echo "Commit: $CI_COMMIT_SHORT_SHA"
+    - echo "Pipeline: $CI_PIPELINE_ID"
+
+# 检查 FastAPI 后端 Python 文件是否存在语法错误
+backend_syntax_check:
+  stage: verify
+  script:
+    - test -d backend/app
+    - python -m compileall -q backend/app
+    - echo "Backend Python syntax check passed."
+
+# 检查前端工程和 package.json 基本配置
+frontend_structure_check:
+  stage: verify
+  script:
+    - test -d frontend
+    - test -f frontend/package.json
+    - python -m json.tool frontend/package.json > /dev/null
+    - python -c "import json; p=json.load(open('frontend/package.json', encoding='utf-8')); assert p.get('scripts', {}).get('dev'), 'package.json 缺少 scripts.dev'"
+    - echo "Frontend project structure check passed."
+
+# 检查主要项目目录
+project_structure_check:
+  stage: verify
+  script:
+    - test -f README.md
+    - test -d backend
+    - test -d frontend
+    - test -d infra
+    - test -d docs
+    - echo "Project structure check passed."
+
+# 将当前版本打包成可下载的流水线制品
+package_source:
+  stage: package
+  script:
+    - mkdir -p dist
+    - tar -czf "dist/talentflow-${CI_COMMIT_SHORT_SHA}.tar.gz" backend frontend infra docs README.md .gitlab-ci.yml
+    - ls -lh dist
+  artifacts:
+    name: "talentflow-${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - dist/
+    expire_in: 30 days
+
+# 自动生成本次流水线的 DevOps 执行记录
+devops_record:
+  stage: record
+  when: always
+  script:
+    - mkdir -p devops-records
+    - printf "# TalentFlow DevOps 流水线记录\n\n" > "devops-records/pipeline-${CI_PIPELINE_ID}.md"
+    - printf -- "- 项目：%s\n" "$CI_PROJECT_PATH" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
+    - printf -- "- 分支：%s\n" "$CI_COMMIT_REF_NAME" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
+    - printf -- "- Commit：%s\n" "$CI_COMMIT_SHA" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
+    - printf -- "- 提交标题：%s\n" "$CI_COMMIT_TITLE" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
+    - printf -- "- 提交人：%s\n" "$CI_COMMIT_AUTHOR" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
+    - printf -- "- Pipeline ID：%s\n" "$CI_PIPELINE_ID" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
+    - printf -- "- Pipeline 地址：%s\n" "$CI_PIPELINE_URL" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
+    - printf -- "- 创建时间：%s\n" "$CI_PIPELINE_CREATED_AT" >> "devops-records/pipeline-${CI_PIPELINE_ID}.md"
+    - cat "devops-records/pipeline-${CI_PIPELINE_ID}.md"
+  artifacts:
+    when: always
+    name: "devops-record-${CI_PIPELINE_ID}"
+    paths:
+      - devops-records/
+    expire_in: 90 days
