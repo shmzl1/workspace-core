@@ -342,14 +342,19 @@ onMounted(async () => {
 <style scoped>
 /* ── 入场浮现动画 ── */
 @keyframes revealSection {
-  from {
+  0% {
     opacity: 0;
     clip-path: inset(0 100% 0 0);
     transform: translateX(-12px);
   }
-  to {
+  99% {
     opacity: 1;
-    clip-path: inset(0 0% 0 0);
+    clip-path: inset(0 0 0 0);
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 1;
+    clip-path: none;
     transform: translateX(0);
   }
 }
