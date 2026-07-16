@@ -325,3 +325,34 @@ function nodeIcon(status: AgentNodeStatus) {
   }
 }
 </script>
+
+<style scoped>
+[data-theme="dark"] .bg-white { background-color: #1e293c !important; }
+[data-theme="dark"] .bg-white\/60 { background-color: rgba(30, 41, 60, 0.6) !important; }
+[data-theme="dark"] .bg-slate-50 { background-color: #0f172a !important; }
+[data-theme="dark"] .bg-slate-50\/50 { background-color: rgba(15, 23, 42, 0.5) !important; }
+[data-theme="dark"] .bg-slate-100 { background-color: #334155 !important; }
+[data-theme="dark"] .bg-slate-200 { background-color: #334155 !important; }
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e15 !important; }
+[data-theme="dark"] .bg-blue-100 { background-color: #1e3a5f !important; }
+[data-theme="dark"] .bg-amber-50 { background-color: #451a02 !important; }
+[data-theme="dark"] .bg-red-50 { background-color: #450a0a !important; }
+[data-theme="dark"] .text-slate-900 { color: #e2e8f0 !important; }
+[data-theme="dark"] .text-slate-800 { color: #e2e8f0 !important; }
+[data-theme="dark"] .text-slate-700 { color: #cbd5e1 !important; }
+[data-theme="dark"] .text-slate-500 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-slate-400 { color: #64748b !important; }
+[data-theme="dark"] .text-slate-300 { color: #475569 !important; }
+[data-theme="dark"] .text-emerald-500 { color: #34d399 !important; }
+[data-theme="dark"] .text-blue-600 { color: #93c5fd !important; }
+[data-theme="dark"] .text-amber-500 { color: #fbbf24 !important; }
+[data-theme="dark"] .text-red-500 { color: #f87171 !important; }
+[data-theme="dark"] .border-slate-200 { border-color: #334155 !important; }
+[data-theme="dark"] .border-slate-200\/60 { border-color: rgba(51, 65, 85, 0.6) !important; }
+[data-theme="dark"] .border-slate-300 { border-color: #475569 !important; }
+[data-theme="dark"] .border-slate-100 { border-color: #1e293c !important; }
+[data-theme="dark"] .border-blue-400 { border-color: #60a5fa !important; }
+[data-theme="dark"] .border-amber-300 { border-color: #d97706 !important; }
+[data-theme="dark"] .border-red-300 { border-color: #dc2626 !important; }
+[data-theme="dark"] .border-dashed { border-style: dashed; }
+</style>

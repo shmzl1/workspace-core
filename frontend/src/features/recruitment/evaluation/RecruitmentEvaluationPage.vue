@@ -328,3 +328,32 @@ onMounted(async () => {
   if (typeof runId === 'string' && runId) await restore(runId);
 });
 </script>
+
+<style scoped>
+[data-theme="dark"] .bg-white { background-color: #1e293c !important; }
+[data-theme="dark"] .text-slate-900 { color: #e2e8f0 !important; }
+[data-theme="dark"] .text-slate-800 { color: #e2e8f0 !important; }
+[data-theme="dark"] .text-slate-700 { color: #cbd5e1 !important; }
+[data-theme="dark"] .text-slate-600 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-slate-500 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-slate-400 { color: #64748b !important; }
+[data-theme="dark"] .border-slate-200 { border-color: #334155 !important; }
+[data-theme="dark"] .border-slate-100 { border-color: #1e293c !important; }
+[data-theme="dark"] .border-slate-300 { border-color: #475569 !important; }
+[data-theme="dark"] .bg-slate-100 { background-color: #334155 !important; }
+[data-theme="dark"] .bg-blue-50 { background-color: #1a2744 !important; }
+[data-theme="dark"] .text-blue-600 { color: #93c5fd !important; }
+[data-theme="dark"] .text-blue-800 { color: #93c5fd !important; }
+[data-theme="dark"] .border-blue-100 { border-color: #1e3a5f !important; }
+[data-theme="dark"] .bg-red-50 { background-color: #450a0a !important; }
+[data-theme="dark"] .border-red-200 { border-color: #7f1d1d !important; }
+[data-theme="dark"] .text-red-700 { color: #fca5a5 !important; }
+[data-theme="dark"] .text-red-500 { color: #f87171 !important; }
+[data-theme="dark"] .text-indigo-600 { color: #a5b4fc !important; }
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e15 !important; }
+[data-theme="dark"] .border-emerald-200 { border-color: #064e3b !important; }
+[data-theme="dark"] .text-emerald-800 { color: #6ee7b8 !important; }
+[data-theme="dark"] .text-emerald-500 { color: #34d399 !important; }
+[data-theme="dark"] .text-purple-600 { color: #c4b5fd !important; }
+[data-theme="dark"] .hover\:bg-slate-50:hover { background-color: #1e293c !important; }
+</style>
