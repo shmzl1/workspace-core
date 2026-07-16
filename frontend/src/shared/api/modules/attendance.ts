@@ -38,3 +38,36 @@ export async function fetchMonthlyAttendanceSummary(year: number, month: number,
   return response.data;
 }
 
+export interface AttendanceReviewResponse {
+  record: AttendanceRecord | null;
+  employee_name: string;
+  employee_department: string;
+  employee_job_title: string;
+  // monthly fields (populated when period_type=month)
+  employee_id?: number;
+  year?: number;
+  month?: number;
+  late_count?: number;
+  total_late_minutes?: number;
+  early_leave_count?: number;
+  total_early_leave_minutes?: number;
+  absent_count?: number;
+  unpaid_leave_count?: number;
+  approved_annual_leave_count?: number;
+  normal_count?: number;
+  total_days?: number;
+  used_days?: number;
+  remaining_days?: number;
+}
+
+export async function fetchAttendanceReview(params: {
+  target_employee_id: number;
+  period_type: 'date' | 'month';
+  review_date?: string;
+  year?: number;
+  month?: number;
+}): Promise<AttendanceReviewResponse> {
+  const response = await apiClient.get<AttendanceReviewResponse>('/attendance/review', { params });
+  return response.data;
+}
+

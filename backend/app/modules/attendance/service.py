@@ -141,6 +141,10 @@ class AttendanceService:
         record = self.repository.get_daily_record(employee_id, today or date.today())
         return model_to_dict(record, ATTENDANCE_FIELDS) if record else None
 
+    def get_date(self, employee_id: int, attendance_date: date) -> dict | None:
+        record = self.repository.get_record(employee_id, attendance_date)
+        return model_to_dict(record, ATTENDANCE_FIELDS) if record else None
+
     def list_recent(self, employee_id: int, limit: int = 31) -> list[dict]:
         return [model_to_dict(record, ATTENDANCE_FIELDS) for record in self.repository.list_records(employee_id, limit)]
 
@@ -206,4 +210,28 @@ class AttendanceService:
             "used_days": used_days,
             "remaining_days": remaining_days,
         }
+
+    def get_monthly_summary_review(self, employee_id: int, year: int, month: int) -> dict:
+        """Monthly summary for attendance review: DB records take precedence;
+        days without records are counted as NORMAL (default 9:00–18:00)."""
+        summary = self.get_monthly_summary(employee_id, year, month)
+        today = date.today()
+        if year != today.year or month != today.month:
+            return summary
+
+        import calendar as cal_mod
+        days_in_month = cal_mod.monthrange(year, month)[1]
+        end_day = min(today.day, days_in_month)
+        start_date = date(year, month, 1)
+        end_date = date(year, month, end_day)
+        records = self.repo.get_records_by_range(employee_id, start_date, end_date)
+        recorded_days = {r.attendance_date.day for r in records}
+
+        extra_normal = 0
+        for d in range(1, end_day + 1):
+            if d not in recorded_days:
+                extra_normal += 1
+
+        summary["normal_count"] += extra_normal
+        return summary
 
