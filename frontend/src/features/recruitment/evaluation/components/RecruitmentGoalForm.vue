@@ -1,5 +1,5 @@
 <template>
-  <form class="bg-gradient-to-b from-white to-slate-50/50 rounded-2xl shadow-sm border border-slate-200/80 p-6 space-y-5 text-xs transition-all hover:shadow-md" @submit.prevent="submit">
+  <form class="recruitment-hover-card bg-gradient-to-b from-white to-slate-50/50 rounded-2xl shadow-sm border border-slate-200/80 p-6 space-y-5 text-xs" @submit.prevent="submit">
     <div class="flex items-center justify-between border-b border-slate-150 pb-3">
       <h2 class="text-sm font-bold flex items-center gap-2 text-slate-800">
         <div class="w-1 h-5 bg-blue-500 rounded-full animate-pulse"></div>

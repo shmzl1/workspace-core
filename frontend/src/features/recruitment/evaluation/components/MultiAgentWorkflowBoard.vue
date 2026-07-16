@@ -1,5 +1,5 @@
 <template>
-  <section class="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 space-y-6">
+  <section class="recruitment-hover-card bg-white rounded-3xl shadow-sm border border-slate-200 p-8 space-y-6">
     <div class="flex items-center justify-between border-b border-slate-100 pb-4">
       <h2 class="text-lg font-bold flex items-center gap-2 text-slate-900">
         <div class="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
@@ -20,7 +20,7 @@
         <div 
           @click="emit('select', 'recruitment_strategy')"
           :class="[
-            'w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative transition-all duration-300 cursor-pointer transform hover:-translate-y-1',
+            'recruitment-hover-node w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative cursor-pointer',
             selectedNode === 'recruitment_strategy' ? 'ring-2 ring-blue-500 ring-offset-2 scale-105' : '',
             nodeStyle(nodeMap.recruitment_strategy.status).cardClass
           ]"
@@ -49,7 +49,7 @@
           <div 
             @click="emit('select', 'resume_parser')"
             :class="[
-              'w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm transition-all duration-300 cursor-pointer transform hover:translate-x-1',
+              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'resume_parser' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
               nodeStyle(nodeMap.resume_parser.status).cardClass
             ]"
@@ -69,7 +69,7 @@
           <div 
             @click="emit('select', 'job_match')"
             :class="[
-              'w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm transition-all duration-300 cursor-pointer transform hover:translate-x-1',
+              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'job_match' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
               nodeStyle(nodeMap.job_match.status).cardClass
             ]"
@@ -101,7 +101,7 @@
           <div 
             @click="emit('select', 'decision_review')"
             :class="[
-              'w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm transition-all duration-300 cursor-pointer transform hover:translate-x-1',
+              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'decision_review' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
               nodeStyle(nodeMap.decision_review.status).cardClass
             ]"
@@ -126,7 +126,7 @@
           <div 
             @click="emit('select', 'hr_report')"
             :class="[
-              'w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm transition-all duration-300 cursor-pointer transform hover:translate-x-1',
+              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'hr_report' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
               nodeStyle(nodeMap.hr_report.status).cardClass
             ]"
@@ -152,7 +152,7 @@
         <div 
           @click="emit('select', 'interview_evaluation')"
           :class="[
-            'w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative transition-all duration-300 cursor-pointer transform hover:-translate-y-1',
+            'recruitment-hover-node w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative cursor-pointer',
             selectedNode === 'interview_evaluation' ? 'ring-2 ring-blue-500 ring-offset-2 scale-105' : '',
             nodeStyle(nodeMap.interview_evaluation.status).cardClass
           ]"

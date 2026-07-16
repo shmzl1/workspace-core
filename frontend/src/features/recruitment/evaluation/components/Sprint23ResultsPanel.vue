@@ -7,7 +7,7 @@
     </h2>
 
     <!-- Candidate List Reports (Collapsible) -->
-    <div v-for="candidate in displayCandidates" :key="candidate.id" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+    <div v-for="candidate in displayCandidates" :key="candidate.id" class="recruitment-hover-card bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
       <!-- Collapse Toggle Header -->
       <div 
         class="px-6 py-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none"

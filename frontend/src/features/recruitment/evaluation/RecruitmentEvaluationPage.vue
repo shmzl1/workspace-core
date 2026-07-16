@@ -1,15 +1,17 @@
 <template>
   <section class="min-h-screen text-slate-800 space-y-8 pb-20">
     <!-- Local Dashboard Header -->
-    <header class="reveal-section bg-white rounded-3xl border border-slate-200 px-8 py-6 flex items-center justify-between shadow-sm" style="animation-delay: 0s">
-      <div>
-        <h1 class="text-2xl font-black text-slate-900 tracking-tight">AI 招聘中心</h1>
-        <p class="text-sm text-slate-500 mt-1">围绕招聘目标生成策略、画像匹配、最终决定始终保留人工边界。</p>
-      </div>
-      <div class="flex items-center gap-3">
-        <span class="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-xs font-bold uppercase tracking-wider">
-          PostgreSQL Run · 实时 SSE
-        </span>
+    <header class="reveal-section" style="animation-delay: 0s">
+      <div class="recruitment-hover-card bg-white rounded-3xl border border-slate-200 px-8 py-6 flex items-center justify-between shadow-sm">
+        <div>
+          <h1 class="text-2xl font-black text-slate-900 tracking-tight">AI 招聘中心</h1>
+          <p class="text-sm text-slate-500 mt-1">围绕招聘目标生成策略、画像匹配、最终决定始终保留人工边界。</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-xs font-bold uppercase tracking-wider">
+            PostgreSQL Run · 实时 SSE
+          </span>
+        </div>
       </div>
     </header>
 
@@ -58,7 +60,8 @@
       </div>
 
       <!-- Section 4: Checkable Candidate applications list -->
-      <section class="reveal-section bg-white rounded-3xl shadow-sm border border-slate-200 p-8" style="animation-delay: 0.75s">
+      <div class="reveal-section" style="animation-delay: 0.75s">
+      <section class="recruitment-hover-card bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
         <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
           <h2 class="text-lg font-bold flex items-center gap-2 text-slate-900">
             <div class="w-1.5 h-6 bg-purple-500 rounded-full"></div>
@@ -126,6 +129,7 @@
           </table>
         </div>
       </section>
+      </div>
     </template>
 
     <!-- Floating Action Bar at the Bottom -->
