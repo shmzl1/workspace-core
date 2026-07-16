@@ -112,6 +112,15 @@ def test_get_me():
     assert data["data"]["employee"]["employee_no"] == "EMP001"
 
 
+def test_hr_specialist_can_get_own_leave_overview():
+    headers = get_auth_headers(3, "linyuqing")
+    response = client.get("/api/v1/employees/me/leave-overview", headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["data"]["balances"] == []
+
+
 def test_attendance_flow():
     # Test checking in and out, duplicate check warnings
     headers = get_auth_headers(1, "zhangwei")

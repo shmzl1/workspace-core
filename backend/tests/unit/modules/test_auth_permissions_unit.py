@@ -31,3 +31,7 @@ def test_role_defaults_are_unique_and_non_blank() -> None:
         assert permissions
         assert len(permissions) == len(set(permissions))
         assert all(item == item.strip() and item for item in permissions)
+
+
+def test_hr_specialist_can_read_own_leave_account() -> None:
+    assert "leave.self.read" in ROLE_DEFAULT_PERMISSIONS["HR_SPECIALIST"]
