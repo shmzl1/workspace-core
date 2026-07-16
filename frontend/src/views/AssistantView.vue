@@ -91,7 +91,7 @@
                     <div class="agent-progress-node w-8 h-8 rounded-full bg-surface border-2 flex items-center justify-center">
                       <span class="material-symbols-outlined text-[16px]">manage_search</span>
                     </div>
-                    <span class="text-[10px] font-medium">关键词解析</span>
+                    <span class="text-[10px] font-medium">问题理解</span>
                   </div>
 
                   <div class="agent-progress-line agent-progress-line--first flex-1 h-0.5 mx-2" />
@@ -100,7 +100,7 @@
                     <div class="agent-progress-node w-8 h-8 rounded-full bg-surface border-2 flex items-center justify-center">
                       <span class="material-symbols-outlined text-[16px]">database</span>
                     </div>
-                    <span class="text-[10px] font-medium">数据查询</span>
+                    <span class="text-[10px] font-medium">业务处理</span>
                   </div>
 
                   <div class="agent-progress-line agent-progress-line--second flex-1 h-0.5 mx-2" />
@@ -143,10 +143,17 @@
                 <div v-if="turn.status === 'error'" class="flex items-start gap-3">
                   <span class="material-symbols-outlined text-red-500 text-[22px]">error</span>
                   <div>
-                    <p class="text-sm font-semibold text-red-600 m-0">{{ intentLabel(turn.intent) }}查询失败</p>
+                    <p class="text-sm font-semibold text-red-600 m-0">{{ intentLabel(turn.intent) }}处理失败</p>
                     <p class="text-sm text-on-surface-variant m-0 mt-1.5 leading-relaxed">{{ turn.errorMessage }}</p>
                   </div>
                 </div>
+
+                <!-- Normal chat uses text interpolation only; model HTML is never rendered. -->
+                <template v-else-if="turn.intent === 'CHAT'">
+                  <p class="text-sm text-on-surface m-0 whitespace-pre-wrap break-words leading-relaxed">
+                    {{ turn.assistantReply }}
+                  </p>
+                </template>
 
                 <!-- Leave result keeps the existing cards, table and progress presentation. -->
                 <template v-else-if="turn.intent === 'LEAVE'">
@@ -405,7 +412,7 @@
                   <div class="flex items-start gap-3 mb-4">
                     <span class="material-symbols-outlined text-primary text-[22px]">info</span>
                     <div>
-                      <p class="text-sm font-semibold text-on-surface m-0">暂时无法识别这个查询意图</p>
+                      <p class="text-sm font-semibold text-on-surface m-0">{{ turn.assistantReply || '暂时无法识别这个查询意图' }}</p>
                       <p class="text-xs text-on-surface-variant m-0 mt-1.5">本回合未调用业务接口。目前支持查询：</p>
                     </div>
                   </div>
@@ -452,6 +459,7 @@
               <input
                 v-model="assistantInput"
                 type="text"
+                maxlength="4000"
                 placeholder="例如：查看上个月的薪资影响因素"
                 class="w-full h-14 bg-transparent border-none focus:ring-0 text-sm text-on-surface placeholder:text-outline/60 px-2 outline-none disabled:cursor-not-allowed disabled:opacity-60"
                 :disabled="queryActive"
@@ -627,10 +635,18 @@ import { fetchMonthlyAttendanceSummary } from '../shared/api/modules/attendance'
 import { fetchLeaveOverview, type LeaveBalanceItem } from '../shared/api/modules/employee';
 import { fetchMySalary, type SalaryDetail } from '../shared/api/modules/payroll';
 import { fetchPolicies, type PolicyDocument } from '../shared/api/modules/policy';
+import {
+  sendAssistantChat,
+  type AssistantChatMessage,
+  type AssistantChatResponse,
+  type AssistantIntent,
+  type AssistantResolvedParameters,
+} from '../shared/api/modules/assistant';
 
-type AssistantIntent = 'LEAVE' | 'PAYROLL' | 'POLICY' | 'UNKNOWN';
 type AssistantTurnStatus = 'loading' | 'success' | 'error';
 type DashboardStatus = 'loading' | 'success' | 'empty' | 'error';
+type BusinessIntent = Exclude<AssistantIntent, 'CHAT' | 'UNKNOWN'>;
+type UnderstandingMode = 'MODEL' | 'LOCAL_FALLBACK';
 
 interface PayrollPeriod {
   year: number;
@@ -686,6 +702,10 @@ interface AssistantTurn {
   requestComplete: boolean;
   completedAt?: string;
   errorMessage?: string;
+  assistantReply?: string;
+  normalizedQuery?: string;
+  resolvedParameters?: AssistantResolvedParameters;
+  understandingMode?: UnderstandingMode;
   leaveResult?: LeaveResult;
   payrollResult?: PayrollResult;
   policyResult?: PolicyResult;
@@ -716,11 +736,18 @@ const POLICY_SEARCH_TERMS = [
 ] as const;
 const GENERIC_POLICY_TERMS = new Set(['公司规定', '政策', '制度', '规定']);
 const leaveTypeOrder: Record<string, number> = { ANNUAL: 0, SICK: 1, COMP_TIME: 2 };
+const MAX_RECENT_CONTEXT_MESSAGES = 12;
+const MAX_CONTEXT_MESSAGE_LENGTH = 1_000;
+const MAX_CONVERSATION_SUMMARY_LENGTH = 4_000;
+const MODEL_UNAVAILABLE_REPLY = '智能对话模型当前不可用，但您仍可查询本人假期、薪资与考勤影响因素，以及公司政策。';
 
 const chatHistoryRef = ref<HTMLElement | null>(null);
 const policyDialogRef = ref<HTMLDivElement | null>(null);
 const assistantInput = ref('');
 const turns = ref<AssistantTurn[]>([]);
+const conversationSummary = ref('');
+const recentContextMessages = ref<AssistantChatMessage[]>([]);
+const lastBusinessIntent = ref<BusinessIntent | null>(null);
 const selectedPolicy = ref<PolicyDocument | null>(null);
 const conversationStartedAt = new Date();
 const dashboardBalances = ref<LeaveBalanceItem[]>([]);
@@ -856,7 +883,7 @@ function turnStatusLabel(turn: AssistantTurn): string {
 }
 
 function intentLabel(intent: AssistantIntent): string {
-  return { LEAVE: '假期', PAYROLL: '薪资', POLICY: '政策', UNKNOWN: '能力范围' }[intent];
+  return { LEAVE: '假期', PAYROLL: '薪资', POLICY: '政策', CHAT: '普通对话', UNKNOWN: '能力范围' }[intent];
 }
 
 function formatConversationTime(date: Date): string {
@@ -949,17 +976,15 @@ function markProgressComplete(turn: AssistantTurn): void {
 
 function createTurn(prompt: string): AssistantTurn {
   const keywords = extractKeywords(prompt);
-  const intent = classifyIntent(prompt, keywords);
   turnSequence += 1;
   return reactive<AssistantTurn>({
     id: `assistant-turn-${turnSequence}`,
     prompt,
     keywords,
-    intent,
+    intent: 'UNKNOWN',
     status: 'loading',
     logs: [
-      `[关键词解析] 已提取关键词：${keywords.length > 0 ? keywords.join('、') : '未发现支持范围内的关键词'}`,
-      `[意图识别] 已识别查询类型：${intent}`,
+      '[问题理解] 正在结合会话摘要和最近消息理解当前问题',
     ],
     visibleLogCount: 1,
     logAnimationActive: true,
@@ -970,7 +995,7 @@ function createTurn(prompt: string): AssistantTurn {
 }
 
 async function executeLeaveQuery(turn: AssistantTurn): Promise<void> {
-  const year = parseLeaveYear(turn.prompt);
+  const year = turn.resolvedParameters?.year ?? parseLeaveYear(turn.prompt);
   turn.logs.push('[身份上下文] 使用当前登录用户关联员工档案');
   turn.logs.push(`[接口请求] 调用 /employees/me/leave-overview?year=${year}`);
   notifyLogsChanged(turn);
@@ -988,7 +1013,10 @@ async function executeLeaveQuery(turn: AssistantTurn): Promise<void> {
 }
 
 async function executePayrollQuery(turn: AssistantTurn): Promise<void> {
-  const period = parsePayrollPeriod(turn.prompt);
+  const parsedPeriod = parsePayrollPeriod(turn.prompt);
+  const year = turn.resolvedParameters?.year ?? parsedPeriod.year;
+  const month = turn.resolvedParameters?.month ?? parsedPeriod.month;
+  const period: PayrollPeriod = { year, month, label: `${year} 年 ${month} 月` };
   turn.logs.push('[身份上下文] 使用当前登录用户关联员工档案');
   turn.logs.push('[接口请求] 调用 /payroll/me');
   notifyLogsChanged(turn);
@@ -1022,7 +1050,9 @@ function filterPolicyDocuments(documents: PolicyDocument[], keywords: string[]):
 }
 
 async function executePolicyQuery(turn: AssistantTurn): Promise<void> {
-  const searchKeywords = extractPolicySearchKeywords(turn.prompt);
+  const searchKeywords = turn.resolvedParameters?.policy_keywords.length
+    ? turn.resolvedParameters.policy_keywords
+    : extractPolicySearchKeywords(turn.prompt);
   turn.logs.push('[接口请求] 正在检索政策中心数据库');
   if (searchKeywords.length > 0) {
     searchKeywords.forEach((keyword) => turn.logs.push(`[接口请求] 调用 /policies?query=${keyword}`));
@@ -1056,11 +1086,117 @@ function executeUnknownQuery(turn: AssistantTurn): void {
   notifyLogsChanged(turn);
 }
 
+function executeChatReply(turn: AssistantTurn): void {
+  turn.logs.push('[结果整理] 已生成安全文本回复');
+  notifyLogsChanged(turn);
+}
+
 async function dispatchTurn(turn: AssistantTurn): Promise<void> {
   if (turn.intent === 'LEAVE') return executeLeaveQuery(turn);
   if (turn.intent === 'PAYROLL') return executePayrollQuery(turn);
   if (turn.intent === 'POLICY') return executePolicyQuery(turn);
+  if (turn.intent === 'CHAT') return executeChatReply(turn);
   executeUnknownQuery(turn);
+}
+
+function isBusinessIntent(intent: AssistantIntent): intent is BusinessIntent {
+  return intent === 'LEAVE' || intent === 'PAYROLL' || intent === 'POLICY';
+}
+
+function isExplicitFollowUp(prompt: string): boolean {
+  const normalized = prompt.trim().replace(/[。！!]/g, '');
+  if (normalized.length > 24) return false;
+  return /(?:呢[？?]?$|^(?:那|那么|这个|这个月|上个月|上月)(?:.*)?[？?]?$|^继续(?:查|说|看)?[？?]?$)/.test(normalized);
+}
+
+function parameterLog(parameters: AssistantResolvedParameters): string | null {
+  if (parameters.year && parameters.month) return `[参数解析] 已解析查询周期：${parameters.year} 年 ${parameters.month} 月`;
+  if (parameters.year) return `[参数解析] 已解析查询年度：${parameters.year} 年`;
+  if (parameters.policy_keywords.length > 0) return `[参数解析] 已提取政策关键词：${parameters.policy_keywords.join('、')}`;
+  return null;
+}
+
+function applyAssistantResponse(turn: AssistantTurn, response: AssistantChatResponse): void {
+  turn.intent = response.intent;
+  turn.assistantReply = response.reply;
+  turn.normalizedQuery = response.normalized_query;
+  turn.resolvedParameters = response.parameters;
+  turn.understandingMode = 'MODEL';
+  conversationSummary.value = sanitizeContextText(
+    response.updated_summary,
+    MAX_CONVERSATION_SUMMARY_LENGTH,
+  );
+  turn.logs.push('[问题理解] 已结合会话摘要和最近消息理解当前问题');
+  turn.logs.push(response.intent === 'CHAT'
+    ? '[意图识别] 已识别为普通对话'
+    : `[意图识别] 已识别查询类型：${response.intent}`);
+  const resolvedParameterLog = parameterLog(response.parameters);
+  if (resolvedParameterLog) turn.logs.push(resolvedParameterLog);
+  notifyLogsChanged(turn);
+}
+
+async function resolveTurnUnderstanding(turn: AssistantTurn): Promise<void> {
+  try {
+    const response = await sendAssistantChat({
+      message: turn.prompt,
+      conversation_summary: conversationSummary.value,
+      recent_messages: recentContextMessages.value.map((message) => ({ ...message })),
+    });
+    applyAssistantResponse(turn, response);
+  } catch (error: unknown) {
+    if (error instanceof ApiClientError && error.status !== undefined && error.status < 500) {
+      throw error;
+    }
+    turn.understandingMode = 'LOCAL_FALLBACK';
+    const localIntent = classifyIntent(turn.prompt, turn.keywords);
+    turn.intent = isExplicitFollowUp(turn.prompt) && lastBusinessIntent.value
+      ? lastBusinessIntent.value
+      : localIntent;
+    turn.assistantReply = turn.intent === 'UNKNOWN' ? MODEL_UNAVAILABLE_REPLY : undefined;
+    turn.logs.push('[问题理解] 智能理解服务当前不可用');
+    turn.logs.push(`[兼容兜底] 已使用本地关键词规则${turn.intent !== localIntent ? '并继承最近业务意图' : ''}`);
+    turn.logs.push(`[意图识别] 本地识别查询类型：${turn.intent}`);
+    notifyLogsChanged(turn);
+  }
+}
+
+function sanitizeContextText(value: string, maxLength: number): string {
+  return value
+    .trim()
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, '[已脱敏凭证]')
+    .replace(/(?:api[_ -]?key|token|密码|password|员工编号|employee[_ -]?id|用户\s*id|user[_ -]?id)\s*[:：=]?\s*[A-Za-z0-9._~+/=-]{3,}/gi, '[已脱敏敏感字段]')
+    .replace(/(?:实发工资|基本工资|绩效工资|扣款|工资|薪资|金额)[^\n，。；]{0,12}\d+(?:\.\d+)?\s*(?:元|人民币|CNY|RMB)/gi, '[已脱敏薪资金额]')
+    .slice(0, maxLength);
+}
+
+function assistantContextNote(turn: AssistantTurn, succeeded: boolean): string {
+  if (turn.intent === 'CHAT') return turn.assistantReply || '已完成普通对话。';
+  if (turn.intent === 'PAYROLL') {
+    const period = turn.payrollResult?.period;
+    const target = period ? `${period.year} 年 ${period.month} 月` : '所选月份';
+    return `${succeeded ? '已完成' : '已识别'} PAYROLL 查询，查询周期为 ${target}，未向模型传递薪资金额。`;
+  }
+  if (turn.intent === 'LEAVE') {
+    const year = turn.leaveResult?.year ?? turn.resolvedParameters?.year;
+    return `${succeeded ? '已完成' : '已识别'} LEAVE 查询${year ? `，查询年度为 ${year} 年` : ''}，未向模型传递具体余额。`;
+  }
+  if (turn.intent === 'POLICY') {
+    const keywords = turn.policyResult?.searchKeywords ?? turn.resolvedParameters?.policy_keywords ?? [];
+    return `${succeeded ? '已完成' : '已识别'} POLICY 查询${keywords.length ? `，关键词为${keywords.join('、')}` : ''}，未保存政策正文。`;
+  }
+  return turn.assistantReply || '本轮问题未调用业务接口。';
+}
+
+function appendRecentContext(turn: AssistantTurn, succeeded: boolean): void {
+  const userContent = sanitizeContextText(turn.prompt, MAX_CONTEXT_MESSAGE_LENGTH);
+  const assistantContent = sanitizeContextText(
+    assistantContextNote(turn, succeeded),
+    MAX_CONTEXT_MESSAGE_LENGTH,
+  );
+  const nextMessages = [...recentContextMessages.value];
+  if (userContent) nextMessages.push({ role: 'user', content: userContent });
+  if (assistantContent) nextMessages.push({ role: 'assistant', content: assistantContent });
+  recentContextMessages.value = nextMessages.slice(-MAX_RECENT_CONTEXT_MESSAGES);
 }
 
 async function submitAssistantQuery(prompt: string): Promise<void> {
@@ -1069,9 +1205,13 @@ async function submitAssistantQuery(prompt: string): Promise<void> {
   turns.value.push(turn);
   await scrollChatToLatest();
 
+  let succeeded = false;
   try {
+    await resolveTurnUnderstanding(turn);
     await dispatchTurn(turn);
+    if (isBusinessIntent(turn.intent)) lastBusinessIntent.value = turn.intent;
     turn.status = 'success';
+    succeeded = true;
   } catch (error: unknown) {
     const errorMessage = safeErrorMessage(error);
     turn.errorMessage = errorMessage;
@@ -1079,6 +1219,7 @@ async function submitAssistantQuery(prompt: string): Promise<void> {
     turn.logs.push('[结果整理] 已生成安全错误提示');
     turn.status = 'error';
   } finally {
+    appendRecentContext(turn, succeeded);
     turn.completedAt = formatQueryTime(new Date());
     turn.requestComplete = true;
     assistantInput.value = '';
@@ -1094,6 +1235,10 @@ async function submitInputQuery(): Promise<void> {
 function clearConversation(): void {
   if (queryActive.value) return;
   turns.value = [];
+  conversationSummary.value = '';
+  recentContextMessages.value = [];
+  lastBusinessIntent.value = null;
+  assistantInput.value = '';
   closePolicyDetail();
 }
 
