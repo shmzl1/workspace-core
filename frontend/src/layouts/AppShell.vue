@@ -47,7 +47,7 @@ function handleNavigate(view: string) {
     dashboard: '/hr/dashboard', evaluation: '/hr/evaluation', pipeline: '/hr/pipeline', candidates: '/hr/candidates', interviews: '/hr/interviews',
     reporting: '/hr/reporting', assistant: '/hr/assistant', policy: '/hr/policy', audit: '/hr/audit', settings: '/hr/settings',
     emp_dashboard: '/employee/dashboard', attendance: '/employee/attendance', leave: '/employee/leave', payroll: '/employee/payroll',
-    emp_policy: '/employee/policy', emp_assistant: '/employee/assistant',
+    emp_policy: '/employee/policy', emp_assistant: '/employee/assistant', attendance_review: '/employee/attendance-review',
   };
   router.push(routeMap[targetView] || getDefaultRoute());
 }

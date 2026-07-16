@@ -7,7 +7,7 @@
     </h2>
 
     <!-- Candidate List Reports (Collapsible) -->
-    <div v-for="candidate in displayCandidates" :key="candidate.id" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+    <div v-for="candidate in displayCandidates" :key="candidate.id" class="recruitment-hover-card bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
       <!-- Collapse Toggle Header -->
       <div 
         class="px-6 py-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors select-none"
@@ -595,4 +595,40 @@ function rankingScore(candidateId: number): string {
 
 <style scoped>
 .expand-content { transition: max-height 0.4s ease-in-out, opacity 0.3s ease-in-out; }
+
+[data-theme="dark"] .bg-white { background-color: #1e293c !important; }
+[data-theme="dark"] .bg-slate-50\/30 { background-color: rgba(15, 23, 42, 0.3) !important; }
+[data-theme="dark"] .bg-slate-50\/20 { background-color: rgba(15, 23, 42, 0.2) !important; }
+[data-theme="dark"] .bg-slate-100\/80 { background-color: rgba(51, 65, 85, 0.8) !important; }
+[data-theme="dark"] .bg-blue-50 { background-color: #1a2744 !important; }
+[data-theme="dark"] .bg-red-50 { background-color: #450a0a !important; }
+[data-theme="dark"] .bg-red-50\/50 { background-color: rgba(69, 10, 10, 0.5) !important; }
+[data-theme="dark"] .bg-amber-50 { background-color: #451a02 !important; }
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e15 !important; }
+[data-theme="dark"] .bg-indigo-100 { background-color: #312e81 !important; }
+[data-theme="dark"] .text-slate-800 { color: #e2e8f0 !important; }
+[data-theme="dark"] .text-slate-700 { color: #cbd5e1 !important; }
+[data-theme="dark"] .text-slate-600 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-slate-500 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-slate-400 { color: #64748b !important; }
+[data-theme="dark"] .text-indigo-600 { color: #a5b4fc !important; }
+[data-theme="dark"] .text-blue-600 { color: #93c5fd !important; }
+[data-theme="dark"] .text-blue-700 { color: #93c5fd !important; }
+[data-theme="dark"] .text-blue-900 { color: #bfdbfe !important; }
+[data-theme="dark"] .text-red-600 { color: #fca5a5 !important; }
+[data-theme="dark"] .text-red-800 { color: #fecaca !important; }
+[data-theme="dark"] .text-amber-600 { color: #fcd34d !important; }
+[data-theme="dark"] .text-emerald-700 { color: #6ee7b8 !important; }
+[data-theme="dark"] .text-blue-500 { color: #60a5fa !important; }
+[data-theme="dark"] .border-slate-200 { border-color: #334155 !important; }
+[data-theme="dark"] .border-slate-200\/60 { border-color: rgba(51, 65, 85, 0.6) !important; }
+[data-theme="dark"] .border-slate-200\/80 { border-color: rgba(51, 65, 85, 0.8) !important; }
+[data-theme="dark"] .border-slate-200\/40 { border-color: rgba(51, 65, 85, 0.4) !important; }
+[data-theme="dark"] .border-slate-100 { border-color: #1e293c !important; }
+[data-theme="dark"] .border-red-100 { border-color: #7f1d1d !important; }
+[data-theme="dark"] .border-amber-100 { border-color: #78350f !important; }
+[data-theme="dark"] .border-blue-100 { border-color: #1e3a5f !important; }
+[data-theme="dark"] .border-emerald-100 { border-color: #064e3b !important; }
+[data-theme="dark"] .hover\:bg-slate-50:hover { background-color: #1e293c !important; }
+[data-theme="dark"] .border-l-slate-300 { border-left-color: #475569 !important; }
 </style>

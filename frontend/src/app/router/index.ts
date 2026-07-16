@@ -20,6 +20,7 @@ import LeaveView from '../../views/LeaveView.vue';
 import PayrollView from '../../views/PayrollView.vue';
 import EmpPolicyView from '../../views/EmpPolicyView.vue';
 import EmpAssistantView from '../../views/EmpAssistantView.vue';
+import AttendanceReviewView from '../../views/AttendanceReviewView.vue';
 
 // 扩展 vue-router 的 RouteMeta
 declare module 'vue-router' {
@@ -136,6 +137,12 @@ const routes: RouteRecordRaw[] = [
     name: 'emp-assistant',
     component: EmpAssistantView,
     meta: { requiresAuth: true, anyPermissions: ['agent.employee.use'], label: '智能助手' },
+  },
+  {
+    path: '/employee/attendance-review',
+    name: 'emp-attendance-review',
+    component: AttendanceReviewView,
+    meta: { requiresAuth: true, anyPermissions: ['employee.department.read', 'payroll.all.read', 'audit.read'], label: '考勤审查' },
   },
 ];
 

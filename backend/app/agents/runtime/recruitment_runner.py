@@ -57,8 +57,29 @@ async def run_recruitment_strategy(
     store: AgentRunStore | None = None,
     dependencies: RecruitmentRunnerDependencies | None = None,
 ) -> None:
-    store = store or _default_store()
-    dependencies = dependencies or _default_dependencies()
+    from app.agents.graph_factory import build_agent_graph
+
+    resolved_store = store or _default_store()
+    resolved_dependencies = dependencies or _default_dependencies()
+    graph = build_agent_graph()
+    await graph.ainvoke(
+        {
+            "run_id": run_id,
+            "context": context,
+            "store": resolved_store,
+            "dependencies": resolved_dependencies,
+            "runnable": False,
+            "completed": False,
+        }
+    )
+
+
+async def _run_recruitment_pipeline(
+    run_id: str,
+    context: RecruitmentRunContext,
+    store: AgentRunStore,
+    dependencies: RecruitmentRunnerDependencies,
+) -> None:
     record = await store.get(run_id)
     snapshot = record.snapshot
     state = record.state
@@ -81,7 +102,13 @@ async def run_recruitment_strategy(
         await _publish(store, _event(
             run_id, snapshot.trace_id, AgentEventType.WORKFLOW_STARTED, AgentNodeStatus.RUNNING,
             "招聘决策工作流已启动",
-            {"current_scope": RUN_SCOPE, "job_id": context.job.job_id, "candidate_count": len(context.candidate_ids)},
+            {
+                "current_scope": RUN_SCOPE,
+                "job_id": context.job.job_id,
+                "candidate_count": len(context.candidate_ids),
+                "orchestration_engine": "langgraph",
+                "graph_name": "recruitment_decision",
+            },
             agent_name=STRATEGY_NODE, node_name=STRATEGY_NODE,
         ))
         current_step = "publish_strategy_started"

@@ -1,6 +1,10 @@
 <template>
-  <article class="schedule-card tf-card">
-    <div class="schedule-card__header">
+  <div
+    class="dashboard-card-reveal reveal-item"
+    :style="{ animationDelay: `${(revealDelay ?? 0).toFixed(2)}s` }"
+  >
+    <article class="schedule-card tf-card dashboard-hover-card">
+    <div class="schedule-card__header reveal-item" :style="{ animationDelay: `${((revealDelay ?? 0) + 0.15).toFixed(2)}s` }">
       <h2 class="tf-section-title">每周日程</h2>
       <button aria-label="更多操作">
         <span></span><span></span><span></span>
@@ -8,7 +12,13 @@
     </div>
 
     <div class="schedule-card__list">
-      <section v-for="item in weeklySchedule" :key="item.name" class="schedule-item">
+      <div
+        v-for="(item, idx) in weeklySchedule"
+        :key="item.name"
+        class="dashboard-card-reveal reveal-item"
+        :style="{ animationDelay: `${((revealDelay ?? 0) + 0.3 + idx * 0.15).toFixed(2)}s` }"
+      >
+        <section class="schedule-item dashboard-hover-card--compact">
         <div class="schedule-item__date">
           <span>{{ item.day }}</span>
           <strong>{{ item.date }}</strong>
@@ -18,14 +28,16 @@
           <span>{{ item.role }}</span>
           <time>{{ item.time }}</time>
         </div>
-      </section>
+        </section>
+      </div>
     </div>
-  </article>
+    </article>
+  </div>
 </template>
 
 <script setup lang="ts">
 import type { ScheduleItem } from '../../../shared/types/recruitmentDashboard';
-defineProps<{ weeklySchedule: ScheduleItem[] }>();
+defineProps<{ weeklySchedule: ScheduleItem[]; revealDelay?: number }>();
 </script>
 
 <style scoped lang="scss">

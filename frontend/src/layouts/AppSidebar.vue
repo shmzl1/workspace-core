@@ -31,6 +31,7 @@ const groups: { title: string; items: SidebarItem[] }[] = [
     { id: 'attendance', label: '考勤签到', path: '/employee/attendance', permissions: ['attendance.self.read'] },
     { id: 'leave', label: '假期查询', path: '/employee/leave', permissions: ['leave.self.read'] },
     { id: 'payroll', label: '薪资明细', path: '/employee/payroll', permissions: ['payroll.self.read', 'payroll.department.read', 'payroll.masked.read', 'payroll.all.read'] },
+    { id: 'attendance_review', label: '考勤审查', path: '/employee/attendance-review', permissions: ['employee.department.read', 'payroll.all.read', 'audit.read'] },
     { id: 'emp_policy', label: '政策中心', path: '/employee/policy', permissions: ['policy.read'] },
     { id: 'emp_assistant', label: '智能助手', path: '/employee/assistant', permissions: ['agent.employee.use', 'agent.hr.use'] },
   ] },

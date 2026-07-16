@@ -1,15 +1,17 @@
 <template>
   <section class="min-h-screen text-slate-800 space-y-8 pb-20">
     <!-- Local Dashboard Header -->
-    <header class="bg-white rounded-3xl border border-slate-200 px-8 py-6 flex items-center justify-between shadow-sm">
-      <div>
-        <h1 class="text-2xl font-black text-slate-900 tracking-tight">AI 招聘中心</h1>
-        <p class="text-sm text-slate-500 mt-1">围绕招聘目标生成策略、画像匹配、最终决定始终保留人工边界。</p>
-      </div>
-      <div class="flex items-center gap-3">
-        <span class="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-xs font-bold uppercase tracking-wider">
-          PostgreSQL Run · 实时 SSE
-        </span>
+    <header class="reveal-section" style="animation-delay: 0s">
+      <div class="recruitment-hover-card bg-white rounded-3xl border border-slate-200 px-8 py-6 flex items-center justify-between shadow-sm">
+        <div>
+          <h1 class="text-2xl font-black text-slate-900 tracking-tight">AI 招聘中心</h1>
+          <p class="text-sm text-slate-500 mt-1">围绕招聘目标生成策略、画像匹配、最终决定始终保留人工边界。</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-xs font-bold uppercase tracking-wider">
+            PostgreSQL Run · 实时 SSE
+          </span>
+        </div>
       </div>
     </header>
 
@@ -19,15 +21,17 @@
     
     <template v-else>
       <!-- Section 1: Goal Configuration Form -->
-      <RecruitmentGoalForm 
-        :jobs="jobs" 
-        :applications="applications" 
-        :disabled="runBusy" 
-        @submit="start" 
-      />
+      <div class="reveal-section" style="animation-delay: 0.15s">
+        <RecruitmentGoalForm
+          :jobs="jobs"
+          :applications="applications"
+          :disabled="runBusy"
+          @submit="start"
+        />
+      </div>
 
       <!-- Node/Workflow Run Errors -->
-      <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl text-sm flex items-center gap-3 shadow-sm">
+      <div v-if="error" class="reveal-section bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl text-sm flex items-center gap-3 shadow-sm" style="animation-delay: 0.3s">
         <svg class="w-5 h-5 text-red-500 flex-shrink-0 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
@@ -38,21 +42,26 @@
       </div>
 
       <!-- Section 2: Top-Level Workflow Path (Horizontal Canvas) -->
-      <MultiAgentWorkflowBoard 
-        :snapshot="snapshot" 
-        :selected-node="selectedNode" 
-        @select="handleNodeSelect" 
-      />
+      <div class="reveal-section" style="animation-delay: 0.45s">
+        <MultiAgentWorkflowBoard
+          :snapshot="snapshot"
+          :selected-node="selectedNode"
+          @select="handleNodeSelect"
+        />
+      </div>
 
       <!-- Section 3: Position Match & AI Review Unified Card (Collapsible) -->
-      <Sprint23ResultsPanel 
-        :snapshot="snapshot" 
-        :candidate-names="candidateNames"
-        v-model:expanded-id="activeReportId"
-      />
+      <div class="reveal-section" style="animation-delay: 0.6s">
+        <Sprint23ResultsPanel
+          :snapshot="snapshot"
+          :candidate-names="candidateNames"
+          v-model:expanded-id="activeReportId"
+        />
+      </div>
 
       <!-- Section 4: Checkable Candidate applications list -->
-      <section class="bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
+      <div class="reveal-section" style="animation-delay: 0.75s">
+      <section class="recruitment-hover-card bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
         <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
           <h2 class="text-lg font-bold flex items-center gap-2 text-slate-900">
             <div class="w-1.5 h-6 bg-purple-500 rounded-full"></div>
@@ -120,6 +129,7 @@
           </table>
         </div>
       </section>
+      </div>
     </template>
 
     <!-- Floating Action Bar at the Bottom -->
@@ -328,3 +338,56 @@ onMounted(async () => {
   if (typeof runId === 'string' && runId) await restore(runId);
 });
 </script>
+
+<style scoped>
+/* ── 入场浮现动画 ── */
+@keyframes revealSection {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+    transform: translateX(-12px);
+  }
+  99% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 1;
+    clip-path: none;
+    transform: translateX(0);
+  }
+}
+
+.reveal-section {
+  opacity: 0;
+  animation: revealSection 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+[data-theme="dark"] .bg-white { background-color: #1e293c !important; }
+[data-theme="dark"] .text-slate-900 { color: #e2e8f0 !important; }
+[data-theme="dark"] .text-slate-800 { color: #e2e8f0 !important; }
+[data-theme="dark"] .text-slate-700 { color: #cbd5e1 !important; }
+[data-theme="dark"] .text-slate-600 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-slate-500 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-slate-400 { color: #64748b !important; }
+[data-theme="dark"] .border-slate-200 { border-color: #334155 !important; }
+[data-theme="dark"] .border-slate-100 { border-color: #1e293c !important; }
+[data-theme="dark"] .border-slate-300 { border-color: #475569 !important; }
+[data-theme="dark"] .bg-slate-100 { background-color: #334155 !important; }
+[data-theme="dark"] .bg-blue-50 { background-color: #1a2744 !important; }
+[data-theme="dark"] .text-blue-600 { color: #93c5fd !important; }
+[data-theme="dark"] .text-blue-800 { color: #93c5fd !important; }
+[data-theme="dark"] .border-blue-100 { border-color: #1e3a5f !important; }
+[data-theme="dark"] .bg-red-50 { background-color: #450a0a !important; }
+[data-theme="dark"] .border-red-200 { border-color: #7f1d1d !important; }
+[data-theme="dark"] .text-red-700 { color: #fca5a5 !important; }
+[data-theme="dark"] .text-red-500 { color: #f87171 !important; }
+[data-theme="dark"] .text-indigo-600 { color: #a5b4fc !important; }
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e15 !important; }
+[data-theme="dark"] .border-emerald-200 { border-color: #064e3b !important; }
+[data-theme="dark"] .text-emerald-800 { color: #6ee7b8 !important; }
+[data-theme="dark"] .text-emerald-500 { color: #34d399 !important; }
+[data-theme="dark"] .text-purple-600 { color: #c4b5fd !important; }
+[data-theme="dark"] .hover\:bg-slate-50:hover { background-color: #1e293c !important; }
+</style>

@@ -1,6 +1,13 @@
 <template>
-  <article class="trace-card">
-    <div class="trace-card__header">
+  <div
+    class="dashboard-card-reveal reveal-item"
+    :style="{ animationDelay: `${(revealDelay ?? 0).toFixed(2)}s` }"
+  >
+    <article class="trace-card dashboard-hover-card dashboard-hover-card--preserve-background">
+    <div
+      class="trace-card__header reveal-item"
+      :style="{ animationDelay: `${((revealDelay ?? 0) + 0.15).toFixed(2)}s` }"
+    >
       <div>
         <h2 class="tf-section-title">智能分析记录</h2>
         <p class="tf-section-subtitle">业务建议与依据追踪</p>
@@ -8,7 +15,10 @@
       <span>实时</span>
     </div>
 
-    <div class="trace-card__nodes">
+    <div
+      class="trace-card__nodes reveal-item"
+      :style="{ animationDelay: `${((revealDelay ?? 0) + 0.3).toFixed(2)}s` }"
+    >
       <span>输入</span>
       <i></i>
       <span>分析</span>
@@ -17,17 +27,24 @@
     </div>
 
     <ul class="trace-card__logs">
-      <li v-for="log in logs" :key="log">
+      <li
+        v-for="(log, idx) in logs"
+        :key="log"
+        class="reveal-item"
+        :style="{ animationDelay: `${((revealDelay ?? 0) + 0.45 + idx * 0.15).toFixed(2)}s` }"
+      >
         <span></span>
         {{ log }}
       </li>
     </ul>
-  </article>
+    </article>
+  </div>
 </template>
 
 <script setup lang="ts">
 defineProps<{
   logs: string[];
+  revealDelay?: number;
 }>();
 </script>
 

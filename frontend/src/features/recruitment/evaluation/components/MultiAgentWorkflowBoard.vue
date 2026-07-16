@@ -1,5 +1,5 @@
 <template>
-  <section class="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 space-y-6">
+  <section class="recruitment-hover-card bg-white rounded-3xl shadow-sm border border-slate-200 p-8 space-y-6">
     <div class="flex items-center justify-between border-b border-slate-100 pb-4">
       <h2 class="text-lg font-bold flex items-center gap-2 text-slate-900">
         <div class="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
@@ -20,7 +20,7 @@
         <div 
           @click="emit('select', 'recruitment_strategy')"
           :class="[
-            'w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative transition-all duration-300 cursor-pointer transform hover:-translate-y-1',
+            'recruitment-hover-node w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative cursor-pointer',
             selectedNode === 'recruitment_strategy' ? 'ring-2 ring-blue-500 ring-offset-2 scale-105' : '',
             nodeStyle(nodeMap.recruitment_strategy.status).cardClass
           ]"
@@ -49,7 +49,7 @@
           <div 
             @click="emit('select', 'resume_parser')"
             :class="[
-              'w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm transition-all duration-300 cursor-pointer transform hover:translate-x-1',
+              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'resume_parser' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
               nodeStyle(nodeMap.resume_parser.status).cardClass
             ]"
@@ -69,7 +69,7 @@
           <div 
             @click="emit('select', 'job_match')"
             :class="[
-              'w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm transition-all duration-300 cursor-pointer transform hover:translate-x-1',
+              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'job_match' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
               nodeStyle(nodeMap.job_match.status).cardClass
             ]"
@@ -101,7 +101,7 @@
           <div 
             @click="emit('select', 'decision_review')"
             :class="[
-              'w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm transition-all duration-300 cursor-pointer transform hover:translate-x-1',
+              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'decision_review' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
               nodeStyle(nodeMap.decision_review.status).cardClass
             ]"
@@ -126,7 +126,7 @@
           <div 
             @click="emit('select', 'hr_report')"
             :class="[
-              'w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm transition-all duration-300 cursor-pointer transform hover:translate-x-1',
+              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'hr_report' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
               nodeStyle(nodeMap.hr_report.status).cardClass
             ]"
@@ -152,7 +152,7 @@
         <div 
           @click="emit('select', 'interview_evaluation')"
           :class="[
-            'w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative transition-all duration-300 cursor-pointer transform hover:-translate-y-1',
+            'recruitment-hover-node w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative cursor-pointer',
             selectedNode === 'interview_evaluation' ? 'ring-2 ring-blue-500 ring-offset-2 scale-105' : '',
             nodeStyle(nodeMap.interview_evaluation.status).cardClass
           ]"
@@ -325,3 +325,34 @@ function nodeIcon(status: AgentNodeStatus) {
   }
 }
 </script>
+
+<style scoped>
+[data-theme="dark"] .bg-white { background-color: #1e293c !important; }
+[data-theme="dark"] .bg-white\/60 { background-color: rgba(30, 41, 60, 0.6) !important; }
+[data-theme="dark"] .bg-slate-50 { background-color: #0f172a !important; }
+[data-theme="dark"] .bg-slate-50\/50 { background-color: rgba(15, 23, 42, 0.5) !important; }
+[data-theme="dark"] .bg-slate-100 { background-color: #334155 !important; }
+[data-theme="dark"] .bg-slate-200 { background-color: #334155 !important; }
+[data-theme="dark"] .bg-emerald-50 { background-color: #052e15 !important; }
+[data-theme="dark"] .bg-blue-100 { background-color: #1e3a5f !important; }
+[data-theme="dark"] .bg-amber-50 { background-color: #451a02 !important; }
+[data-theme="dark"] .bg-red-50 { background-color: #450a0a !important; }
+[data-theme="dark"] .text-slate-900 { color: #e2e8f0 !important; }
+[data-theme="dark"] .text-slate-800 { color: #e2e8f0 !important; }
+[data-theme="dark"] .text-slate-700 { color: #cbd5e1 !important; }
+[data-theme="dark"] .text-slate-500 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-slate-400 { color: #64748b !important; }
+[data-theme="dark"] .text-slate-300 { color: #475569 !important; }
+[data-theme="dark"] .text-emerald-500 { color: #34d399 !important; }
+[data-theme="dark"] .text-blue-600 { color: #93c5fd !important; }
+[data-theme="dark"] .text-amber-500 { color: #fbbf24 !important; }
+[data-theme="dark"] .text-red-500 { color: #f87171 !important; }
+[data-theme="dark"] .border-slate-200 { border-color: #334155 !important; }
+[data-theme="dark"] .border-slate-200\/60 { border-color: rgba(51, 65, 85, 0.6) !important; }
+[data-theme="dark"] .border-slate-300 { border-color: #475569 !important; }
+[data-theme="dark"] .border-slate-100 { border-color: #1e293c !important; }
+[data-theme="dark"] .border-blue-400 { border-color: #60a5fa !important; }
+[data-theme="dark"] .border-amber-300 { border-color: #d97706 !important; }
+[data-theme="dark"] .border-red-300 { border-color: #dc2626 !important; }
+[data-theme="dark"] .border-dashed { border-style: dashed; }
+</style>

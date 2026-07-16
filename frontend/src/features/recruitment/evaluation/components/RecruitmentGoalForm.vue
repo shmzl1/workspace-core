@@ -1,5 +1,5 @@
 <template>
-  <form class="bg-gradient-to-b from-white to-slate-50/50 rounded-2xl shadow-sm border border-slate-200/80 p-6 space-y-5 text-xs transition-all hover:shadow-md" @submit.prevent="submit">
+  <form class="recruitment-hover-card bg-gradient-to-b from-white to-slate-50/50 rounded-2xl shadow-sm border border-slate-200/80 p-6 space-y-5 text-xs" @submit.prevent="submit">
     <div class="flex items-center justify-between border-b border-slate-150 pb-3">
       <h2 class="text-sm font-bold flex items-center gap-2 text-slate-800">
         <div class="w-1 h-5 bg-blue-500 rounded-full animate-pulse"></div>
@@ -301,3 +301,32 @@ function inThreshold(value: number): boolean {
   return Number.isFinite(value) && value >= 0 && value <= 100;
 }
 </script>
+
+<style scoped>
+[data-theme="dark"] .from-white { --tw-gradient-from: #1e293c !important; }
+[data-theme="dark"] .to-slate-50\/50 { --tw-gradient-to: rgba(15, 23, 42, 0.5) !important; }
+[data-theme="dark"] .bg-white { background-color: #1e293c !important; }
+[data-theme="dark"] .bg-white\/60 { background-color: rgba(30, 41, 60, 0.6) !important; }
+[data-theme="dark"] .bg-slate-50\/50 { background-color: rgba(15, 23, 42, 0.5) !important; }
+[data-theme="dark"] .bg-blue-50 { background-color: #1a2744 !important; }
+[data-theme="dark"] .bg-red-50 { background-color: #450a0a !important; }
+[data-theme="dark"] .bg-slate-100 { background-color: #334155 !important; }
+[data-theme="dark"] .text-slate-800 { color: #e2e8f0 !important; }
+[data-theme="dark"] .text-slate-700 { color: #cbd5e1 !important; }
+[data-theme="dark"] .text-slate-600 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-slate-500 { color: #94a3b8 !important; }
+[data-theme="dark"] .text-slate-400 { color: #64748b !important; }
+[data-theme="dark"] .text-blue-600 { color: #93c5fd !important; }
+[data-theme="dark"] .text-blue-500 { color: #60a5fa !important; }
+[data-theme="dark"] .text-red-600 { color: #fca5a5 !important; }
+[data-theme="dark"] .border-slate-200 { border-color: #334155 !important; }
+[data-theme="dark"] .border-slate-200\/50 { border-color: rgba(51, 65, 85, 0.5) !important; }
+[data-theme="dark"] .border-slate-200\/80 { border-color: rgba(51, 65, 85, 0.8) !important; }
+[data-theme="dark"] .border-blue-100 { border-color: #1e3a5f !important; }
+[data-theme="dark"] .border-red-100 { border-color: #7f1d1d !important; }
+[data-theme="dark"] .border-slate-300 { border-color: #475569 !important; }
+[data-theme="dark"] .border-slate-150 { border-color: #334155 !important; }
+[data-theme="dark"] .disabled\:bg-slate-100:disabled { background-color: #334155 !important; }
+[data-theme="dark"] .disabled\:text-slate-400:disabled { color: #64748b !important; }
+[data-theme="dark"] .disabled\:border-slate-200\/50:disabled { border-color: rgba(51, 65, 85, 0.5) !important; }
+</style>

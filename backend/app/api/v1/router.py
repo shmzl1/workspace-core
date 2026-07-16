@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     agent,
     analytics,
+    assistant,
     attendance,
     audit,
     auth,
@@ -31,4 +32,5 @@ api_router.include_router(recruitment.router, prefix="/recruitment", tags=["recr
 api_router.include_router(interview.router, prefix="/interviews", tags=["interviews"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
+api_router.include_router(assistant.router, prefix="/assistant", tags=["assistant"])
 api_router.include_router(agent.router, prefix="/agent", tags=["agent"])
