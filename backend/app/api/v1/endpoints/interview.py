@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
 from app.core.dependencies import require_permission
-from app.modules.interview.schemas import ConfirmScheduleRequest, SchedulePreviewRequest
+from app.modules.interview.schemas import AvailabilityBatchWrite, ConfirmScheduleRequest, SchedulePreviewRequest
 from app.modules.interview.service import InterviewService
 from app.shared.response import ok
 
@@ -32,6 +32,15 @@ def confirm_schedule(
     service: InterviewService = Depends(get_interview_service),
 ) -> object:
     return ok(service.confirm_schedule(payload))
+
+
+@router.put("/availability")
+def save_availability(
+    payload: AvailabilityBatchWrite,
+    _=Depends(require_permission("interview.manage")),
+    service: InterviewService = Depends(get_interview_service),
+) -> object:
+    return ok(service.save_availability(payload))
 
 
 @router.get("/interviewers")

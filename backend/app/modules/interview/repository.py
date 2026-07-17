@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.modules.employee.models import Employee
@@ -24,6 +24,9 @@ class InterviewRepository:
             .where(CandidateApplication.id == application_id)
         ).one_or_none()
         return tuple(row) if row is not None else None
+
+    def get_candidate(self, candidate_id: int) -> Candidate | None:
+        return self.session.get(Candidate, candidate_id)
 
     def list_interviewers_with_employees(self) -> list[tuple[Interviewer, Employee | None]]:
         rows = self.session.execute(
@@ -74,19 +77,17 @@ class InterviewRepository:
     def list_room_slots(self, room_id: int, *, ends_after: datetime | None = None) -> list[InterviewSlot]:
         return self._list_slots(InterviewSlot.meeting_room_id == room_id, ends_after=ends_after)
 
-    def resource_has_available_slot(
+    def participants_have_available_slot(
         self,
         *,
         candidate_id: int,
         interviewer_id: int,
-        room_id: int,
         start_at: datetime,
         end_at: datetime,
     ) -> bool:
         return all((
             self._has_slot(InterviewSlot.candidate_id == candidate_id, start_at, end_at),
             self._has_slot(InterviewSlot.interviewer_id == interviewer_id, start_at, end_at),
-            self._has_slot(InterviewSlot.meeting_room_id == room_id, start_at, end_at),
         ))
 
     def find_conflicts(
@@ -141,6 +142,67 @@ class InterviewRepository:
         self.session.commit()
         self.session.refresh(interview)
         return interview
+
+    def replace_future_availability(
+        self,
+        *,
+        candidate_slots: dict[int, list[tuple[datetime, datetime]]],
+        interviewer_slots: dict[int, list[tuple[datetime, datetime]]],
+        now: datetime,
+    ) -> int:
+        """Replace active future slots for the supplied resources in one transaction."""
+        new_slots = [
+            InterviewSlot(
+                resource_type="CANDIDATE",
+                candidate_id=candidate_id,
+                interviewer_id=None,
+                meeting_room_id=None,
+                start_at=start_at,
+                end_at=end_at,
+                is_available=True,
+            )
+            for candidate_id, slots in candidate_slots.items()
+            for start_at, end_at in slots
+        ] + [
+            InterviewSlot(
+                resource_type="INTERVIEWER",
+                candidate_id=None,
+                interviewer_id=interviewer_id,
+                meeting_room_id=None,
+                start_at=start_at,
+                end_at=end_at,
+                is_available=True,
+            )
+            for interviewer_id, slots in interviewer_slots.items()
+            for start_at, end_at in slots
+        ]
+        try:
+            for candidate_id in candidate_slots:
+                self.session.execute(
+                    update(InterviewSlot)
+                    .where(
+                        InterviewSlot.candidate_id == candidate_id,
+                        InterviewSlot.is_available.is_(True),
+                        InterviewSlot.end_at > now,
+                    )
+                    .values(is_available=False)
+                )
+            for interviewer_id in interviewer_slots:
+                self.session.execute(
+                    update(InterviewSlot)
+                    .where(
+                        InterviewSlot.interviewer_id == interviewer_id,
+                        InterviewSlot.is_available.is_(True),
+                        InterviewSlot.end_at > now,
+                    )
+                    .values(is_available=False)
+                )
+            self.session.add_all(new_slots)
+            self.session.commit()
+            return len(new_slots)
+        except Exception:
+            self.session.rollback()
+            raise
 
     def _list_slots(self, resource_clause: object, *, ends_after: datetime | None = None) -> list[InterviewSlot]:
         clauses = [resource_clause, InterviewSlot.is_available.is_(True)]

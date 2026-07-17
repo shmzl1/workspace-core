@@ -1,6 +1,8 @@
 import apiClient from '../apiClient';
 import type {
   ConfirmInterviewScheduleRequest,
+  InterviewAvailabilityBatchResult,
+  InterviewAvailabilityBatchWrite,
   InterviewRecord,
   SchedulePreviewRequest,
   SchedulePreviewResponse,
@@ -57,6 +59,13 @@ export async function confirmInterviewSchedule(
   payload: ConfirmInterviewScheduleRequest,
 ): Promise<InterviewRecord> {
   const response = await apiClient.post<InterviewRecord>('/interviews/schedule/confirm', payload);
+  return response.data;
+}
+
+export async function saveInterviewAvailability(
+  payload: InterviewAvailabilityBatchWrite,
+): Promise<InterviewAvailabilityBatchResult> {
+  const response = await apiClient.put<InterviewAvailabilityBatchResult>('/interviews/availability', payload);
   return response.data;
 }
 

@@ -202,6 +202,7 @@ export interface RecruitmentReportResponse {
 export interface SchedulePreviewRequest {
   application_id: number;
   duration_minutes?: number;
+  interviewer_ids?: number[];
 }
 
 export interface SchedulePreviewResponse extends AlgorithmAwareResponse {
@@ -274,6 +275,29 @@ export interface ConfirmInterviewScheduleRequest {
   start_at: string;
   end_at: string;
   conflict_explanation?: Record<string, unknown>;
+}
+
+export interface AvailabilitySlotWrite {
+  start_at: string;
+  end_at: string;
+}
+
+export interface InterviewAvailabilityBatchWrite {
+  candidates: Array<{
+    candidate_id: number;
+    duration_minutes: number;
+    slots: AvailabilitySlotWrite[];
+  }>;
+  interviewers: Array<{
+    interviewer_id: number;
+    slots: AvailabilitySlotWrite[];
+  }>;
+}
+
+export interface InterviewAvailabilityBatchResult {
+  candidate_count: number;
+  interviewer_count: number;
+  slot_count: number;
 }
 
 // ── Employee ────────────────────────────────

@@ -8,7 +8,15 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import TalentFlowError
 from app.modules._serialization import model_to_dict
 from app.modules.interview.repository import InterviewRepository
-from app.modules.interview.schemas import ConfirmScheduleRequest, InterviewRead, SchedulePreviewRequest, SchedulePreviewResponse
+from app.modules.interview.schemas import (
+    AvailabilityBatchResult,
+    AvailabilityBatchWrite,
+    AvailabilitySlotWrite,
+    ConfirmScheduleRequest,
+    InterviewRead,
+    SchedulePreviewRequest,
+    SchedulePreviewResponse,
+)
 from app.modules.recruitment.schemas import AdvanceStageRequest
 from app.modules.recruitment.service import RecruitmentService
 from app.shared.human_only_bridge import HumanOnlyContract, algorithm_not_ready, load_human_only_function
@@ -33,6 +41,8 @@ class InterviewService:
         return cls(InterviewRepository(session))
 
     def preview_schedule(self, payload: SchedulePreviewRequest) -> SchedulePreviewResponse:
+        if payload.interviewer_ids is not None and not payload.interviewer_ids:
+            raise TalentFlowError("INTERVIEWER_REQUIRED", "请至少选择一名面试官后再生成排期预览。")
         schedule_interview = self._load_schedule_interview()
         if schedule_interview is None:
             not_ready = algorithm_not_ready(INTERVIEW_SCHEDULER_CONTRACT, {"application_id": payload.application_id})
@@ -55,6 +65,20 @@ class InterviewService:
             )
 
         interviewer_rows = self.repository.list_interviewers_with_employees()
+        if payload.interviewer_ids is not None:
+            selected_interviewer_ids = set(payload.interviewer_ids)
+            active_interviewer_ids = {interviewer.id for interviewer, _employee in interviewer_rows}
+            missing_ids = selected_interviewer_ids - active_interviewer_ids
+            if missing_ids:
+                raise TalentFlowError(
+                    "INTERVIEWER_NOT_FOUND",
+                    f"面试官编号 {', '.join(map(str, sorted(missing_ids)))} 不存在或未启用。",
+                )
+            interviewer_rows = [
+                (interviewer, employee)
+                for interviewer, employee in interviewer_rows
+                if interviewer.id in selected_interviewer_ids
+            ]
         interviewer_resources = [
             (
                 interviewer,
@@ -70,15 +94,14 @@ class InterviewService:
             )
 
         rooms = self.repository.list_meeting_rooms()
-        room_resources = [
-            (room, self.repository.list_room_slots(room.id, ends_after=now))
-            for room in rooms
-        ]
-        if not any(slots for _room, slots in room_resources):
+        if not rooms:
             return SchedulePreviewResponse(
                 status="room_availability_missing",
-                message="当前没有会议室配置有效的可用时间，无法生成排期建议。",
+                message="当前没有启用的会议室资源，无法生成排期建议。",
             )
+        # 启用会议室默认全时可用，候选人的可用窗口不会被 ROOM 时间槽额外收窄。
+        # 已有面试仍通过 existing_interviews 和确认阶段冲突检查避免重复占用。
+        room_resources = [(room, candidate_slots) for room in rooms]
 
         scheduled_interviews = self.repository.list_scheduled_interviews_with_applications()
         scheduler_payload = {
@@ -152,6 +175,59 @@ class InterviewService:
             requires_human_only=False,
         )
 
+    def save_availability(self, payload: AvailabilityBatchWrite) -> AvailabilityBatchResult:
+        if not payload.candidates and not payload.interviewers:
+            raise TalentFlowError("AVAILABILITY_REQUIRED", "请至少提交一名候选人或面试官的空闲时间。")
+
+        candidate_ids = [item.candidate_id for item in payload.candidates]
+        interviewer_ids = [item.interviewer_id for item in payload.interviewers]
+        self._ensure_unique_resource_ids(candidate_ids, "候选人")
+        self._ensure_unique_resource_ids(interviewer_ids, "面试官")
+
+        for candidate_id in candidate_ids:
+            if self.repository.get_candidate(candidate_id) is None:
+                raise TalentFlowError("CANDIDATE_NOT_FOUND", f"候选人编号 {candidate_id} 不存在。")
+        for interviewer_id in interviewer_ids:
+            if self.repository.get_interviewer_with_employee(interviewer_id) is None:
+                raise TalentFlowError(
+                    "INTERVIEWER_NOT_FOUND",
+                    f"面试官编号 {interviewer_id} 不存在或未启用。",
+                )
+
+        now = datetime.now(timezone.utc)
+        candidate_slots = {
+            item.candidate_id: self._validate_availability_slots(
+                item.slots,
+                f"候选人编号 {item.candidate_id}",
+                now,
+                item.duration_minutes,
+            )
+            for item in payload.candidates
+        }
+        interviewer_minimum_minutes = max(
+            (item.duration_minutes for item in payload.candidates),
+            default=60,
+        )
+        interviewer_slots = {
+            item.interviewer_id: self._validate_availability_slots(
+                item.slots,
+                f"面试官编号 {item.interviewer_id}",
+                now,
+                interviewer_minimum_minutes,
+            )
+            for item in payload.interviewers
+        }
+        slot_count = self.repository.replace_future_availability(
+            candidate_slots=candidate_slots,
+            interviewer_slots=interviewer_slots,
+            now=now,
+        )
+        return AvailabilityBatchResult(
+            candidate_count=len(candidate_slots),
+            interviewer_count=len(interviewer_slots),
+            slot_count=slot_count,
+        )
+
     def confirm_schedule(self, payload: ConfirmScheduleRequest) -> InterviewRead:
         if payload.end_at <= payload.start_at:
             raise TalentFlowError("INVALID_INTERVIEW_TIME", "面试结束时间必须晚于开始时间。")
@@ -163,14 +239,13 @@ class InterviewService:
             raise TalentFlowError("INTERVIEWER_NOT_FOUND", "所选面试官不存在或未启用。")
         if self.repository.get_meeting_room(payload.meeting_room_id) is None:
             raise TalentFlowError("MEETING_ROOM_NOT_FOUND", "所选会议室不存在或未启用。")
-        if not self.repository.resource_has_available_slot(
+        if not self.repository.participants_have_available_slot(
             candidate_id=candidate.id,
             interviewer_id=payload.interviewer_id,
-            room_id=payload.meeting_room_id,
             start_at=payload.start_at,
             end_at=payload.end_at,
         ):
-            raise TalentFlowError("RESOURCE_UNAVAILABLE", "候选人、面试官或会议室在该时间段不可用，请重新生成排期建议。")
+            raise TalentFlowError("RESOURCE_UNAVAILABLE", "候选人或面试官在该时间段不可用，请重新生成排期建议。")
         conflicts = self.repository.find_conflicts(
             candidate_id=candidate.id,
             interviewer_id=payload.interviewer_id,
@@ -231,6 +306,45 @@ class InterviewService:
                 application_id,
                 AdvanceStageRequest(to_stage=target, note="面试排期确认后自动推进"),
             )
+
+    @staticmethod
+    def _ensure_unique_resource_ids(resource_ids: list[int], resource_name: str) -> None:
+        if len(resource_ids) != len(set(resource_ids)):
+            raise TalentFlowError("DUPLICATE_AVAILABILITY_RESOURCE", f"同一{resource_name}不能重复提交空闲时间。")
+
+    @staticmethod
+    def _validate_availability_slots(
+        slots: list[AvailabilitySlotWrite],
+        resource_name: str,
+        now: datetime,
+        minimum_minutes: int,
+    ) -> list[tuple[datetime, datetime]]:
+        if not slots:
+            raise TalentFlowError("AVAILABILITY_SLOT_REQUIRED", f"{resource_name}至少需要一组空闲时间。")
+
+        normalized: list[tuple[datetime, datetime]] = []
+        for slot in slots:
+            if slot.start_at.tzinfo is None or slot.start_at.utcoffset() is None \
+                    or slot.end_at.tzinfo is None or slot.end_at.utcoffset() is None:
+                raise TalentFlowError("INVALID_AVAILABILITY_TIME", f"{resource_name}的空闲时间必须包含时区。")
+            start_at = slot.start_at.astimezone(timezone.utc)
+            end_at = slot.end_at.astimezone(timezone.utc)
+            if start_at <= now:
+                raise TalentFlowError("AVAILABILITY_IN_PAST", f"{resource_name}的空闲时间必须位于未来。")
+            if end_at <= start_at:
+                raise TalentFlowError("INVALID_AVAILABILITY_TIME", f"{resource_name}的结束时间必须晚于开始时间。")
+            if (end_at - start_at).total_seconds() < minimum_minutes * 60:
+                raise TalentFlowError(
+                    "AVAILABILITY_TOO_SHORT",
+                    f"{resource_name}的每组空闲时间不得少于 {minimum_minutes} 分钟。",
+                )
+            normalized.append((start_at, end_at))
+
+        normalized.sort(key=lambda item: item[0])
+        for previous, current in zip(normalized, normalized[1:]):
+            if current[0] < previous[1]:
+                raise TalentFlowError("AVAILABILITY_OVERLAP", f"{resource_name}的空闲时间不能重叠。")
+        return normalized
 
     @staticmethod
     def _slot_rows(slots: list[Any]) -> list[dict[str, str]]:

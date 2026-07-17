@@ -9,6 +9,34 @@ from pydantic import BaseModel, Field
 class SchedulePreviewRequest(BaseModel):
     application_id: int
     duration_minutes: int = Field(default=60, ge=30, le=240)
+    interviewer_ids: list[int] | None = None
+
+
+class AvailabilitySlotWrite(BaseModel):
+    start_at: datetime
+    end_at: datetime
+
+
+class CandidateAvailabilityWrite(BaseModel):
+    candidate_id: int
+    duration_minutes: int = Field(default=60, ge=30, le=240)
+    slots: list[AvailabilitySlotWrite]
+
+
+class InterviewerAvailabilityWrite(BaseModel):
+    interviewer_id: int
+    slots: list[AvailabilitySlotWrite]
+
+
+class AvailabilityBatchWrite(BaseModel):
+    candidates: list[CandidateAvailabilityWrite] = Field(default_factory=list)
+    interviewers: list[InterviewerAvailabilityWrite] = Field(default_factory=list)
+
+
+class AvailabilityBatchResult(BaseModel):
+    candidate_count: int
+    interviewer_count: int
+    slot_count: int
 
 
 class SchedulePreviewResponse(BaseModel):
