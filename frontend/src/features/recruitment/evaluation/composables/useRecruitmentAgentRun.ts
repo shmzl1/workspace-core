@@ -112,12 +112,15 @@ export function useRecruitmentAgentRun() {
     if (!current) return;
     current.events = events.value;
     current.updated_at = event.created_at;
-    if (event.node_name) current.nodes[event.node_name] = event.status;
     if (event.event_type === AgentEventType.WORKFLOW_STARTED) current.status = AgentRunStatus.RUNNING;
     if (event.event_type === AgentEventType.AGENT_STARTED) {
+      if (event.node_name) current.nodes[event.node_name] = AgentNodeStatus.RUNNING;
       current.current_agent = event.agent_name;
       current.current_node = event.node_name;
       current.current_candidate_id = event.candidate_id;
+    }
+    if (event.event_type === AgentEventType.AGENT_COMPLETED && event.node_name) {
+      current.nodes[event.node_name] = event.status;
     }
     if (event.candidate_id !== null && [
       AgentEventType.TOOL_STARTED,
@@ -178,6 +181,11 @@ export function useRecruitmentAgentRun() {
     }
     if (event.event_type === AgentEventType.WORKFLOW_FAILED) {
       current.status = AgentRunStatus.FAILED;
+      const failedNode = event.node_name ?? current.current_node;
+      if (failedNode) current.nodes[failedNode] = AgentNodeStatus.FAILED;
+      current.current_agent = event.agent_name ?? current.current_agent;
+      current.current_node = failedNode;
+      current.current_candidate_id = event.candidate_id;
       current.error = event.error;
     }
   }

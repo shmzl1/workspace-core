@@ -1,207 +1,78 @@
 <template>
-  <section class="recruitment-hover-card bg-white rounded-3xl shadow-sm border border-slate-200 p-8 space-y-6">
-    <div class="flex items-center justify-between border-b border-slate-100 pb-4">
-      <h2 class="text-lg font-bold flex items-center gap-2 text-slate-900">
-        <div class="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
-        顶层工作流执行链路
-      </h2>
-      <div class="flex items-center gap-4 text-[10px] sm:text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-        <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div> Completed</div>
-        <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></div> Running</div>
-        <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></div> Needs Review</div>
+  <section class="recruitment-hover-card workflow-board bg-white rounded-3xl shadow-sm border border-slate-200 p-8 space-y-6">
+    <div class="workflow-board__header border-b border-slate-100 pb-4">
+      <div>
+        <h2 class="text-lg font-bold flex items-center gap-2 text-slate-900">
+          <span class="w-1.5 h-6 bg-indigo-500 rounded-full"></span>
+          顶层工作流执行链路
+        </h2>
+        <p class="mt-1.5 text-xs text-slate-500">Agent 按招聘评估链路分阶段执行</p>
+      </div>
+      <div class="workflow-legend" aria-label="工作流状态图例">
+        <span><i class="legend-dot legend-dot--completed"></i>已完成</span>
+        <span><i class="legend-dot legend-dot--running"></i>运行中</span>
+        <span><i class="legend-dot legend-dot--review"></i>需要复核</span>
       </div>
     </div>
 
-    <!-- Workflow Canvas -->
-    <div class="w-full bg-slate-50/50 rounded-2xl py-10 px-6 flex justify-center items-center overflow-x-auto no-scrollbar">
-      <div class="flex items-center min-w-max space-x-1.5">
-        
-        <!-- Node 1: Strategy -->
-        <div 
-          @click="emit('select', 'recruitment_strategy')"
-          @keydown.enter="emit('select', 'recruitment_strategy')"
-          @keydown.space.prevent="emit('select', 'recruitment_strategy')"
-          role="button"
-          tabindex="0"
-          title="点击查看处理依据"
-          aria-label="查看招聘策略 Agent 处理依据"
-          :class="[
-            'recruitment-hover-node w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative cursor-pointer',
-            selectedNode === 'recruitment_strategy' ? 'ring-2 ring-blue-500 ring-offset-2 scale-105' : '',
-            nodeStyle(nodeMap.recruitment_strategy.status).cardClass
-          ]"
-        >
-          <div :class="['w-10 h-10 rounded-full flex items-center justify-center mb-2', nodeStyle(nodeMap.recruitment_strategy.status).iconBg]">
-            <component :is="nodeIcon(nodeMap.recruitment_strategy.status)" class="w-5 h-5" />
-          </div>
-          <div class="text-sm font-bold text-slate-700">招聘策略 Agent</div>
-          <div class="text-[10px] font-bold mt-0.5" :class="nodeStyle(nodeMap.recruitment_strategy.status).textClass">
-            {{ nodeMap.recruitment_strategy.status }}
-          </div>
-        </div>
-
-        <!-- Connector -->
-        <div class="w-8 h-[2px] bg-slate-200 relative flex-shrink-0">
-          <div class="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[6px] border-l-slate-300"></div>
-        </div>
-
-        <!-- Parallel Group 1 (Parser, Match) -->
-        <div class="border border-dashed border-slate-300 rounded-3xl p-5 relative flex flex-col gap-4 bg-slate-50/50 flex-shrink-0">
-          <span class="absolute -top-3 left-5 bg-slate-100 px-2.5 py-0.5 text-[9px] font-black tracking-widest text-slate-500 rounded-full uppercase border border-slate-200">
-            Parallel Phase
-          </span>
-          
-          <!-- Parser -->
-          <div 
-            @click="emit('select', 'resume_parser')"
-            @keydown.enter="emit('select', 'resume_parser')"
-            @keydown.space.prevent="emit('select', 'resume_parser')"
-            role="button"
-            tabindex="0"
-            title="点击查看处理依据"
-            aria-label="查看简历解析 Agent 处理依据"
-            :class="[
-              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
-              selectedNode === 'resume_parser' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
-              nodeStyle(nodeMap.resume_parser.status).cardClass
-            ]"
+    <div class="workflow-canvas">
+      <div class="workflow-track">
+        <template v-for="(stage, stageIndex) in workflowStages" :key="stage.key">
+          <div
+            class="workflow-stage"
+            :class="stage.groupLabel ? 'workflow-stage--group' : 'workflow-stage--single'"
           >
-            <div :class="['w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', nodeStyle(nodeMap.resume_parser.status).iconBg]">
-              <component :is="nodeIcon(nodeMap.resume_parser.status)" class="w-5 h-5" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="text-sm font-bold text-slate-700 truncate">简历解析</div>
-              <div class="text-[10px] font-bold mt-0.5" :class="nodeStyle(nodeMap.resume_parser.status).textClass">
-                {{ nodeMap.resume_parser.status }}
-              </div>
+            <span v-if="stage.groupLabel" class="workflow-stage__label">{{ stage.groupLabel }}</span>
+            <div class="workflow-stage__nodes">
+              <button
+                v-for="node in stage.nodes"
+                :key="node.name"
+                type="button"
+                class="workflow-node"
+                :class="[
+                  isNodeExpanded(node.name) ? 'workflow-node--expanded' : 'workflow-node--compact',
+                  `workflow-node--${nodeStatus(node.name).toLowerCase()}`,
+                  selectedNode === node.name ? 'workflow-node--selected' : '',
+                ]"
+                title="点击查看处理依据"
+                :aria-label="`查看${node.title}处理依据`"
+                @click="emit('select', node.name)"
+              >
+                <div class="workflow-node__main">
+                  <span class="workflow-node__icon" aria-hidden="true">
+                    <component :is="nodeIcon(nodeStatus(node.name))" />
+                  </span>
+                  <div class="workflow-node__heading">
+                    <strong>{{ node.title }}</strong>
+                    <span :class="`node-status node-status--${nodeStatus(node.name).toLowerCase()}`">
+                      {{ nodeStatusLabel(nodeStatus(node.name)) }}
+                    </span>
+                  </div>
+                </div>
+
+                <Transition name="node-details">
+                  <div v-if="isNodeExpanded(node.name)" class="workflow-node__details">
+                    <p class="workflow-node__subtitle">
+                      {{ node.name === 'recruitment_strategy' ? strategySubtitle : node.subtitle }}
+                    </p>
+                    <AgentTaskInstanceList :instances="nodeInstances(node.name)" />
+                    <p class="workflow-node__count">{{ instanceCountLabel(node.name) }}</p>
+                  </div>
+                </Transition>
+              </button>
             </div>
           </div>
-          
-          <!-- Match -->
-          <div 
-            @click="emit('select', 'job_match')"
-            @keydown.enter="emit('select', 'job_match')"
-            @keydown.space.prevent="emit('select', 'job_match')"
-            role="button"
-            tabindex="0"
-            title="点击查看处理依据"
-            aria-label="查看岗位匹配 Agent 处理依据"
-            :class="[
-              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
-              selectedNode === 'job_match' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
-              nodeStyle(nodeMap.job_match.status).cardClass
-            ]"
+
+          <div
+            v-if="stageIndex < workflowStages.length - 1"
+            class="workflow-connector"
+            :class="stageConnectorClass(stage, workflowStages[stageIndex + 1])"
+            aria-hidden="true"
           >
-            <div :class="['w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', nodeStyle(nodeMap.job_match.status).iconBg]">
-              <component :is="nodeIcon(nodeMap.job_match.status)" class="w-5 h-5" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="text-sm font-bold text-slate-700 truncate">岗位匹配</div>
-              <div class="text-[10px] font-bold mt-0.5 animate-pulse" :class="nodeStyle(nodeMap.job_match.status).textClass">
-                {{ nodeMap.job_match.status }}
-              </div>
-            </div>
+            <span class="workflow-connector__line"></span>
+            <span class="workflow-connector__arrow"></span>
           </div>
-        </div>
-
-        <!-- Connector -->
-        <div class="w-8 h-[2px] bg-slate-200 relative flex-shrink-0">
-          <div class="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[6px] border-l-slate-300"></div>
-        </div>
-
-        <!-- Parallel Group 2 (Review, Report) -->
-        <div class="border border-dashed border-slate-300 rounded-3xl p-5 relative flex flex-col gap-4 bg-slate-50/50 flex-shrink-0">
-          <span class="absolute -top-3 left-5 bg-slate-100 px-2.5 py-0.5 text-[9px] font-black tracking-widest text-slate-500 rounded-full uppercase border border-slate-200">
-            Decision & Reporting
-          </span>
-          
-          <!-- Decision Review -->
-          <div 
-            @click="emit('select', 'decision_review')"
-            @keydown.enter="emit('select', 'decision_review')"
-            @keydown.space.prevent="emit('select', 'decision_review')"
-            role="button"
-            tabindex="0"
-            title="点击查看处理依据"
-            aria-label="查看决策审查 Agent 处理依据"
-            :class="[
-              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
-              selectedNode === 'decision_review' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
-              nodeStyle(nodeMap.decision_review.status).cardClass
-            ]"
-          >
-            <!-- Warning Ping Dot for NEEDS_REVIEW -->
-            <template v-if="nodeMap.decision_review.status === AgentNodeStatus.NEEDS_REVIEW">
-              <div class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-amber-500 rounded-full animate-ping opacity-75"></div>
-              <div class="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-amber-500 rounded-full border-2 border-white"></div>
-            </template>
-            <div :class="['w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', nodeStyle(nodeMap.decision_review.status).iconBg]">
-              <component :is="nodeIcon(nodeMap.decision_review.status)" class="w-5 h-5" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="text-sm font-bold text-slate-700 truncate">决策审查</div>
-              <div class="text-[10px] font-bold mt-0.5" :class="nodeStyle(nodeMap.decision_review.status).textClass">
-                {{ nodeMap.decision_review.status }}
-              </div>
-            </div>
-          </div>
-
-          <!-- HR Report -->
-          <div 
-            @click="emit('select', 'hr_report')"
-            @keydown.enter="emit('select', 'hr_report')"
-            @keydown.space.prevent="emit('select', 'hr_report')"
-            role="button"
-            tabindex="0"
-            title="点击查看处理依据"
-            aria-label="查看 HR 最终报告处理依据"
-            :class="[
-              'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
-              selectedNode === 'hr_report' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
-              nodeStyle(nodeMap.hr_report.status).cardClass
-            ]"
-          >
-            <div :class="['w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', nodeStyle(nodeMap.hr_report.status).iconBg]">
-              <component :is="nodeIcon(nodeMap.hr_report.status)" class="w-5 h-5" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="text-sm font-bold text-slate-700 truncate">HR 最终报告</div>
-              <div class="text-[10px] font-bold mt-0.5" :class="nodeStyle(nodeMap.hr_report.status).textClass">
-                {{ nodeMap.hr_report.status }}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Connector -->
-        <div class="w-8 h-[2px] bg-slate-200 relative flex-shrink-0">
-          <div class="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[6px] border-l-slate-300"></div>
-        </div>
-
-        <!-- Node 6: Interview Evaluation -->
-        <div 
-          @click="emit('select', 'interview_evaluation')"
-          @keydown.enter="emit('select', 'interview_evaluation')"
-          @keydown.space.prevent="emit('select', 'interview_evaluation')"
-          role="button"
-          tabindex="0"
-          title="点击查看处理依据"
-          aria-label="查看面试评估 Agent 处理依据"
-          :class="[
-            'recruitment-hover-node w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative cursor-pointer',
-            selectedNode === 'interview_evaluation' ? 'ring-2 ring-blue-500 ring-offset-2 scale-105' : '',
-            nodeStyle(nodeMap.interview_evaluation.status).cardClass
-          ]"
-        >
-          <div :class="['w-10 h-10 rounded-full flex items-center justify-center mb-2', nodeStyle(nodeMap.interview_evaluation.status).iconBg]">
-            <component :is="nodeIcon(nodeMap.interview_evaluation.status)" class="w-5 h-5" />
-          </div>
-          <div class="text-sm font-bold text-slate-700">面试评估</div>
-          <div class="text-[10px] font-bold mt-0.5" :class="nodeStyle(nodeMap.interview_evaluation.status).textClass">
-            {{ nodeMap.interview_evaluation.status }}
-          </div>
-        </div>
-
+        </template>
       </div>
     </div>
   </section>
@@ -209,123 +80,545 @@
 
 <script setup lang="ts">
 import { computed, defineComponent, h } from 'vue';
-import { AgentNodeStatus, type RecruitmentRunSnapshot } from '../../../../shared/agent/contracts';
+import {
+  AgentEventType,
+  AgentNodeStatus,
+  type RecruitmentRunSnapshot,
+} from '../../../../shared/agent/contracts';
+import AgentTaskInstanceList from './AgentTaskInstanceList.vue';
+import {
+  buildCandidateTaskInstances,
+  buildSingletonTaskInstance,
+  hasNodeActivity,
+  type AgentTaskInstance,
+} from '../utils/agentTaskInstances';
 
-// Lucide icon components mapped inline using SVG path components to avoid import weight
-const CheckIcon = defineComponent({ render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2.5' }, [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M5 13l4 4L19 7' })]) });
-const RefreshIcon = defineComponent({ render: () => h('svg', { class: 'animate-spin', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2.5' }, [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' })]) });
-const AlertIcon = defineComponent({ render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2.5' }, [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' })]) });
-const SlashIcon = defineComponent({ render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2.5' }, [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M18 12H6' })]) });
-const DocIcon = defineComponent({ render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2.5' }, [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' })]) });
-
-const props = defineProps<{ snapshot: RecruitmentRunSnapshot | null; selectedNode?: string }>();
-const emit = defineEmits<{ select: [nodeName: string] }>();
-
-interface NodeView { status: AgentNodeStatus }
-const definitions = [
-  ['recruitment_strategy', '招聘策略 Agent'], 
-  ['resume_parser', '简历解析 Agent'], 
-  ['job_match', '岗位匹配 Agent'],
-  ['decision_review', '决策审查 Agent'], 
-  ['hr_report', 'HR 最终报告'], 
-  ['interview_evaluation', '面试评估 Agent'],
-] as const;
-
-const nodeMap = computed<Record<string, NodeView>>(() => Object.fromEntries(
-  definitions.map(([name]) => [name, {
-    status: props.snapshot?.nodes[name] ?? AgentNodeStatus.WAITING,
-  }]),
-));
-
-// Map Node Status to styles
-function nodeStyle(status: AgentNodeStatus) {
-  switch (status) {
-    case AgentNodeStatus.COMPLETED:
-      return {
-        cardClass: 'bg-white border border-slate-200 text-slate-800',
-        iconBg: 'bg-emerald-50 text-emerald-500',
-        textClass: 'text-emerald-500'
-      };
-    case AgentNodeStatus.RUNNING:
-      return {
-        cardClass: 'bg-white border-2 border-blue-400 relative overflow-hidden transform scale-[1.02] z-10',
-        iconBg: 'bg-blue-100 text-blue-600',
-        textClass: 'text-blue-600'
-      };
-    case AgentNodeStatus.NEEDS_REVIEW:
-      return {
-        cardClass: 'bg-white border border-amber-300',
-        iconBg: 'bg-amber-50 text-amber-500',
-        textClass: 'text-amber-500'
-      };
-    case AgentNodeStatus.SKIPPED:
-      return {
-        cardClass: 'bg-white/60 border border-slate-200/60 opacity-60',
-        iconBg: 'bg-slate-100 text-slate-400',
-        textClass: 'text-slate-400'
-      };
-    case AgentNodeStatus.FAILED:
-      return {
-        cardClass: 'bg-white border border-red-300',
-        iconBg: 'bg-red-50 text-red-500',
-        textClass: 'text-red-500'
-      };
-    case AgentNodeStatus.WAITING:
-    default:
-      return {
-        cardClass: 'bg-slate-50 border border-slate-200 border-dashed',
-        iconBg: 'bg-white text-slate-300 shadow-sm border border-slate-100',
-        textClass: 'text-slate-300'
-      };
-  }
+interface WorkflowNodeDefinition {
+  name: string;
+  title: string;
+  subtitle: string;
+  countNoun: string;
+  candidateLevel: boolean;
 }
 
-// Map Node Status to SVG Icon component
+interface WorkflowStage {
+  key: string;
+  groupLabel: string | null;
+  nodes: WorkflowNodeDefinition[];
+}
+
+const props = withDefaults(defineProps<{
+  snapshot: RecruitmentRunSnapshot | null;
+  selectedNode?: string;
+  candidateNames?: Record<number, string>;
+}>(), {
+  selectedNode: '',
+  candidateNames: () => ({}),
+});
+
+const emit = defineEmits<{ select: [nodeName: string] }>();
+
+const definitions: WorkflowNodeDefinition[] = [
+  {
+    name: 'recruitment_strategy',
+    title: '招聘策略 Agent',
+    subtitle: '规划招聘目标与执行步骤',
+    countNoun: '策略规划实例',
+    candidateLevel: false,
+  },
+  {
+    name: 'resume_parser',
+    title: '简历解析 Agent',
+    subtitle: '结构化提取候选人画像',
+    countNoun: '解析任务实例',
+    candidateLevel: true,
+  },
+  {
+    name: 'job_match',
+    title: '岗位匹配 Agent',
+    subtitle: '逐名计算岗位匹配评分',
+    countNoun: '评分实例',
+    candidateLevel: true,
+  },
+  {
+    name: 'decision_review',
+    title: '决策审查 Agent',
+    subtitle: '逐名检查评分与风险',
+    countNoun: '审查实例',
+    candidateLevel: true,
+  },
+  {
+    name: 'hr_report',
+    title: 'HR 最终报告',
+    subtitle: '汇总候选人排序与建议',
+    countNoun: '报告生成实例',
+    candidateLevel: false,
+  },
+  {
+    name: 'interview_evaluation',
+    title: '面试评估 Agent',
+    subtitle: '',
+    countNoun: '',
+    candidateLevel: false,
+  },
+];
+
+const definitionMap = new Map(definitions.map((definition) => [definition.name, definition]));
+const workflowStages: WorkflowStage[] = [
+  {
+    key: 'strategy',
+    groupLabel: null,
+    nodes: [definitionMap.get('recruitment_strategy')!],
+  },
+  {
+    key: 'analysis',
+    groupLabel: '解析与匹配',
+    nodes: [definitionMap.get('resume_parser')!, definitionMap.get('job_match')!],
+  },
+  {
+    key: 'decision',
+    groupLabel: '决策与报告',
+    nodes: [definitionMap.get('decision_review')!, definitionMap.get('hr_report')!],
+  },
+  {
+    key: 'interview',
+    groupLabel: null,
+    nodes: [definitionMap.get('interview_evaluation')!],
+  },
+];
+const strategySubtitle = computed(() => {
+  const total = props.snapshot?.total_candidates ?? props.snapshot?.candidate_ids.length ?? 0;
+  return total > 0 ? `规划 ${total} 名候选人的评估流程` : definitionMap.get('recruitment_strategy')!.subtitle;
+});
+
+const CheckIcon = defineComponent({
+  render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2.5' }, [
+    h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M5 13l4 4L19 7' }),
+  ]),
+});
+const RunningIcon = defineComponent({
+  render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2.5' }, [
+    h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M12 3v3m0 12v3M3 12h3m12 0h3M5.64 5.64l2.12 2.12m8.48 8.48 2.12 2.12m0-12.72-2.12 2.12M7.76 16.24l-2.12 2.12' }),
+  ]),
+});
+const AlertIcon = defineComponent({
+  render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2.5' }, [
+    h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M12 9v2m0 4h.01m-6.94 4h13.88L12 4 5.06 19z' }),
+  ]),
+});
+const SkipIcon = defineComponent({
+  render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2.5' }, [
+    h('path', { 'stroke-linecap': 'round', d: 'M6 12h12' }),
+  ]),
+});
+const WaitingIcon = defineComponent({
+  render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2.2' }, [
+    h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M7 3h8l4 4v14H7zM15 3v5h5M10 13h6m-6 4h6' }),
+  ]),
+});
+
+function rawNodeStatus(nodeName: string): AgentNodeStatus {
+  return props.snapshot?.nodes[nodeName] ?? AgentNodeStatus.WAITING;
+}
+
+function nodeStatus(nodeName: string): AgentNodeStatus {
+  const snapshot = props.snapshot;
+  const status = rawNodeStatus(nodeName);
+  if (!snapshot || status !== AgentNodeStatus.WAITING || !hasNodeActivity(snapshot, nodeName)) return status;
+
+  const lifecycleEvent = [...snapshot.events].reverse().find((event) =>
+    event.node_name === nodeName && (
+      event.event_type === AgentEventType.AGENT_STARTED
+      || event.event_type === AgentEventType.AGENT_COMPLETED
+    ),
+  );
+  return lifecycleEvent?.event_type === AgentEventType.AGENT_COMPLETED
+    ? lifecycleEvent.status
+    : AgentNodeStatus.RUNNING;
+}
+
+function shouldExpandNode(nodeName: string): boolean {
+  const status = nodeStatus(nodeName);
+  if (status === AgentNodeStatus.WAITING || status === AgentNodeStatus.SKIPPED) return false;
+  return status === AgentNodeStatus.RUNNING
+    || status === AgentNodeStatus.COMPLETED
+    || status === AgentNodeStatus.NEEDS_REVIEW
+    || status === AgentNodeStatus.FAILED
+    || Boolean(props.snapshot && hasNodeActivity(props.snapshot, nodeName));
+}
+
+function isNodeExpanded(nodeName: string): boolean {
+  return nodeName !== 'interview_evaluation' && shouldExpandNode(nodeName);
+}
+
+function nodeInstances(nodeName: string): AgentTaskInstance[] {
+  const snapshot = props.snapshot;
+  const definition = definitionMap.get(nodeName);
+  if (!snapshot || !definition || nodeName === 'interview_evaluation') return [];
+  if (definition.candidateLevel) {
+    return buildCandidateTaskInstances(snapshot, nodeName, props.candidateNames);
+  }
+  return [buildSingletonTaskInstance(
+    snapshot,
+    nodeName as 'recruitment_strategy' | 'hr_report',
+    nodeName === 'recruitment_strategy' ? '招聘策略规划' : '招聘评估报告',
+  )];
+}
+
+function instanceCountLabel(nodeName: string): string {
+  const definition = definitionMap.get(nodeName);
+  if (!definition) return '';
+  const count = definition.candidateLevel ? nodeInstances(nodeName).length : 1;
+  return `${count} 个${definition.countNoun}`;
+}
+
+function nodeStatusLabel(status: AgentNodeStatus): string {
+  return {
+    [AgentNodeStatus.WAITING]: '等待执行',
+    [AgentNodeStatus.RUNNING]: '运行中',
+    [AgentNodeStatus.COMPLETED]: '已完成',
+    [AgentNodeStatus.NEEDS_REVIEW]: '需要复核',
+    [AgentNodeStatus.FAILED]: '失败',
+    [AgentNodeStatus.SKIPPED]: '已跳过',
+  }[status];
+}
+
 function nodeIcon(status: AgentNodeStatus) {
   switch (status) {
     case AgentNodeStatus.COMPLETED:
       return CheckIcon;
     case AgentNodeStatus.RUNNING:
-      return RefreshIcon;
+      return RunningIcon;
     case AgentNodeStatus.NEEDS_REVIEW:
     case AgentNodeStatus.FAILED:
       return AlertIcon;
     case AgentNodeStatus.SKIPPED:
-      return SlashIcon;
-    case AgentNodeStatus.WAITING:
+      return SkipIcon;
     default:
-      return DocIcon;
+      return WaitingIcon;
   }
+}
+
+function stageConnectorClass(previousStage: WorkflowStage, nextStage: WorkflowStage): string {
+  const previousPassed = previousStage.nodes.every((node) => isPassed(nodeStatus(node.name)));
+  const nextPassed = nextStage.nodes.every((node) => isPassed(nodeStatus(node.name)));
+  const nextRunning = nextStage.nodes.some((node) => nodeStatus(node.name) === AgentNodeStatus.RUNNING);
+  if (previousPassed && nextRunning) return 'workflow-connector--active';
+  if (previousPassed && nextPassed) return 'workflow-connector--completed';
+  return 'workflow-connector--waiting';
+}
+
+function isPassed(status: AgentNodeStatus): boolean {
+  return status === AgentNodeStatus.COMPLETED || status === AgentNodeStatus.SKIPPED;
 }
 </script>
 
 <style scoped>
-[data-theme="dark"] .bg-white { background-color: #1e293c !important; }
-[data-theme="dark"] .bg-white\/60 { background-color: rgba(30, 41, 60, 0.6) !important; }
-[data-theme="dark"] .bg-slate-50 { background-color: #0f172a !important; }
-[data-theme="dark"] .bg-slate-50\/50 { background-color: rgba(15, 23, 42, 0.5) !important; }
-[data-theme="dark"] .bg-slate-100 { background-color: #334155 !important; }
-[data-theme="dark"] .bg-slate-200 { background-color: #334155 !important; }
-[data-theme="dark"] .bg-emerald-50 { background-color: #052e15 !important; }
-[data-theme="dark"] .bg-blue-100 { background-color: #1e3a5f !important; }
-[data-theme="dark"] .bg-amber-50 { background-color: #451a02 !important; }
-[data-theme="dark"] .bg-red-50 { background-color: #450a0a !important; }
-[data-theme="dark"] .text-slate-900 { color: #e2e8f0 !important; }
-[data-theme="dark"] .text-slate-800 { color: #e2e8f0 !important; }
-[data-theme="dark"] .text-slate-700 { color: #cbd5e1 !important; }
-[data-theme="dark"] .text-slate-500 { color: #94a3b8 !important; }
-[data-theme="dark"] .text-slate-400 { color: #64748b !important; }
-[data-theme="dark"] .text-slate-300 { color: #475569 !important; }
-[data-theme="dark"] .text-emerald-500 { color: #34d399 !important; }
-[data-theme="dark"] .text-blue-600 { color: #93c5fd !important; }
-[data-theme="dark"] .text-amber-500 { color: #fbbf24 !important; }
-[data-theme="dark"] .text-red-500 { color: #f87171 !important; }
-[data-theme="dark"] .border-slate-200 { border-color: #334155 !important; }
-[data-theme="dark"] .border-slate-200\/60 { border-color: rgba(51, 65, 85, 0.6) !important; }
-[data-theme="dark"] .border-slate-300 { border-color: #475569 !important; }
-[data-theme="dark"] .border-slate-100 { border-color: #1e293c !important; }
-[data-theme="dark"] .border-blue-400 { border-color: #60a5fa !important; }
-[data-theme="dark"] .border-amber-300 { border-color: #d97706 !important; }
-[data-theme="dark"] .border-red-300 { border-color: #dc2626 !important; }
-[data-theme="dark"] .border-dashed { border-style: dashed; }
+.workflow-board__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.workflow-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.workflow-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.legend-dot--completed { background: #10b981; }
+.legend-dot--running { background: #3b82f6; }
+.legend-dot--review { background: #f59e0b; }
+
+.workflow-canvas {
+  width: 100%;
+  overflow-x: auto;
+  padding: 36px 24px 28px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.55);
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.workflow-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  min-width: 100%;
+}
+
+.workflow-stage {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.workflow-stage--single {
+  display: flex;
+  align-items: center;
+}
+
+.workflow-stage--group {
+  padding: 25px 14px 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 22px;
+  background: rgba(248, 250, 252, 0.68);
+}
+
+.workflow-stage__label {
+  position: absolute;
+  top: -11px;
+  left: 16px;
+  padding: 3px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.workflow-stage__nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workflow-node {
+  flex: 0 0 auto;
+  min-height: 112px;
+  border-radius: 16px;
+  text-align: left;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.07);
+  cursor: pointer;
+  transition: width 220ms ease, max-height 220ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.workflow-node:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 3px;
+}
+
+.workflow-node--compact {
+  display: flex;
+  flex-direction: column;
+  width: 172px;
+  max-height: 146px;
+  padding: 20px 14px;
+  align-items: center;
+  justify-content: center;
+}
+
+.workflow-node--expanded {
+  width: 268px;
+  max-height: 1200px;
+  padding: 16px;
+}
+
+.workflow-node--selected {
+  box-shadow: 0 0 0 2px #3b82f6, 0 0 0 5px rgba(59, 130, 246, 0.12);
+}
+
+.workflow-node--waiting {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+}
+
+.workflow-node--running { border: 1px solid #60a5fa; background: #fff; }
+.workflow-node--completed { border: 1px solid #dbe4ef; background: #fff; }
+.workflow-node--needs_review { border: 1px solid #fcd34d; background: #fff; }
+.workflow-node--failed { border: 1px solid #fca5a5; background: #fff; }
+.workflow-node--skipped { border: 1px solid #dbe4ef; background: rgba(248, 250, 252, 0.75); }
+
+.workflow-node__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.workflow-node--compact .workflow-node__main {
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.workflow-node__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: #fff;
+  color: #94a3b8;
+  box-shadow: inset 0 0 0 1px #e2e8f0;
+}
+
+.workflow-node__icon :deep(svg) { width: 18px; height: 18px; }
+.workflow-node--running .workflow-node__icon { background: #dbeafe; color: #2563eb; box-shadow: none; }
+.workflow-node--completed .workflow-node__icon { background: #ecfdf5; color: #059669; box-shadow: none; }
+.workflow-node--needs_review .workflow-node__icon { background: #fffbeb; color: #d97706; box-shadow: none; }
+.workflow-node--failed .workflow-node__icon { background: #fef2f2; color: #dc2626; box-shadow: none; }
+
+.workflow-node__heading {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.workflow-node__heading strong {
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.node-status {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.node-status--running { color: #2563eb; }
+.node-status--completed { color: #059669; }
+.node-status--needs_review { color: #d97706; }
+.node-status--failed { color: #dc2626; }
+
+.workflow-node__details {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.workflow-node__subtitle,
+.workflow-node__skip-reason {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.workflow-node__subtitle { margin-bottom: 8px; }
+.workflow-node__skip-reason { margin-top: 8px; text-align: center; }
+
+.workflow-node__count {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid #f1f5f9;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.node-details-enter-active,
+.node-details-leave-active {
+  transition: max-height 220ms ease, opacity 180ms ease, transform 180ms ease;
+  overflow: hidden;
+}
+
+.node-details-enter-from,
+.node-details-leave-to {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.node-details-enter-to,
+.node-details-leave-from {
+  max-height: 900px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.workflow-connector {
+  position: relative;
+  flex: 0 0 42px;
+  height: 112px;
+  overflow: hidden;
+}
+
+.workflow-connector__line {
+  position: absolute;
+  top: 55px;
+  left: 7px;
+  width: 29px;
+  height: 2px;
+  background: #cbd5e1;
+}
+
+.workflow-connector__arrow {
+  position: absolute;
+  top: 51px;
+  right: 5px;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid #cbd5e1;
+}
+
+.workflow-connector--completed .workflow-connector__line { background: #10b981; }
+.workflow-connector--completed .workflow-connector__arrow { border-left-color: #10b981; }
+.workflow-connector--active .workflow-connector__line { background: #3b82f6; }
+.workflow-connector--active .workflow-connector__arrow { border-left-color: #3b82f6; }
+
+.workflow-connector--active .workflow-connector__line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  transform: translateX(-100%);
+  animation: connectorFlow 900ms ease-out 1;
+}
+
+@keyframes connectorFlow {
+  to { transform: translateX(100%); }
+}
+
+[data-theme="dark"] .workflow-board { background: #1e293c !important; border-color: #334155 !important; }
+[data-theme="dark"] .workflow-board__header { border-color: #334155 !important; }
+[data-theme="dark"] .workflow-canvas { background: rgba(15, 23, 42, 0.5); }
+[data-theme="dark"] .workflow-stage--group { background: rgba(15, 23, 42, 0.34); border-color: #475569; }
+[data-theme="dark"] .workflow-stage__label { background: #1e293b; border-color: #475569; color: #94a3b8; }
+[data-theme="dark"] .workflow-node--waiting,
+[data-theme="dark"] .workflow-node--skipped { background: #172033; border-color: #475569; }
+[data-theme="dark"] .workflow-node--running,
+[data-theme="dark"] .workflow-node--completed,
+[data-theme="dark"] .workflow-node--needs_review,
+[data-theme="dark"] .workflow-node--failed { background: #1e293b; }
+[data-theme="dark"] .workflow-node__heading strong { color: #e2e8f0; }
+[data-theme="dark"] .workflow-node__details,
+[data-theme="dark"] .workflow-node__count { border-color: #334155; }
+[data-theme="dark"] .workflow-node__subtitle,
+[data-theme="dark"] .workflow-node__skip-reason,
+[data-theme="dark"] .workflow-node__count { color: #94a3b8; }
+[data-theme="dark"] .workflow-node__icon { background: #1e293b; box-shadow: inset 0 0 0 1px #475569; }
+
+@media (max-width: 720px) {
+  .workflow-board { padding: 20px; }
+  .workflow-board__header { flex-direction: column; }
+  .workflow-legend { justify-content: flex-start; }
+  .workflow-canvas { padding-inline: 16px; }
+}
 </style>

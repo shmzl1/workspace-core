@@ -46,6 +46,7 @@
         <MultiAgentWorkflowBoard
           :snapshot="snapshot"
           :selected-node="selectedNode"
+          :candidate-names="candidateNames"
           @select="handleNodeSelect"
         />
       </div>
@@ -220,13 +221,16 @@ interface CandidateListRow {
   applicationId: number | null;
 }
 
-// Dynamic candidates table mapping real run or mock context
+// Candidate table always uses loaded application or run data.
 const candidatesList = computed<CandidateListRow[]>(() => {
   if (!snapshot.value) {
-    return [
-      { id: 1, name: '陈晨', status: 'INTERVIEW_PENDING', score: 60.81, applicationId: null },
-      { id: 2, name: '吴桐', status: 'AI_SCREENED', score: 45.40, applicationId: null },
-    ];
+    return applications.value.map((application) => ({
+      id: application.candidate_id,
+      name: application.candidate_name || `候选人 #${application.candidate_id}`,
+      status: application.current_stage,
+      score: 0,
+      applicationId: application.id,
+    }));
   }
   
   const jobMatches = snapshot.value.job_matches || {};
