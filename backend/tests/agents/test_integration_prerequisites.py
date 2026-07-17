@@ -177,12 +177,14 @@ def test_enabled_integrations_start_degraded_until_runtime_validation() -> None:
 def test_runner_and_api_use_injected_dependencies() -> None:
     from app.agents.runtime import recruitment_runner
     from app.api.v1.endpoints import agent
+    from app.agents.workflows.recruitment_decision import strategy_agent
 
     runner_source = inspect.getsource(recruitment_runner.run_recruitment_strategy)
+    strategy_node_source = inspect.getsource(strategy_agent.recruitment_strategy_node)
     api_source = inspect.getsource(agent.create_recruitment_run)
     assert "EnterpriseKnowledgeTool()" not in runner_source
     assert "CandidateProfileTool()" not in runner_source
-    assert "dependencies.knowledge_tool.invoke" in runner_source
+    assert "dependencies.knowledge_tool.invoke" in strategy_node_source
     assert "container.recruitment_runner_dependencies" in api_source
     assert "sqlalchemy" not in inspect.getsource(recruitment_runner).casefold()
     assert "Session" not in inspect.signature(recruitment_runner.run_recruitment_strategy).parameters

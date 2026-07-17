@@ -1,18 +1,33 @@
 """Static strategy node metadata and deterministic plan construction."""
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from pydantic import BaseModel, Field, ValidationError
 
 from app.agents.prompts.loader import load_recruitment_prompt
 from app.agents.shared import (
+    AgentEventType,
     AgentNodeContract,
+    AgentNodeStatus,
+    AgentRunStatus,
     ModelGateway,
     ModelGatewayError,
     ModelGatewayInput,
     ModelGatewayOutputError,
 )
+from app.agents.runtime.dependencies import RecruitmentRunnerDependencies
+from app.agents.runtime.recruitment_support import (
+    KNOWLEDGE_TOOL_NAME,
+    RUN_SCOPE,
+    STRATEGY_NODE_NAME,
+    RecruitmentNodeExecution,
+    elapsed_ms,
+    event,
+    execute_recruitment_node,
+    publish,
+)
+from app.agents.runtime.run_store import AgentRunStore, RecruitmentRunRecord
 from app.agents.workflows.recruitment_decision.contracts import (
     RecruitmentExecutionPlan,
     RecruitmentJobContext,
@@ -160,4 +175,174 @@ def _mark_output_error(model_gateway: ModelGateway) -> None:
     marker = getattr(model_gateway, "mark_output_error", None)
     if callable(marker):
         marker()
+
+
+async def recruitment_strategy_node(
+    graph_state: Mapping[str, object],
+    *,
+    store: AgentRunStore,
+    dependencies: RecruitmentRunnerDependencies,
+) -> dict[str, object]:
+    """Execute only the persisted recruitment-strategy business stage."""
+
+    run_id = str(graph_state["run_id"])
+
+    async def execute(
+        record: RecruitmentRunRecord,
+        execution: RecruitmentNodeExecution,
+    ) -> dict[str, object]:
+        from app.agents.workflows.recruitment_decision.graph import RECRUITMENT_WORKFLOW_NODES
+
+        snapshot = record.snapshot
+        state = record.state
+        context = state.context
+        snapshot.status = AgentRunStatus.RUNNING
+        snapshot.current_agent = STRATEGY_NODE_NAME
+        snapshot.current_node = STRATEGY_NODE_NAME
+        snapshot.nodes[STRATEGY_NODE_NAME] = AgentNodeStatus.RUNNING
+        state.status = AgentRunStatus.RUNNING
+        state.current_agent = STRATEGY_NODE_NAME
+        state.current_node = STRATEGY_NODE_NAME
+        state.node_statuses[STRATEGY_NODE_NAME] = AgentNodeStatus.RUNNING
+        await store.update_snapshot(run_id, snapshot, state)
+
+        execution.step = "publish_workflow_started"
+        await publish(store, event(
+            run_id, snapshot.trace_id, AgentEventType.WORKFLOW_STARTED, AgentNodeStatus.RUNNING,
+            "招聘决策工作流已启动",
+            {
+                "current_scope": RUN_SCOPE,
+                "job_id": context.job.job_id,
+                "candidate_count": len(context.candidate_ids),
+                "orchestration_engine": "langgraph",
+                "graph_name": "recruitment_decision",
+            },
+            agent_name=STRATEGY_NODE_NAME, node_name=STRATEGY_NODE_NAME,
+        ))
+        execution.step = "publish_strategy_started"
+        await publish(store, event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_STARTED, AgentNodeStatus.RUNNING,
+            "招聘策略 Agent 已启动",
+            {"current_action": "读取企业招聘目标、候选人范围和已有面试状态"},
+            agent_name=STRATEGY_NODE_NAME, node_name=STRATEGY_NODE_NAME,
+        ))
+        execution.step = "publish_strategy_thinking"
+        await publish(store, event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_THINKING, AgentNodeStatus.RUNNING,
+            "招聘策略 Agent 正在规划",
+            {
+                "current_goal": context.request.goal.model_dump(mode="json", exclude={"optional_salary_budget"}),
+                "candidate_count": len(context.candidate_ids),
+                "resume_parse_required": True,
+                "interview_candidate_ids": context.interview_candidate_ids,
+                "current_action": "生成结构化执行计划",
+                "next_action": "读取岗位知识并解析候选人简历",
+            },
+            agent_name=STRATEGY_NODE_NAME, node_name=STRATEGY_NODE_NAME,
+        ))
+
+        execution.step = "build_execution_plan"
+        plan = build_recruitment_execution_plan(
+            context.request,
+            context.job,
+            context.candidate_ids,
+            RECRUITMENT_WORKFLOW_NODES,
+            context.interview_candidate_ids,
+        )
+        execution.step = "retrieve_enterprise_knowledge"
+        await publish(store, event(
+            run_id, snapshot.trace_id, AgentEventType.TOOL_STARTED, AgentNodeStatus.RUNNING,
+            "开始读取企业招聘知识",
+            {"current_action": "与招聘策略叙述增强并行检索当前岗位知识"},
+            agent_name=STRATEGY_NODE_NAME, node_name=STRATEGY_NODE_NAME,
+            tool_name=KNOWLEDGE_TOOL_NAME,
+        ))
+        execution.step = "enhance_strategy_and_retrieve_enterprise_knowledge"
+        plan, knowledge_result = await asyncio.gather(
+            enhance_recruitment_execution_plan(
+                plan,
+                context.job,
+                dependencies.model_gateway,
+                timeout_seconds=dependencies.strategy_model_timeout_seconds,
+                max_completion_tokens=dependencies.strategy_max_completion_tokens,
+            ),
+            dependencies.knowledge_tool.invoke(context),
+        )
+        knowledge_summary, job_rubric = knowledge_result
+        execution.fallback_used = knowledge_summary.retrieval_mode == "LOCAL_HYBRID_FALLBACK"
+        state.execution_plan = plan
+        snapshot.execution_plan = plan
+        state.knowledge_summary = knowledge_summary
+        state.job_rubric = job_rubric
+        state.sources = knowledge_summary.sources
+        snapshot.knowledge_summary = knowledge_summary
+        snapshot.job_rubric = job_rubric
+        snapshot.sources = knowledge_summary.sources
+        await store.update_snapshot(run_id, snapshot, state)
+        execution.step = "publish_plan_created"
+        await publish(store, event(
+            run_id, snapshot.trace_id, AgentEventType.PLAN_CREATED, AgentNodeStatus.RUNNING,
+            "招聘策略执行计划已生成",
+            {
+                "execution_plan": plan.model_dump(mode="json"),
+                "generation_mode": plan.generation_mode,
+                "model_name": plan.model_name,
+            },
+            agent_name=STRATEGY_NODE_NAME, node_name=STRATEGY_NODE_NAME,
+            duration_ms=plan.model_duration_ms, fallback_used=plan.fallback_used,
+        ))
+        execution.step = "publish_enterprise_knowledge"
+        await publish(store, event(
+            run_id, snapshot.trace_id, AgentEventType.TOOL_COMPLETED, AgentNodeStatus.RUNNING,
+            "企业招聘知识读取完成",
+            {
+                "retrieval_mode": knowledge_summary.retrieval_mode,
+                "standard_version": knowledge_summary.standard_version,
+                "source_count": len(knowledge_summary.sources),
+            },
+            agent_name=STRATEGY_NODE_NAME, node_name=STRATEGY_NODE_NAME,
+            tool_name=KNOWLEDGE_TOOL_NAME,
+            source_count=len(knowledge_summary.sources),
+            fallback_used=execution.fallback_used,
+        ))
+        await publish(store, event(
+            run_id, snapshot.trace_id, AgentEventType.KNOWLEDGE_RETRIEVED, AgentNodeStatus.RUNNING,
+            "企业岗位知识已检索",
+            {
+                "knowledge_summary": knowledge_summary.model_dump(mode="json"),
+                "job_rubric": job_rubric.model_dump(mode="json"),
+            },
+            agent_name=STRATEGY_NODE_NAME, node_name=STRATEGY_NODE_NAME,
+            source_count=len(knowledge_summary.sources),
+            fallback_used=execution.fallback_used,
+        ))
+
+        execution.step = "complete_strategy_node"
+        snapshot.nodes[STRATEGY_NODE_NAME] = AgentNodeStatus.COMPLETED
+        state.node_statuses[STRATEGY_NODE_NAME] = AgentNodeStatus.COMPLETED
+        await store.update_snapshot(run_id, snapshot, state)
+        await publish(store, event(
+            run_id, snapshot.trace_id, AgentEventType.AGENT_COMPLETED, AgentNodeStatus.COMPLETED,
+            "招聘策略 Agent 已完成",
+            {
+                "completed_node": STRATEGY_NODE_NAME,
+                "plan_created": True,
+                "knowledge_source_count": len(knowledge_summary.sources),
+                "next_action": "执行简历解析 Agent",
+            },
+            agent_name=STRATEGY_NODE_NAME, node_name=STRATEGY_NODE_NAME,
+            source_count=len(knowledge_summary.sources),
+            duration_ms=elapsed_ms(execution.started_at),
+            fallback_used=execution.fallback_used or plan.fallback_used,
+        ))
+        return {}
+
+    return await execute_recruitment_node(
+        run_id,
+        store,
+        dependencies,
+        STRATEGY_NODE_NAME,
+        "initialize_run",
+        execute,
+    )
 

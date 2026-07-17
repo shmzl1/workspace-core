@@ -160,3 +160,10 @@
 - 决策：招聘策略叙述增强与企业知识检索并行执行；招聘策略与 HR 最终报告的模型请求关闭深度思考、限制输出 token，并分别使用默认 25 秒和 35 秒的节点内模型预算。超过预算时取消本次模型增强，继续使用已生成的确定性计划或报告。
 - 原因：叙述增强是可选能力，不应因模型慢响应或网关重试将确定性招聘工作流阻塞到分钟级；并行执行互不依赖的知识检索可减少策略节点关键路径。
 - 影响：新增 `AGENT_STRATEGY_MODEL_TIMEOUT_SECONDS`、`AGENT_STRATEGY_MAX_COMPLETION_TOKENS`、`AGENT_REPORT_MODEL_TIMEOUT_SECONDS`、`AGENT_REPORT_MAX_COMPLETION_TOKENS` 配置；超时结果明确标记 `RULE_BASED_FALLBACK`，不改变评分、排序、审查 findings、来源或 HR 最终决定权。
+
+## ADR-024：招聘决策使用六节点 LangGraph 与现有人工审核续接
+
+- 状态：已接受，代码存在，待本地人工验收
+- 决策：招聘完整入口严格按 `recruitment_strategy → resume_parser → job_match → interview_evaluation → decision_review` 顺序执行，决策审查后无待人工审核节点才进入 `hr_report`；全部审核通过后，既有审核接口通过同一 Graph 的报告入口执行 `hr_report`。不使用 LangGraph Checkpointer、`interrupt()` 或 `Command(resume=...)`，`AgentRunStore` 仍是唯一持久化状态源。
+- 原因：让六个现有业务阶段成为真实可审计 LangGraph Node，同时保持 SSE、Snapshot、人工审核接口、幂等规则和业务结果不变。
+- 影响：Graph State 只保存 `run_id`、入口和人工审核路由标记；Store、Tool 与 ModelGateway 通过运行时闭包注入。`interview_evaluation` 即使无真实结构化反馈也必须进入节点并保存 `SKIPPED`，不得通过条件边绕过。

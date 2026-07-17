@@ -1,4 +1,4 @@
-"""Static workflow metadata; no LangGraph object is created."""
+"""Recruitment workflow node metadata in executable Graph order."""
 
 from app.agents.shared import AgentNodeContract
 from app.agents.workflows.recruitment_decision.decision_review_agent import DECISION_REVIEW_NODE
@@ -20,8 +20,7 @@ RECRUITMENT_WORKFLOW_NODES: tuple[AgentNodeContract, ...] = (
 RECRUITMENT_WORKFLOW_EDGES: tuple[tuple[str, str], ...] = (
     ("recruitment_strategy", "resume_parser"),
     ("resume_parser", "job_match"),
-    ("recruitment_strategy", "interview_evaluation"),
-    ("job_match", "decision_review"),
+    ("job_match", "interview_evaluation"),
     ("interview_evaluation", "decision_review"),
     ("decision_review", "hr_report"),
 )
