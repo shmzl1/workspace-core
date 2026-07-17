@@ -124,6 +124,15 @@ class InterviewService:
         result = schedule_interview(scheduler_payload)
         if not isinstance(result, dict):
             raise TalentFlowError("INVALID_SCHEDULE_RESULT", "智能排期结果格式无效。", 500)
+        conflict_explanation = result.get("conflict_explanation")
+        if not isinstance(conflict_explanation, dict):
+            conflict_explanation = {}
+        best_slot = result.get("best_slot")
+        recommended_slot_conflict = (
+            bool(best_slot.get("conflict", False))
+            if isinstance(best_slot, dict)
+            else bool(conflict_explanation.get("recommended_slot_conflict", False))
+        )
         return SchedulePreviewResponse(
             status=result.get("status", "schedule_generated"),
             message=result.get("message", "智能排期建议已生成。"),
@@ -136,7 +145,10 @@ class InterviewService:
             candidate_availability=result.get("candidate_availability"),
             conflict_detection=result.get("conflict_detection"),
             recommendation_reason=result.get("recommendation_reason"),
-            conflict_explanation=result.get("conflict_explanation", {}),
+            conflict_explanation={
+                **conflict_explanation,
+                "recommended_slot_conflict": recommended_slot_conflict,
+            },
             requires_human_only=False,
         )
 

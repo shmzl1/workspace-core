@@ -582,7 +582,7 @@ function applyScheduleResult(result: SchedulePreviewResponse) {
     conflict: result.conflict_detection || '未发现冲突。',
     reason: result.recommendation_reason || '该时间段满足候选人、面试官和会议室可用条件。',
     score,
-    hasConflict: Boolean(result.conflict_explanation?.conflicts && Array.isArray(result.conflict_explanation.conflicts) && result.conflict_explanation.conflicts.length),
+    hasConflict: result.conflict_explanation?.recommended_slot_conflict === true,
   };
 
   viewDate.value = new Date(startDate);

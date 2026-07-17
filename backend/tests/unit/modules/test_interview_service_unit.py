@@ -116,6 +116,10 @@ def test_preview_generates_recommendation_when_all_resources_have_availability(
             "recommended_interviewer_id": 4,
             "recommended_room_id": 6,
             "recommendation_reason": "三类资源存在 60 分钟交集。",
+            "best_slot": {"conflict": False},
+            "conflict_explanation": {
+                "conflicts": [{"type": "event_conflict", "message": "另一个候选时段已占用。"}],
+            },
         }
 
     service = InterviewService(_preview_repository(
@@ -135,3 +139,5 @@ def test_preview_generates_recommendation_when_all_resources_have_availability(
     assert captured_payload["candidate"]["available_slots"]
     assert captured_payload["interviewers"][0]["available_slots"]
     assert captured_payload["meeting_rooms"][0]["available_slots"]
+    assert response.conflict_explanation["recommended_slot_conflict"] is False
+    assert response.conflict_explanation["conflicts"]
