@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import LoginView from '../../features/auth/LoginView.vue';
+import WelcomeView from '../../views/WelcomeView.vue';
+
 
 // HR views
 import RecruitmentDashboardPage from '../../features/recruitment/dashboard/RecruitmentDashboardPage.vue';
@@ -35,7 +37,7 @@ export type RouteMeta = import('vue-router').RouteMeta;
 
 const routes: RouteRecordRaw[] = [
   {
-    path: '/', redirect: '/login',
+    path: '/', name: 'welcome', component: WelcomeView, meta: { label: '欢迎' },
   },
   {
     path: '/login', name: 'login', component: LoginView, meta: { label: '登录' },

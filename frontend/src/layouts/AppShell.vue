@@ -1,5 +1,5 @@
 <template>
-  <router-view v-if="route.name === 'login'" />
+  <router-view v-if="route.name === 'login' || route.name === 'welcome'" />
   <div v-else-if="currentUser" class="app-shell">
     <AppTopbar :user="currentUser" @logout="handleLogout" />
     <AppSidebar :active-route="route.path" :user="currentUser" @navigate="handleNavigate" />
