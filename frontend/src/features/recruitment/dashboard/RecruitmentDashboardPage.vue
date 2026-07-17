@@ -109,6 +109,23 @@ const dashboard = ref({ jobs_count: 0, candidates_count: 0, applications_count: 
 const applications = ref<Awaited<ReturnType<typeof fetchApplications>>>([]);
 const interviews = ref<Awaited<ReturnType<typeof fetchInterviews>>>([]);
 const payrollReviews = ref<PayrollReviewSummary[]>([]);
+type HeatmapLevel = 1 | 2 | 3 | 4 | 5;
+
+const demoHeatmapRows: HeatmapLevel[][] = [
+  [1, 1, 2, 2, 3, 3, 2, 3, 4, 4, 5, 4, 3, 4, 5, 4, 3, 2],
+  [1, 2, 2, 3, 3, 4, 3, 4, 4, 5, 4, 5, 4, 3, 4, 4, 3, 2],
+  [1, 2, 3, 3, 4, 4, 3, 4, 5, 5, 4, 4, 5, 4, 4, 3, 2, 2],
+  [1, 2, 2, 3, 4, 3, 3, 4, 4, 5, 5, 4, 4, 4, 3, 3, 2, 1],
+  [1, 1, 2, 3, 3, 4, 3, 4, 5, 4, 4, 5, 4, 3, 3, 2, 2, 1],
+  [1, 1, 1, 2, 2, 2, 1, 2, 3, 2, 3, 2, 2, 2, 1, 2, 1, 1],
+  [1, 1, 2, 1, 2, 2, 1, 2, 2, 3, 2, 2, 3, 2, 2, 1, 1, 1],
+];
+const demoHeatmapValues = demoHeatmapRows.flat();
+
+function toHeatmapLevel(score: number): HeatmapLevel {
+  return Math.min(5, Math.max(1, Math.ceil(score / 20))) as HeatmapLevel;
+}
+
 const kpiItems = computed<KpiItem[]>(() => [
   { id: 'resumes', label: '新增简历', value: String(dashboard.value.applications_count), trend: '数据库实时', variant: 'plain' },
   { id: 'screened', label: 'AI 筛选完成', value: String(Math.max(0, dashboard.value.applications_count - dashboard.value.pending_score_count)), trend: '已评分', variant: 'gradient' },
@@ -127,10 +144,17 @@ const weeklySchedule = computed(() => interviews.value.filter((item) => item.sta
   const application = applications.value.find((row) => row.id === item.application_id);
   return { day: new Intl.DateTimeFormat('zh-CN', { weekday: 'short' }).format(start), date: String(start.getDate()), name: application?.candidate_name || `候选人 #${item.application_id}`, role: application?.job_title || '待确认岗位', time: start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) };
 }));
-const heatmapValues = computed(() => Array.from({ length: 126 }, (_, index) => {
-  const item = applications.value[index % Math.max(applications.value.length, 1)];
-  return item?.score_total ? Math.min(5, Math.max(1, Math.ceil(Number(item.score_total) / 20))) : 1;
-}));
+const heatmapValues = computed<HeatmapLevel[]>(() => {
+  const validScores = applications.value
+    .map((item) => item.score_total)
+    .filter((score): score is number => score !== null && Number.isFinite(score));
+
+  if (validScores.length < 3) return demoHeatmapValues;
+
+  return Array.from({ length: 126 }, (_, index) => (
+    toHeatmapLevel(validScores[index % validScores.length])
+  ));
+});
 
 const payrollReviewItems = computed(() => payrollReviews.value
   .filter((item) => item.status !== 'CONFIRMED')

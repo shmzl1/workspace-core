@@ -6,7 +6,6 @@
     <main class="app-shell__main">
       <router-view :page-title="currentLabel" :trace-logs="traceLogs" :role="agentRole" @navigate="handleNavigate" @show-toast="showToast" />
     </main>
-    <GlobalAgentBar :role="agentRole" @submit-command="handleAgentCommand" />
     <ToastMessage :message="toastMessage" />
   </div>
 </template>
@@ -17,7 +16,6 @@ import { useRoute, useRouter } from 'vue-router';
 import { getDefaultRoute, useAuthStore } from '../features/auth/authStore';
 import AppTopbar from './AppTopbar.vue';
 import AppSidebar from './AppSidebar.vue';
-import GlobalAgentBar from './GlobalAgentBar.vue';
 import ToastMessage from '../shared/components/base/ToastMessage.vue';
 
 const router = useRouter();
@@ -56,15 +54,10 @@ function handleLogout() {
   logout();
   router.replace('/login');
 }
-
-function handleAgentCommand(command: string) {
-  if (!command.trim()) return;
-  showToast('智能助手任务已提交。');
-}
 </script>
 
 <style scoped lang="scss">
 .app-shell { min-height: 100vh; background: var(--color-bg); }
-.app-shell__main { min-height: calc(100vh - var(--topbar-height)); margin-left: var(--sidebar-width); padding: 28px 34px calc(var(--agentbar-height) + 30px); }
-@media (max-width: 980px) { .app-shell__main { margin-left: 0; padding: 24px 18px calc(var(--agentbar-height) + 36px); } }
+.app-shell__main { min-height: calc(100vh - var(--topbar-height)); margin-left: var(--sidebar-width); padding: 28px 34px 30px; }
+@media (max-width: 980px) { .app-shell__main { margin-left: 0; padding: 24px 18px 36px; } }
 </style>

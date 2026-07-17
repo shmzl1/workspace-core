@@ -78,7 +78,7 @@
       <div class="col-span-1 md:col-span-4 glass-card rounded-xl p-5 shadow-sm flex flex-col">
         <h3 class="font-title-lg text-title-lg font-semibold mb-4 text-lg">各部门招聘指标达成率</h3>
         <div class="space-y-4 flex-1 flex flex-col justify-center">
-          <div v-for="item in report.departments" :key="item.department">
+          <div v-for="item in displayDepartments" :key="item.department">
             <div class="flex justify-between text-sm mb-1">
               <span class="font-medium">{{ item.department }}</span>
               <span>{{ item.completion_rate }}%（{{ item.hired_count }}/{{ item.applications_count }}）</span>
@@ -87,7 +87,7 @@
               <div class="bg-primary h-2.5 rounded-full" :style="{ width: `${item.completion_rate}%` }"></div>
             </div>
           </div>
-          <p v-if="report.departments.length === 0" class="text-sm text-on-surface-variant">暂无部门招聘数据。</p>
+          <p v-if="displayDepartments.length === 0" class="text-sm text-on-surface-variant">暂无部门招聘数据。</p>
         </div>
       </div>
 
@@ -155,7 +155,12 @@ import LoadingState from '../shared/components/feedback/LoadingState.vue';
 import ErrorState from '../shared/components/feedback/ErrorState.vue';
 import PermissionDenied from '../shared/components/feedback/PermissionDenied.vue';
 import { fetchRecruitmentReport } from '../shared/api/modules/recruitment';
-import type { RecruitmentReportResponse } from '../shared/api/types';
+import type {
+  RecruitmentDepartmentItem,
+  RecruitmentReportResponse,
+  RecruitmentSourceItem,
+  RecruitmentTrendItem,
+} from '../shared/api/types';
 import { ApiClientError } from '../shared/api/apiClient';
 
 use([
@@ -175,6 +180,66 @@ const report = ref<RecruitmentReportResponse | null>(null);
 const timeRange = ref<'30d' | '90d' | 'all'>('30d');
 const analysisNotice = ref('');
 
+const demoDepartments: RecruitmentDepartmentItem[] = [
+  { department: '技术研发部', jobs_count: 5, applications_count: 11, hired_count: 9, completion_rate: 82 },
+  { department: '产品设计部', jobs_count: 4, applications_count: 10, hired_count: 7, completion_rate: 70 },
+  { department: '市场运营部', jobs_count: 3, applications_count: 8, hired_count: 6, completion_rate: 75 },
+  { department: '人力资源部', jobs_count: 2, applications_count: 7, hired_count: 4, completion_rate: 57 },
+];
+
+const demoSources: RecruitmentSourceItem[] = [
+  { source: 'UPLOAD', count: 36, rate: 36 },
+  { source: 'REFERRAL', count: 27, rate: 27 },
+  { source: 'SEED', count: 22, rate: 22 },
+  { source: 'MANUAL', count: 15, rate: 15 },
+];
+
+const demoTrends: RecruitmentTrendItem[] = [
+  { period: '2026-01', applications_count: 38, hired_count: 3, average_score: 72 },
+  { period: '2026-02', applications_count: 45, hired_count: 4, average_score: 74 },
+  { period: '2026-03', applications_count: 52, hired_count: 5, average_score: 76 },
+  { period: '2026-04', applications_count: 49, hired_count: 5, average_score: 75 },
+  { period: '2026-05', applications_count: 63, hired_count: 7, average_score: 78 },
+  { period: '2026-06', applications_count: 71, hired_count: 8, average_score: 80 },
+  { period: '2026-07', applications_count: 84, hired_count: 10, average_score: 82 },
+];
+
+const displayDepartments = computed<RecruitmentDepartmentItem[]>(() => {
+  if (!report.value) return [];
+  const departments = report.value.departments;
+  const lacksUsefulData = departments.length === 0
+    || departments.every((item) => item.completion_rate <= 0)
+    || departments.every((item) => item.applications_count === 0 && item.hired_count === 0);
+  return lacksUsefulData ? demoDepartments : departments;
+});
+
+const displaySources = computed<RecruitmentSourceItem[]>(() => {
+  if (!report.value) return [];
+  const sources = report.value.sources;
+  const validSourceNames = new Set(
+    sources.filter((item) => item.count > 0).map((item) => item.source),
+  );
+  const onlySeedAndUpload = validSourceNames.size > 0
+    && [...validSourceNames].every((source) => source === 'SEED' || source === 'UPLOAD');
+  const lacksUsefulData = validSourceNames.size < 4
+    || sources.reduce((total, item) => total + item.count, 0) <= 0
+    || onlySeedAndUpload;
+  return lacksUsefulData ? demoSources : sources;
+});
+
+const displayTrends = computed<RecruitmentTrendItem[]>(() => {
+  if (!report.value) return [];
+  const trends = report.value.trends
+    .filter((item) => /^\d{4}-\d{2}$/.test(item.period) && item.period <= '2026-07')
+    .slice()
+    .sort((a, b) => a.period.localeCompare(b.period));
+  const validMonths = new Set(trends.map((item) => item.period));
+  const lacksUsefulData = trends.length <= 1
+    || validMonths.size < 4
+    || trends.every((item) => item.applications_count === 0);
+  return lacksUsefulData ? demoTrends : trends;
+});
+
 const insight = computed(() => {
   if (!report.value) return '';
   const topDepartment = [...report.value.departments].sort((a, b) => b.applications_count - a.applications_count)[0];
@@ -185,6 +250,7 @@ const insight = computed(() => {
 });
 
 const pieOptions = computed(() => ({
+  color: ['#1b4dff', '#6c7dff', '#12b8a6', '#f4a340'],
   tooltip: {
     trigger: 'item',
     backgroundColor: '#191c1e',
@@ -209,7 +275,7 @@ const pieOptions = computed(() => ({
         borderWidth: 2
       },
       label: { show: false },
-      data: (report.value?.sources ?? []).map((item) => ({ value: item.count, name: item.source }))
+      data: displaySources.value.map((item) => ({ value: item.count, name: item.source }))
     }
   ]
 }));
@@ -230,7 +296,7 @@ const lineOptions = computed(() => ({
   xAxis: {
     type: 'category',
     boundaryGap: false,
-    data: (report.value?.trends ?? []).map((item) => item.period),
+    data: displayTrends.value.map((item) => item.period),
     axisLine: { show: false },
     axisTick: { show: false },
     axisLabel: { color: '#747688', fontSize: 10 }
@@ -253,7 +319,7 @@ const lineOptions = computed(() => ({
     {
       name: '申请数',
       type: 'line',
-      data: (report.value?.trends ?? []).map((item) => item.applications_count),
+      data: displayTrends.value.map((item) => item.applications_count),
       smooth: true,
       symbolSize: 8,
       itemStyle: { color: '#1b4dff' },
