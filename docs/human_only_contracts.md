@@ -49,6 +49,10 @@
 - `meeting_rooms`：会议室和可用时间段。
 - `duration_minutes`：面试时长。
 
+算法在候选人、面试官和会议室的共同可用窗口内按 15 分钟步长生成固定时长候选方案。某个候选方案与
+`existing_interviews` 冲突时只淘汰该方案，并继续搜索窗口内的后续时间；仅当整个共同窗口均无可用方案时
+返回 `no_available_slot`。
+
 返回建议包含：
 
 - `recommended_time`：推荐面试时间段。

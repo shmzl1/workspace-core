@@ -1,4 +1,5 @@
 ﻿from __future__ import annotations
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 from typing import Any
 def schedule_interview(payload: dict[str, Any] | None) -> dict[str, Any]:
@@ -99,6 +100,24 @@ def overlap(first: dict[str, datetime], second: dict[str, datetime]) -> dict[str
     return {"start": start, "end": end}
 def enough_time(slot: dict[str, datetime], duration_minutes: int) -> bool:
     return slot["end"] - slot["start"] >= timedelta(minutes=duration_minutes)
+
+
+def generate_fixed_slots(
+    slot: dict[str, datetime],
+    duration_minutes: int,
+    step_minutes: int = 15,
+) -> Iterator[dict[str, datetime]]:
+    """Yield fixed-duration candidates across the whole availability window."""
+    if duration_minutes <= 0 or step_minutes <= 0:
+        return
+    duration = timedelta(minutes=duration_minutes)
+    step = timedelta(minutes=step_minutes)
+    current = slot["start"]
+    while current + duration <= slot["end"]:
+        yield {"start": current, "end": current + duration}
+        current += step
+
+
 def has_conflict(
     slot: dict[str, datetime],
     conflicts: list[dict[str, Any]],
@@ -198,28 +217,30 @@ def _find_room_options_for_slot(
     conflict_notes: list[dict[str, str]] = []
     for room in room_list:
         room_slots = read_slots(room.get("available_slots") if isinstance(room, dict) else [])
-        usable_slot = common_slot
+        usable_slots = [common_slot]
         if room_slots:
             matches = [overlap(common_slot, room_slot) for room_slot in room_slots]
             matches = [item for item in matches if item and enough_time(item, duration)]
             if not matches:
                 continue
-            usable_slot = matches[0]
-        option = make_option(
-            usable_slot,
-            duration,
-            candidate.get("candidate_id"),
-            interviewer,
-            room,
-            conflicts,
-        )
-        if option["has_conflict"]:
-            conflict_notes.append(
-                {
-                    "type": "event_conflict",
-                    "message": f"{format_time(option['start'])} 存在已占用日程。",
-                }
-            )
-            continue
-        options.append(option)
+            usable_slots = matches
+        for usable_slot in usable_slots:
+            for fixed_slot in generate_fixed_slots(usable_slot, duration):
+                option = make_option(
+                    fixed_slot,
+                    duration,
+                    candidate.get("candidate_id"),
+                    interviewer,
+                    room,
+                    conflicts,
+                )
+                if option["has_conflict"]:
+                    conflict_notes.append(
+                        {
+                            "type": "event_conflict",
+                            "message": f"{format_time(option['start'])} 存在已占用日程。",
+                        }
+                    )
+                    continue
+                options.append(option)
     return options, conflict_notes
