@@ -65,14 +65,14 @@ class InterviewRepository:
         )
         return [(interview, application) for interview, application in rows.all()]
 
-    def list_candidate_slots(self, candidate_id: int) -> list[InterviewSlot]:
-        return self._list_slots(InterviewSlot.candidate_id == candidate_id)
+    def list_candidate_slots(self, candidate_id: int, *, ends_after: datetime | None = None) -> list[InterviewSlot]:
+        return self._list_slots(InterviewSlot.candidate_id == candidate_id, ends_after=ends_after)
 
-    def list_interviewer_slots(self, interviewer_id: int) -> list[InterviewSlot]:
-        return self._list_slots(InterviewSlot.interviewer_id == interviewer_id)
+    def list_interviewer_slots(self, interviewer_id: int, *, ends_after: datetime | None = None) -> list[InterviewSlot]:
+        return self._list_slots(InterviewSlot.interviewer_id == interviewer_id, ends_after=ends_after)
 
-    def list_room_slots(self, room_id: int) -> list[InterviewSlot]:
-        return self._list_slots(InterviewSlot.meeting_room_id == room_id)
+    def list_room_slots(self, room_id: int, *, ends_after: datetime | None = None) -> list[InterviewSlot]:
+        return self._list_slots(InterviewSlot.meeting_room_id == room_id, ends_after=ends_after)
 
     def resource_has_available_slot(
         self,
@@ -142,11 +142,14 @@ class InterviewRepository:
         self.session.refresh(interview)
         return interview
 
-    def _list_slots(self, resource_clause: object) -> list[InterviewSlot]:
+    def _list_slots(self, resource_clause: object, *, ends_after: datetime | None = None) -> list[InterviewSlot]:
+        clauses = [resource_clause, InterviewSlot.is_available.is_(True)]
+        if ends_after is not None:
+            clauses.append(InterviewSlot.end_at > ends_after)
         return list(
             self.session.scalars(
                 select(InterviewSlot)
-                .where(resource_clause, InterviewSlot.is_available.is_(True))
+                .where(*clauses)
                 .order_by(InterviewSlot.start_at)
             ).all()
         )

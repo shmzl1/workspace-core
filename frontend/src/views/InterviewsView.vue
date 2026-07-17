@@ -483,8 +483,9 @@ async function generateSchedule() {
   generating.value = true;
   try {
     const result = await generateInterviewSchedule(buildSchedulePayload());
-    if (result.status === 'algorithm_not_ready' || !result.recommended_time) {
-      throw new Error(result.message || '暂时没有可用排期建议。');
+    const failureMessage = scheduleFailureMessage(result);
+    if (failureMessage) {
+      throw new Error(failureMessage);
     }
     applyScheduleResult(result);
     selectedPreview.value = result;
@@ -507,6 +508,23 @@ function buildSchedulePayload(): SchedulePreviewRequest {
     application_id: currentApp.id,
     duration_minutes: 60,
   };
+}
+
+function scheduleFailureMessage(result: SchedulePreviewResponse): string {
+  switch (result.status) {
+    case 'candidate_availability_missing':
+      return '该候选人尚未配置有效的面试可用时间，暂时无法智能排期。';
+    case 'interviewer_availability_missing':
+      return '当前面试官缺少有效可用时间，暂时无法智能排期。';
+    case 'room_availability_missing':
+      return '当前会议室缺少有效可用时间，暂时无法智能排期。';
+    case 'no_available_slot':
+      return '候选人、面试官和会议室暂无满足 60 分钟要求的共同时间。';
+    case 'algorithm_not_ready':
+      return result.message || '智能排期服务暂不可用。';
+    default:
+      return result.recommended_time ? '' : (result.message || '暂时没有可用排期建议。');
+  }
 }
 
 function applicationLabel(application: CandidateApplicationListItem): string {
