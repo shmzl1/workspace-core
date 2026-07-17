@@ -159,6 +159,14 @@
         <span class="font-bold text-sm">已成功导入候选人池</span>
       </div>
     </div>
+
+    <AgentProcessingBasisModal
+      :open="agentModalOpen"
+      :node-name="selectedNode"
+      :snapshot="snapshot"
+      :candidate-names="candidateNames"
+      @close="agentModalOpen = false"
+    />
   </section>
 </template>
 
@@ -172,10 +180,11 @@ import {
   advanceCandidateStage,
   type CandidateApplicationListItem 
 } from '../../../shared/api/modules/recruitment';
-import type { Job } from '../../../shared/api/types';
+import type { Job, PipelineStage } from '../../../shared/api/types';
 import ErrorState from '../../../shared/components/feedback/ErrorState.vue';
 import LoadingState from '../../../shared/components/feedback/LoadingState.vue';
 import PermissionDenied from '../../../shared/components/feedback/PermissionDenied.vue';
+import AgentProcessingBasisModal from './components/AgentProcessingBasisModal.vue';
 import MultiAgentWorkflowBoard from './components/MultiAgentWorkflowBoard.vue';
 import RecruitmentGoalForm from './components/RecruitmentGoalForm.vue';
 import Sprint23ResultsPanel from './components/Sprint23ResultsPanel.vue';
@@ -188,6 +197,7 @@ const contextLoading = ref(true);
 const contextError = ref('');
 const permissionDenied = ref(false);
 const selectedNode = ref('recruitment_strategy');
+const agentModalOpen = ref(false);
 
 const selectedCandidates = ref<number[]>([]);
 const activeReportId = ref<number | null>(null);
@@ -202,8 +212,16 @@ const candidateNames = computed(() => applications.value.reduce<Record<number, s
   return names;
 }, {}));
 
+interface CandidateListRow {
+  id: number;
+  name: string;
+  status: PipelineStage;
+  score: number;
+  applicationId: number | null;
+}
+
 // Dynamic candidates table mapping real run or mock context
-const candidatesList = computed(() => {
+const candidatesList = computed<CandidateListRow[]>(() => {
   if (!snapshot.value) {
     return [
       { id: 1, name: '陈晨', status: 'INTERVIEW_PENDING', score: 60.81, applicationId: null },
@@ -291,7 +309,7 @@ async function handleImport() {
           const targetStage = item.status === 'APPLIED' ? 'AI_SCREENED' : item.status;
 
           await advanceCandidateStage(item.applicationId, {
-            to_stage: targetStage as any,
+            to_stage: targetStage,
             note: '多 Agent 招聘决策评估完成，HR 批量审查导入候选人池并同步评分。',
             score_total,
             score_breakdown
@@ -315,6 +333,7 @@ async function handleImport() {
 
 function handleNodeSelect(nodeName: string) {
   selectedNode.value = nodeName;
+  agentModalOpen.value = true;
 }
 
 async function loadContext(): Promise<void> {

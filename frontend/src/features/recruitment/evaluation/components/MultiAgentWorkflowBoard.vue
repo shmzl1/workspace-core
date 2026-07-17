@@ -19,6 +19,12 @@
         <!-- Node 1: Strategy -->
         <div 
           @click="emit('select', 'recruitment_strategy')"
+          @keydown.enter="emit('select', 'recruitment_strategy')"
+          @keydown.space.prevent="emit('select', 'recruitment_strategy')"
+          role="button"
+          tabindex="0"
+          title="点击查看处理依据"
+          aria-label="查看招聘策略 Agent 处理依据"
           :class="[
             'recruitment-hover-node w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative cursor-pointer',
             selectedNode === 'recruitment_strategy' ? 'ring-2 ring-blue-500 ring-offset-2 scale-105' : '',
@@ -48,6 +54,12 @@
           <!-- Parser -->
           <div 
             @click="emit('select', 'resume_parser')"
+            @keydown.enter="emit('select', 'resume_parser')"
+            @keydown.space.prevent="emit('select', 'resume_parser')"
+            role="button"
+            tabindex="0"
+            title="点击查看处理依据"
+            aria-label="查看简历解析 Agent 处理依据"
             :class="[
               'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'resume_parser' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
@@ -68,6 +80,12 @@
           <!-- Match -->
           <div 
             @click="emit('select', 'job_match')"
+            @keydown.enter="emit('select', 'job_match')"
+            @keydown.space.prevent="emit('select', 'job_match')"
+            role="button"
+            tabindex="0"
+            title="点击查看处理依据"
+            aria-label="查看岗位匹配 Agent 处理依据"
             :class="[
               'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'job_match' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
@@ -100,6 +118,12 @@
           <!-- Decision Review -->
           <div 
             @click="emit('select', 'decision_review')"
+            @keydown.enter="emit('select', 'decision_review')"
+            @keydown.space.prevent="emit('select', 'decision_review')"
+            role="button"
+            tabindex="0"
+            title="点击查看处理依据"
+            aria-label="查看决策审查 Agent 处理依据"
             :class="[
               'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'decision_review' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
@@ -125,6 +149,12 @@
           <!-- HR Report -->
           <div 
             @click="emit('select', 'hr_report')"
+            @keydown.enter="emit('select', 'hr_report')"
+            @keydown.space.prevent="emit('select', 'hr_report')"
+            role="button"
+            tabindex="0"
+            title="点击查看处理依据"
+            aria-label="查看 HR 最终报告处理依据"
             :class="[
               'recruitment-hover-node w-56 rounded-2xl p-3.5 flex items-center gap-3.5 shadow-sm cursor-pointer',
               selectedNode === 'hr_report' ? 'ring-2 ring-blue-500 ring-offset-2 scale-102' : '',
@@ -151,6 +181,12 @@
         <!-- Node 6: Interview Evaluation -->
         <div 
           @click="emit('select', 'interview_evaluation')"
+          @keydown.enter="emit('select', 'interview_evaluation')"
+          @keydown.space.prevent="emit('select', 'interview_evaluation')"
+          role="button"
+          tabindex="0"
+          title="点击查看处理依据"
+          aria-label="查看面试评估 Agent 处理依据"
           :class="[
             'recruitment-hover-node w-40 h-28 rounded-2xl shadow-sm flex flex-col items-center justify-center relative cursor-pointer',
             selectedNode === 'interview_evaluation' ? 'ring-2 ring-blue-500 ring-offset-2 scale-105' : '',
@@ -172,13 +208,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, reactive, ref, type PropType } from 'vue';
-import {
-  AgentEventType,
-  AgentNodeStatus,
-  type AgentEvent,
-  type RecruitmentRunSnapshot,
-} from '../../../../shared/agent/contracts';
+import { computed, defineComponent, h } from 'vue';
+import { AgentNodeStatus, type RecruitmentRunSnapshot } from '../../../../shared/agent/contracts';
 
 // Lucide icon components mapped inline using SVG path components to avoid import weight
 const CheckIcon = defineComponent({ render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2.5' }, [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M5 13l4 4L19 7' })]) });
@@ -190,10 +221,7 @@ const DocIcon = defineComponent({ render: () => h('svg', { fill: 'none', viewBox
 const props = defineProps<{ snapshot: RecruitmentRunSnapshot | null; selectedNode?: string }>();
 const emit = defineEmits<{ select: [nodeName: string] }>();
 
-interface NodeView {
-  name: string; label: string; status: AgentNodeStatus; action: string; duration: number | null;
-  eventCount: number; skipReason: string; selected: boolean; tool: string; sourceCount: number; output: string;
-}
+interface NodeView { status: AgentNodeStatus }
 const definitions = [
   ['recruitment_strategy', '招聘策略 Agent'], 
   ['resume_parser', '简历解析 Agent'], 
@@ -204,65 +232,10 @@ const definitions = [
 ] as const;
 
 const nodeMap = computed<Record<string, NodeView>>(() => Object.fromEntries(
-  definitions.map(([name, label]) => [name, buildNode(name, label)]),
+  definitions.map(([name]) => [name, {
+    status: props.snapshot?.nodes[name] ?? AgentNodeStatus.WAITING,
+  }]),
 ));
-
-function buildNode(name: string, label: string): NodeView {
-  const nodeEvents = (props.snapshot?.events || []).filter((event) => event.node_name === name);
-  const actionEvent = findLast(nodeEvents, (event) => typeof event.summary.current_action === 'string');
-  const toolEvent = findLast(nodeEvents, (event) => Boolean(event.tool_name));
-  const durationEvent = findLast(nodeEvents, (event) => event.duration_ms !== null);
-  const outputEvent = findLast(nodeEvents, (event) => [
-    AgentEventType.INTERMEDIATE_RESULT, AgentEventType.AGENT_COMPLETED,
-    AgentEventType.REVIEW_COMPLETED, AgentEventType.REPORT_GENERATED,
-  ].includes(event.event_type));
-  const status = props.snapshot?.nodes[name] || AgentNodeStatus.WAITING;
-  const skipReason = status === AgentNodeStatus.SKIPPED ? resolveSkipReason(name, nodeEvents) : '';
-  return {
-    name, label, status,
-    action: typeof actionEvent?.summary.current_action === 'string'
-      ? actionEvent.summary.current_action : nodeEvents.at(-1)?.display_name || '等待运行',
-    duration: durationEvent?.duration_ms ?? null,
-    eventCount: nodeEvents.length,
-    skipReason,
-    selected: props.selectedNode === name,
-    tool: toolEvent?.tool_name || '无',
-    sourceCount: nodeEvents.reduce((max, event) => Math.max(max, event.source_count), 0),
-    output: status === AgentNodeStatus.SKIPPED
-      ? outputEvent ? summarize(outputEvent.summary) : skippedOutput(name)
-      : summarize(outputEvent?.summary),
-  };
-}
-
-function findLast(events: AgentEvent[], predicate: (event: AgentEvent) => boolean): AgentEvent | undefined {
-  return [...events].reverse().find(predicate);
-}
-
-function summarize(summary: Record<string, unknown> | undefined): string {
-  if (!summary) return '暂无结论';
-  const preferred = summary.current_conclusion ?? summary.output_summary ?? summary.completed_node;
-  if (typeof preferred === 'string') return preferred;
-  const text = JSON.stringify(summary);
-  return text.length > 100 ? `${text.slice(0, 97)}…` : text;
-}
-
-function resolveSkipReason(name: string, events: AgentEvent[]): string {
-  const event = [...events].reverse().find((item) => item.status === AgentNodeStatus.SKIPPED);
-  const directReason = event?.summary.skip_reason ?? event?.summary.reason;
-  if (typeof directReason === 'string') return directReason;
-  const reasons = event?.summary.skip_reasons;
-  if (reasons && typeof reasons === 'object') {
-    const nodeReason = (reasons as Record<string, unknown>)[name];
-    if (typeof nodeReason === 'string') return nodeReason;
-  }
-  return name === 'interview_evaluation' ? 'STRUCTURED_INTERVIEW_FEEDBACK_NOT_AVAILABLE' : '跳过';
-}
-
-function skippedOutput(name: string): string {
-  return name === 'interview_evaluation'
-    ? '缺少结构化面试反馈。'
-    : '跳过。';
-}
 
 // Map Node Status to styles
 function nodeStyle(status: AgentNodeStatus) {
