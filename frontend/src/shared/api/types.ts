@@ -26,7 +26,17 @@ export interface PaginatedResponse<T> {
   page_size: number;
 }
 
-export type AlgorithmStatus = 'algorithm_not_ready' | 'scored' | 'schedule_generated' | 'reviewed' | string;
+export type AlgorithmStatus =
+  | 'algorithm_not_ready'
+  | 'candidate_availability_missing'
+  | 'interviewer_availability_missing'
+  | 'room_availability_missing'
+  | 'no_available_slot'
+  | 'scored'
+  | 'schedule_generated'
+  | 'success'
+  | 'reviewed'
+  | string;
 
 export interface AlgorithmAwareResponse {
   status: AlgorithmStatus;
@@ -197,7 +207,9 @@ export interface SchedulePreviewRequest {
 export interface SchedulePreviewResponse extends AlgorithmAwareResponse {
   recommended_time?: Record<string, unknown> | null;
   recommended_interviewer_id?: number | null;
+  recommended_interviewer?: string | null;
   recommended_room_id?: number | null;
+  recommended_room?: string | null;
   interviewer_availability?: string | null;
   candidate_availability?: string | null;
   conflict_detection?: string | null;

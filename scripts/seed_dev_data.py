@@ -15,6 +15,7 @@ from urllib.parse import urlsplit, urlunsplit
 ROOT_DIR = Path(__file__).resolve().parents[1]
 BACKEND_DIR = ROOT_DIR / "backend"
 RECRUITMENT_MANIFEST = ROOT_DIR / "data" / "policies" / "recruitment" / "manifest.json"
+sys.path.insert(0, str(ROOT_DIR))
 sys.path.insert(0, str(BACKEND_DIR))
 os.chdir(BACKEND_DIR)
 
@@ -34,6 +35,7 @@ from app.modules.interview.models import Interview, Interviewer, InterviewSlot, 
 from app.modules.payroll.models import PayrollLineItem, PayrollPeriod, PayrollReviewRecord, SalaryRecord
 from app.modules.policy.models import PolicyDocument
 from app.modules.recruitment.models import Candidate, CandidateApplication, CandidatePipelineRecord, Job
+from scripts.interview_availability_backfill import backfill_candidate_availability
 
 EXPECTED_JOB_CODES = {"JOB-AGENT-001", "JOB-DATA-001", "JOB-AI-PLATFORM-001"}
 POLICY_SEED_PATH = ROOT_DIR / "data" / "seed" / "policy_documents.json"
@@ -568,7 +570,6 @@ def add_interviews(db: Session, now: datetime) -> None:
     db.flush()
     log("写入少量面试数据")
     db.add_all([
-        InterviewSlot(resource_type="CANDIDATE", candidate_id=3, start_at=start, end_at=end, note="周晓可用时段"),
         InterviewSlot(resource_type="INTERVIEWER", interviewer_id=2, start_at=start, end_at=end, note="周明澈可用时段"),
         InterviewSlot(resource_type="ROOM", meeting_room_id=1, start_at=start, end_at=end, note="云杉会议室可用时段"),
         Interview(
@@ -583,6 +584,49 @@ def add_interviews(db: Session, now: datetime) -> None:
             created_by_user_id=3,
         ),
     ])
+    db.flush()
+
+    shared_interviewer_id = db.scalar(
+        select(Interviewer.id).where(Interviewer.is_active.is_(True)).order_by(Interviewer.id)
+    )
+    shared_room_id = db.scalar(
+        select(MeetingRoom.id).where(MeetingRoom.is_active.is_(True)).order_by(MeetingRoom.id)
+    )
+    if shared_interviewer_id is None or shared_room_id is None:
+        raise RuntimeError("演示数据缺少启用的面试官或会议室。")
+
+    shared_windows: list[tuple[datetime, datetime]] = []
+    shared_day = now.date()
+    for _ in range(4):
+        shared_day = _next_workday(shared_day)
+        shared_start = datetime.combine(shared_day, time(9), tzinfo=now.tzinfo)
+        shared_windows.append((shared_start, shared_start + timedelta(hours=3)))
+    db.add_all([
+        InterviewSlot(
+            resource_type="INTERVIEWER",
+            interviewer_id=shared_interviewer_id,
+            start_at=window_start,
+            end_at=window_end,
+            note="demo shared interviewer availability",
+        )
+        for window_start, window_end in shared_windows
+    ] + [
+        InterviewSlot(
+            resource_type="ROOM",
+            meeting_room_id=shared_room_id,
+            start_at=window_start,
+            end_at=window_end,
+            note="demo shared room availability",
+        )
+        for window_start, window_end in shared_windows
+    ])
+    db.flush()
+
+    availability_stats = backfill_candidate_availability(db, now=now)
+    log(
+        f"候选人可用时间：新增候选人 {availability_stats.backfilled_candidates}，"
+        f"新增时段 {availability_stats.created_slots}，跳过候选人 {availability_stats.skipped_candidates}"
+    )
     db.commit()
 
 

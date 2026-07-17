@@ -26,6 +26,16 @@
 python scripts/seed_policy_documents.py
 ```
 
+仅为已有候选人申请幂等补全演示面试可用时间、并保留其他业务数据时，在仓库根目录执行：
+
+```powershell
+python scripts/seed_interview_availability.py
+```
+
+该命令只为没有有效未来 `CANDIDATE` 时段的候选人补充数据。候选人时段来自启用面试官和
+启用会议室不少于 60 分钟的未来未占用交集；已有人工时段、禁用时段和其他业务数据不会被修改。
+如果面试官或会议室缺少有效时段，命令会回滚并明确报错。
+
 如果 Windows 环境尚未安装项目 Python 依赖，但已经安装 PostgreSQL `psql` 客户端，也可执行：
 
 ```powershell

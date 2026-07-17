@@ -1,5 +1,6 @@
 """Interview scheduling service."""
 
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -45,36 +46,69 @@ class InterviewService:
         if detail is None:
             raise TalentFlowError("APPLICATION_NOT_FOUND", "候选人申请不存在，无法生成排期预览。")
         application, candidate, _job = detail
+        now = datetime.now(timezone.utc)
+        candidate_slots = self.repository.list_candidate_slots(candidate.id, ends_after=now)
+        if not candidate_slots:
+            return SchedulePreviewResponse(
+                status="candidate_availability_missing",
+                message="该候选人尚未配置有效的面试可用时间，请先配置候选人可用时间后再生成排期建议。",
+            )
+
         interviewer_rows = self.repository.list_interviewers_with_employees()
+        interviewer_resources = [
+            (
+                interviewer,
+                employee,
+                self.repository.list_interviewer_slots(interviewer.id, ends_after=now),
+            )
+            for interviewer, employee in interviewer_rows
+        ]
+        if not any(slots for _interviewer, _employee, slots in interviewer_resources):
+            return SchedulePreviewResponse(
+                status="interviewer_availability_missing",
+                message="当前没有面试官配置有效的可用时间，无法生成排期建议。",
+            )
+
         rooms = self.repository.list_meeting_rooms()
+        room_resources = [
+            (room, self.repository.list_room_slots(room.id, ends_after=now))
+            for room in rooms
+        ]
+        if not any(slots for _room, slots in room_resources):
+            return SchedulePreviewResponse(
+                status="room_availability_missing",
+                message="当前没有会议室配置有效的可用时间，无法生成排期建议。",
+            )
+
+        scheduled_interviews = self.repository.list_scheduled_interviews_with_applications()
         scheduler_payload = {
             "application_id": application.id,
             "duration_minutes": payload.duration_minutes,
             "candidate": {
                 "candidate_id": candidate.id,
                 "name": candidate.full_name,
-                "available_slots": self._slot_rows(self.repository.list_candidate_slots(candidate.id)),
+                "available_slots": self._slot_rows(candidate_slots),
             },
             "interviewers": [
                 {
                     "interviewer_id": interviewer.id,
                     "employee_name": employee.full_name if employee else f"面试官 #{interviewer.id}",
                     "specialties": interviewer.specialties or [],
-                    "available_slots": self._slot_rows(self.repository.list_interviewer_slots(interviewer.id)),
+                    "available_slots": self._slot_rows(slots),
                     "scheduled_count": sum(
                         item.interviewer_id == interviewer.id
-                        for item, _app in self.repository.list_scheduled_interviews_with_applications()
+                        for item, _app in scheduled_interviews
                     ),
                 }
-                for interviewer, employee in interviewer_rows
+                for interviewer, employee, slots in interviewer_resources
             ],
             "meeting_rooms": [
                 {
                     "meeting_room_id": room.id,
                     "room_name": room.name,
-                    "available_slots": self._slot_rows(self.repository.list_room_slots(room.id)),
+                    "available_slots": self._slot_rows(slots),
                 }
-                for room in rooms
+                for room, slots in room_resources
             ],
             "existing_interviews": [
                 {
@@ -84,7 +118,7 @@ class InterviewService:
                     "start": interview.start_at.isoformat(),
                     "end": interview.end_at.isoformat(),
                 }
-                for interview, app in self.repository.list_scheduled_interviews_with_applications()
+                for interview, app in scheduled_interviews
             ],
         }
         result = schedule_interview(scheduler_payload)
