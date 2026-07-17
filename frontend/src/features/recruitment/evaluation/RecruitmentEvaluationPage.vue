@@ -336,6 +336,8 @@ async function handleImport() {
 }
 
 function handleNodeSelect(nodeName: string) {
+  if (nodeName === 'interview_evaluation') return;
+
   selectedNode.value = nodeName;
   agentModalOpen.value = true;
 }

@@ -24,42 +24,59 @@
           >
             <span v-if="stage.groupLabel" class="workflow-stage__label">{{ stage.groupLabel }}</span>
             <div class="workflow-stage__nodes">
-              <button
-                v-for="node in stage.nodes"
-                :key="node.name"
-                type="button"
-                class="workflow-node"
-                :class="[
-                  isNodeExpanded(node.name) ? 'workflow-node--expanded' : 'workflow-node--compact',
-                  `workflow-node--${nodeStatus(node.name).toLowerCase()}`,
-                  selectedNode === node.name ? 'workflow-node--selected' : '',
-                ]"
-                title="点击查看处理依据"
-                :aria-label="`查看${node.title}处理依据`"
-                @click="emit('select', node.name)"
-              >
-                <div class="workflow-node__main">
-                  <span class="workflow-node__icon" aria-hidden="true">
-                    <component :is="nodeIcon(nodeStatus(node.name))" />
-                  </span>
-                  <div class="workflow-node__heading">
-                    <strong>{{ node.title }}</strong>
-                    <span :class="`node-status node-status--${nodeStatus(node.name).toLowerCase()}`">
-                      {{ nodeStatusLabel(nodeStatus(node.name)) }}
+              <template v-for="node in stage.nodes" :key="node.name">
+                <article
+                  v-if="node.name === 'interview_evaluation'"
+                  class="workflow-node workflow-node--compact workflow-node--waiting workflow-node--static"
+                  aria-label="面试评估，待完成"
+                >
+                  <div class="workflow-node__main">
+                    <span class="workflow-node__icon" aria-hidden="true">
+                      <component :is="WaitingIcon" />
                     </span>
+                    <div class="workflow-node__heading">
+                      <strong>面试评估</strong>
+                      <span class="node-status node-status--waiting">待完成</span>
+                    </div>
                   </div>
-                </div>
+                </article>
 
-                <Transition name="node-details">
-                  <div v-if="isNodeExpanded(node.name)" class="workflow-node__details">
-                    <p class="workflow-node__subtitle">
-                      {{ node.name === 'recruitment_strategy' ? strategySubtitle : node.subtitle }}
-                    </p>
-                    <AgentTaskInstanceList :instances="nodeInstances(node.name)" />
-                    <p class="workflow-node__count">{{ instanceCountLabel(node.name) }}</p>
+                <button
+                  v-else
+                  type="button"
+                  class="workflow-node"
+                  :class="[
+                    isNodeExpanded(node.name) ? 'workflow-node--expanded' : 'workflow-node--compact',
+                    `workflow-node--${nodeStatus(node.name).toLowerCase()}`,
+                    selectedNode === node.name ? 'workflow-node--selected' : '',
+                  ]"
+                  title="点击查看处理依据"
+                  :aria-label="`查看${node.title}处理依据`"
+                  @click="emit('select', node.name)"
+                >
+                  <div class="workflow-node__main">
+                    <span class="workflow-node__icon" aria-hidden="true">
+                      <component :is="nodeIcon(nodeStatus(node.name))" />
+                    </span>
+                    <div class="workflow-node__heading">
+                      <strong>{{ node.title }}</strong>
+                      <span :class="`node-status node-status--${nodeStatus(node.name).toLowerCase()}`">
+                        {{ nodeStatusLabel(nodeStatus(node.name)) }}
+                      </span>
+                    </div>
                   </div>
-                </Transition>
-              </button>
+
+                  <Transition name="node-details">
+                    <div v-if="isNodeExpanded(node.name)" class="workflow-node__details">
+                      <p class="workflow-node__subtitle">
+                        {{ node.name === 'recruitment_strategy' ? strategySubtitle : node.subtitle }}
+                      </p>
+                      <AgentTaskInstanceList :instances="nodeInstances(node.name)" />
+                      <p class="workflow-node__count">{{ instanceCountLabel(node.name) }}</p>
+                    </div>
+                  </Transition>
+                </button>
+              </template>
             </div>
           </div>
 
@@ -156,7 +173,7 @@ const definitions: WorkflowNodeDefinition[] = [
   },
   {
     name: 'interview_evaluation',
-    title: '面试评估 Agent',
+    title: '面试评估',
     subtitle: '',
     countNoun: '',
     candidateLevel: false,
@@ -176,9 +193,14 @@ const workflowStages: WorkflowStage[] = [
     nodes: [definitionMap.get('resume_parser')!, definitionMap.get('job_match')!],
   },
   {
-    key: 'decision',
-    groupLabel: '决策与报告',
-    nodes: [definitionMap.get('decision_review')!, definitionMap.get('hr_report')!],
+    key: 'decision-review',
+    groupLabel: null,
+    nodes: [definitionMap.get('decision_review')!],
+  },
+  {
+    key: 'hr-report',
+    groupLabel: null,
+    nodes: [definitionMap.get('hr_report')!],
   },
   {
     key: 'interview',
@@ -222,6 +244,8 @@ function rawNodeStatus(nodeName: string): AgentNodeStatus {
 }
 
 function nodeStatus(nodeName: string): AgentNodeStatus {
+  if (nodeName === 'interview_evaluation') return AgentNodeStatus.WAITING;
+
   const snapshot = props.snapshot;
   const status = rawNodeStatus(nodeName);
   if (!snapshot || status !== AgentNodeStatus.WAITING || !hasNodeActivity(snapshot, nodeName)) return status;
@@ -437,6 +461,10 @@ function isPassed(status: AgentNodeStatus): boolean {
 
 .workflow-node--selected {
   box-shadow: 0 0 0 2px #3b82f6, 0 0 0 5px rgba(59, 130, 246, 0.12);
+}
+
+.workflow-node--static {
+  cursor: default;
 }
 
 .workflow-node--waiting {
